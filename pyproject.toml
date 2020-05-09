@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "aws-sso-credential-process"
+version = "0.1.0"
+description = ""
+authors = ["Ben Kehoe <ben@kehoe.io>"]
+license = "Apache-2.0"
+
+[tool.poetry.scripts]
+aws-sso-credential-process = 'aws_sso_credential_process:main'
+
+[tool.poetry.dependencies]
+python = ">=3.5"
+botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
+
+[tool.poetry.dev-dependencies]
+pylint = "^2.5.2"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
