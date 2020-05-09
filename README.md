@@ -1,5 +1,5 @@
 # aws-sso-credential-process
-## Get AWS SSO working with all the SDKs that don't understand it yet
+** Get AWS SSO working with all the SDKs that don't understand it yet **
 
 Currently, [AWS SSO](https://aws.amazon.com/single-sign-on/) support is implemented in the [AWS CLI v2](https://aws.amazon.com/blogs/developer/aws-cli-v2-is-now-generally-available/), but the capability to usage the credentials retrieved from AWS SSO by the CLI v2 has not been implemented in the various AWS SDKs. However, they all support the [credential process](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sourcing-external.html) system. This tool bridges the gap by implementing a credential process provider that understands the SSO credential retrieval and caching system. Once AWS implements the necessary support in the SDK for your favorite language, this tool will no longer be necessary.
 
@@ -21,6 +21,7 @@ python3 -m pipx ensurepath
 
 2. Install the tool. TEMPORARY INSTRUCTIONS:
 ```bash
+curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
 git clone https://github.com/benkehoe/aws-sso-credential-process
 cd aws-sso-credential-process
 poetry build

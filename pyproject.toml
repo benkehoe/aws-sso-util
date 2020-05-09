@@ -1,16 +1,21 @@
 [tool.poetry]
 name = "aws-sso-credential-process"
 version = "0.1.0"
-description = ""
+description = "Bring AWS SSO-based credentials to the AWS SDKs until they have proper support"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"
 
 [tool.poetry.scripts]
-aws-sso-credential-process = 'aws_sso_credential_process:main'
+aws-sso-credential-process = 'aws_sso_credential_process.aws_sso_credential_process:main'
 
 [tool.poetry.dependencies]
 python = ">=3.5"
-botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
+# botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
+botocore = "*"
+python-dateutil = ">=2.1,<3.0.0"
+jmespath = ">=0.7.1,<1.0.0"
+docutils = ">=0.10,<0.16"
+urllib3 = ">=1.20,<1.26"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.2"

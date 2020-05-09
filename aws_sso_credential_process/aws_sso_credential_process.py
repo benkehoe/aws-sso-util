@@ -25,8 +25,10 @@ import logging
 import datetime
 
 from botocore.session import Session
-from botocore.utils import SSOTokenFetcher
-from botocore.credentials import SSOCredentialFetcher, JSONFileCache
+from botocore.credentials import JSONFileCache
+
+from .utils import SSOTokenFetcher
+from .credentials import SSOCredentialFetcher
 
 class InvalidSSOConfigError(Exception):
     pass
