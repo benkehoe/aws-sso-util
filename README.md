@@ -5,7 +5,7 @@ Currently, [AWS SSO](https://aws.amazon.com/single-sign-on/) support is implemen
 
 ## Quickstart
 
-1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/). This tool requires [`botocore` v2](https://github.com/boto/botocore/tree/v2), and `pipx` will let you install it in an isolated virtualenv while linking the script you need.
+1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
 Mac:
 ```bash
@@ -75,7 +75,7 @@ When interactive authentication is off, you need to use the CLI v2's `aws sso lo
 
 With interactive authentication turned on, the functionality of `aws sso login` will be triggered automatically; a browser will pop up to prompt you to log in (or, if you're already logged in, it will prompt you to approve the login). This is useful when you're running scripts interactively, but bad for automated processes that are incapable of logging in.
 
-**To enable interactive authentication, the best way is to set `AWS_SSO_INTERACTIVE_AUTH=true` in your environment.** This lets you control whether interactive auth is enabled for a given profile on a case-by-case basis. Otherwise, you can set `sso_interactive_auth=true` in your profile in `.aws/config`, or use the `--interactive` flag for the process. Note that you can use the `--noninteractive` flag to disable interactive auth even if the environment variable is set.
+**To enable interactive authentication, the best way is to set `AWS_SSO_INTERACTIVE_AUTH=true` in your environment.** This lets you control whether interactive auth is enabled for a given profile depending on the situation you're using it for. Otherwise, you can set `sso_interactive_auth=true` in your profile in `.aws/config`, or use the `--interactive` flag for the process. Note that you can use the `--noninteractive` flag to disable interactive auth even if the environment variable is set.
 
 Note that if you've got your profile set up as shown above, the AWS CLI v2 won't get interactive authentication, because it will natively use the profile configuration, skipping this tool as a credential process. If you really want interactive auth with the CLI, you can put the AWS SSO configuration information as parameters to the tool in the credential process directive, instead of directly in the profile, and then the CLI will use credential process as well.
 
