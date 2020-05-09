@@ -71,8 +71,8 @@ def main():
     interactive_group.add_argument('--interactive', '-i', action='store_const', const=True, dest='interactive', help='Enable interactive auth')
     interactive_group.add_argument('--noninteractive', '-n', action='store_const', const=False, dest='interactive', help='Disable interactive auth')
 
-    parser.add_argument('--force-refresh', action='store_true')
-    parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--force-refresh', action='store_true', help='Do not reuse cached AWS SSO token')
+    parser.add_argument('--debug', action='store_true', help='Write to the debugging log file')
 
     args = parser.parse_args()
 

@@ -5,7 +5,7 @@ Currently, [AWS SSO](https://aws.amazon.com/single-sign-on/) support is implemen
 
 ## Quickstart
 
-1. Install [`pipx`](https://pipxproject.github.io/pipx/). This tool requires [`botocore` v2](https://github.com/boto/botocore/tree/v2), and `pipx` will let you install it in an isolated virtualenv while linking the script you need.
+1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/). This tool requires [`botocore` v2](https://github.com/boto/botocore/tree/v2), and `pipx` will let you install it in an isolated virtualenv while linking the script you need.
 
 Mac:
 ```bash
@@ -19,13 +19,9 @@ python3 -m pip install --user pipx
 python3 -m pipx ensurepath
 ```
 
-2. Install the tool. TEMPORARY INSTRUCTIONS:
+2. Install the tool.
 ```bash
-curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-git clone https://github.com/benkehoe/aws-sso-credential-process
-cd aws-sso-credential-process
-poetry build
-pipx install dist/aws_sso_credential_process-0.1.0-py3-none-any.whl
+pipx install aws-sso-credential-process
 ```
 
 3. Set up your `.aws/config` file for SSO as normal:
