@@ -5,7 +5,7 @@ Currently, [AWS SSO](https://aws.amazon.com/single-sign-on/) support is implemen
 
 ## Quickstart
 
-1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/). This tool requires [`botocore` v2](https://github.com/boto/botocore/tree/v2), and `pipx` will let you install it in an isolated virtualenv while linking the script you need.
+1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
 Mac:
 ```bash
@@ -24,7 +24,7 @@ python3 -m pipx ensurepath
 pipx install aws-sso-credential-process
 ```
 
-3. Set up your `.aws/config` file for SSO as normal:
+3. Set up your `.aws/config` file for AWS SSO as normal (you can use `aws configure sso --profile my-sso-profile` to do this as well):
 
 ```
 [profile my-sso-profile]
@@ -69,9 +69,15 @@ The `--profile` parameter doesn't work like the same parameter on the AWS CLI, a
 
 ### Interactive authentication
 
-The most important thing to determine is whether or not you want to allow interactive authentication, which is off by default. When interactive authentication is off, you need to use the CLI v2's `aws sso login` to login through AWS SSO. If you haven't logged in or your session has expired, the process will fail and interrupt whatever you're doing. With interactive authentication, the functionality of `aws sso login` will be triggered automatically; a browser will pop up to prompt you to log in (or, if you're already logged in, it will prompt you to approve the login). This is useful when you're running scripts interactively, but bad for automated processes that are incapable of logging in.
+The most important thing to determine is whether or not you want to allow interactive authentication, which is off by default (so that the behavior is the same as the AWS CLI v2).
 
-To enable interactive authentication, the best way is probably to set `AWS_SSO_INTERACTIVE_AUTH=true` in your environment. This lets you control whether interactive auth is enabled for a given profile on a case-by-case basis. Otherwise, you can set `sso_interactive_auth=true` in your profile in `.aws/config`, or use the `--interactive` flag for the process. Note that you can use the `--noninteractive` flag to disable interactive auth even if the environment variable is set.
+When interactive authentication is off, you need to use the CLI v2's `aws sso login` to login through AWS SSO. If you haven't logged in or your session has expired, the process will fail and interrupt whatever you're doing.
+
+With interactive authentication turned on, the functionality of `aws sso login` will be triggered automatically; a browser will pop up to prompt you to log in (or, if you're already logged in, it will prompt you to approve the login). This is useful when you're running scripts interactively, but bad for automated processes that are incapable of logging in.
+
+**To enable interactive authentication, the best way is to set `AWS_SSO_INTERACTIVE_AUTH=true` in your environment.** This lets you control whether interactive auth is enabled for a given profile depending on the situation you're using it for. Otherwise, you can set `sso_interactive_auth=true` in your profile in `.aws/config`, or use the `--interactive` flag for the process. Note that you can use the `--noninteractive` flag to disable interactive auth even if the environment variable is set.
+
+Note that if you've got your profile set up as shown above, the AWS CLI v2 won't get interactive authentication, because it will natively use the profile configuration, skipping this tool as a credential process. If you really want interactive auth with the CLI, you can put the AWS SSO configuration information as parameters to the tool in the credential process directive, instead of directly in the profile, and then the CLI will use credential process as well.
 
 ### Debugging
 Setting the `--debug` flag or the env var `AWS_SSO_CREDENTIAL_PROCESS_DEBUG=true` will cause debug output to be sent to `.aws/sso/aws-sso-credential-process-log.txt`. Note that this file will contain your credentials, though these credentials are both short-lived and also cached within the same directory.
