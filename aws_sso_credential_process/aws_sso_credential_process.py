@@ -23,12 +23,35 @@ import json
 import traceback
 import logging
 import datetime
+import io
+import textwrap
+import collections
+
+# The credential process provider captures stdout and stderr.
+# If we want the user to see something during the credential process,
+# we need a mechanism to go directly to the tty. getpass has that
+# functionality, we hijack it here.
+import getpass
+_original_raw_input = getpass._raw_input
+def _canned_raw_input(prompt="", stream=None, input=None):
+    input=io.StringIO("nothing to see here")
+    return _original_raw_input(prompt=prompt, stream=stream, input=input)
+
+def print_tty(message):
+    getpass._raw_input = _canned_raw_input
+    getpass.getpass(message)
+def prompt_tty(message):
+    getpass._raw_input = _original_raw_input
+    return getpass.getpass(message)
 
 from botocore.session import Session
 from botocore.credentials import JSONFileCache
+from botocore.exceptions import ClientError
 
 from .utils import SSOTokenFetcher
 from .credentials import SSOCredentialFetcher
+
+__version__ = '0.1.2'
 
 class InvalidSSOConfigError(Exception):
     pass
@@ -38,6 +61,15 @@ class AuthDispatchError(Exception):
 
 class InteractiveAuthDisabledError(Exception):
     pass
+
+# https://gist.github.com/benkehoe/c61337ddb0c213bb35d05aaa8fad2577
+BotoErrorInfo = collections.namedtuple('BotoErrorInfo', ['code', 'message', 'http_status_code', 'operation_name'])
+def get_error_info(client_error):
+    return BotoErrorInfo(client_error.response.get('Error', {}).get('Code'), client_error.response.get('Error', {}).get('Message'), client_error.response.get('ResponseMetadata', {}).get('HTTPStatusCode'), client_error.operation_name)
+
+def boto_error_matches(client_error, *args):
+    errs = tuple(e for e in (client_error.response.get('Error', {}).get('Code'), client_error.response.get('Error', {}).get('Message'), client_error.response.get('ResponseMetadata', {}).get('HTTPStatusCode'), client_error.operation_name) if e is not None)
+    return any(arg in errs for arg in args)
 
 SSO_TOKEN_DIR = os.path.expanduser(
     os.path.join('~', '.aws', 'sso', 'cache')
@@ -74,7 +106,13 @@ def main():
     parser.add_argument('--force-refresh', action='store_true', help='Do not reuse cached AWS SSO token')
     parser.add_argument('--debug', action='store_true', help='Write to the debugging log file')
 
+    parser.add_argument('--version', action='store_true')
+
     args = parser.parse_args()
+
+    if args.version:
+        print(__version__)
+        parser.exit()
 
     if args.debug or os.environ.get('AWS_SSO_CREDENTIAL_PROCESS_DEBUG', '').lower() in ['1', 'true']:
         logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, filemode='w')
@@ -185,10 +223,16 @@ def main():
         LOGGER.error(e)
         print(e, file=sys.stderr)
         sys.exit(3)
+    except ClientError as e:
+        LOGGER.error(e, exc_info=True)
+        #TODO: print a different message for AccessDeniedException during CreateToken? -> user canceled login
+        # boto_error_matches(e, 'CreateToken', 'AccessDeniedException')
+        print('ERROR:', e, file=sys.stderr)
+        sys.exit(4)
     except Exception as e:
         LOGGER.error(e, exc_info=True)
         print('ERROR:', e, file=sys.stderr)
-        sys.exit(4)
+        sys.exit(5)
 
 def get_config(arg_config, profile_config):
     sso_config = {}
@@ -225,16 +269,20 @@ class OpenBrowserHandler(object):
 
     def __call__(self, userCode, verificationUri,
                  verificationUriComplete, **kwargs):
-        opening_msg = (
-            'Attempting to automatically open the SSO authorization page in '
-            'your default browser.\nIf the browser does not open or you wish '
-            'to use a different device to authorize this request, open the '
-            'following URL:\n'
-            '\n%s\n'
-            '\nThen enter the code:\n'
-            '\n%s\n'
-        )
-        print(opening_msg % (verificationUri, userCode), file=self._outfile)
+        message = textwrap.dedent(f"""\
+        AWS SSO login required.
+        Attempting to open the SSO authorization page in your default browser.
+        If the browser does not open or you wish to use a different device to
+        authorize this request, open the following URL:
+
+        {verificationUri}
+
+        Then enter the code:
+
+        {userCode}
+        """)
+
+        print_tty(message)
 
         if self._open_browser:
             try:

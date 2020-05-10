@@ -1,0 +1,1 @@
+from .aws_sso_credential_process import __version__
