@@ -27,22 +27,11 @@ import io
 import textwrap
 import collections
 
-# The credential process provider captures stdout and stderr.
-# If we want the user to see something during the credential process,
-# we need a mechanism to go directly to the tty. getpass has that
-# functionality, we hijack it here.
-import getpass
-_original_raw_input = getpass._raw_input
-def _canned_raw_input(prompt="", stream=None, input=None):
-    input=io.StringIO("nothing to see here")
-    return _original_raw_input(prompt=prompt, stream=stream, input=input)
-
+#TODO: use getpass functionality to get around captured stdout & stderr
 def print_tty(message):
-    getpass._raw_input = _canned_raw_input
-    getpass.getpass(message)
+    print(message, file=sys.stderr)
 def prompt_tty(message):
-    getpass._raw_input = _original_raw_input
-    return getpass.getpass(message)
+    raise NotImplementedError
 
 from botocore.session import Session
 from botocore.credentials import JSONFileCache
@@ -51,7 +40,7 @@ from botocore.exceptions import ClientError
 from .utils import SSOTokenFetcher
 from .credentials import SSOCredentialFetcher
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 class InvalidSSOConfigError(Exception):
     pass
