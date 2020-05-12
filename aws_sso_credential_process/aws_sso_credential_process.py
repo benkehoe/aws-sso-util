@@ -199,7 +199,7 @@ def main():
         }
         LOGGER.debug('CREDENTIALS: ' + json.dumps(output))
 
-        print(json.dumps(output))
+        print(json.dumps(output, separators=(',', ':')))
     except InteractiveAuthDisabledError as e:
         LOGGER.info('Auth needed but interactive auth disabled')
         print('Interactive auth disabled, use `aws sso login` and try again', file=sys.stderr)
