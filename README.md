@@ -69,6 +69,8 @@ The order of configuration matches the AWS CLI and SDKs: values from CLI paramet
 
 The `--profile` parameter doesn't work like the same parameter on the AWS CLI, and cannot be set from the environment; it's intended only to help make the `credential_process` entry in a profile more concise.
 
+The `aws-configure-sso-profile` tool wraps `aws configure sso` to help you set up profiles in `.aws/config`; you can set the environment variables `AWS_CONFIGURE_SSO_DEFAULT_START_URL` and `AWS_CONFIGURE_SSO_DEFAULT_REGION` to set defaults for those values so you're not typing them all the time. The tool will set up the `credential_process` entry as well. Note that unlike `aws configure sso`, you have to provide the profile name, and as a positional parametter: `aws-configure-sso-profile my-profile`.
+
 ### Interactive authentication
 
 The most important thing to determine is whether or not you want to allow interactive authentication, which is off by default (so that the behavior is the same as the AWS CLI v2).
