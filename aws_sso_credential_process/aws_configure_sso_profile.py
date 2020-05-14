@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -47,13 +47,13 @@ def main():
 
     if args.sso_start_url:
         set('sso_start_url', args.sso_start_url)
-    elif not get('sso_start_url') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_START_URL'):
-        set('sso_start_url', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_START_URL'))
+    elif not get('sso_start_url') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL'):
+        set('sso_start_url', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL'))
 
     if args.sso_region:
         set('sso_region', args.sso_region)
-    elif not get('sso_region') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_REGION'):
-        set('sso_region', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_REGION'))
+    elif not get('sso_region') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION'):
+        set('sso_region', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION'))
 
     result = subprocess.run(f'aws configure sso --profile {args.profile}', shell=True).returncode
 
