@@ -17,12 +17,12 @@ import os
 import subprocess
 import sys
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('profile', help='The AWS profile to configure')
+    parser.add_argument('--profile', required=True, help='The AWS profile to configure')
 
     parser.add_argument('--sso-start-url')
     parser.add_argument('--sso-region')
