@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -43,7 +43,7 @@ def main():
         return subprocess.run(['aws', 'configure', 'get', f'profile.{args.profile}.{name}'], capture_output=True).stdout
 
     def set(name, value):
-        subprocess.run(['aws', 'configure', 'set', f'profile.{args.profile}.{name}', value], capture_output=True, check=True)
+        subprocess.run(['aws', 'configure', 'set', f'profile.{args.profile}.{name}', value or ''], capture_output=True, check=True)
 
     if args.sso_start_url:
         set('sso_start_url', args.sso_start_url)

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-sso-credential-process"
-version = "0.2.1"
+version = "0.2.2"
 description = "Bring AWS SSO-based credentials to the AWS SDKs until they have proper support"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"
