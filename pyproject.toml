@@ -1,12 +1,14 @@
 [tool.poetry]
 name = "aws-sso-credential-process"
-version = "0.1.3"
+version = "0.2.0"
 description = "Bring AWS SSO-based credentials to the AWS SDKs until they have proper support"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"
 
 [tool.poetry.scripts]
 aws-sso-credential-process = 'aws_sso_credential_process.aws_sso_credential_process:main'
+aws-sso-configure-profile  = 'aws_sso_credential_process.aws_configure_sso_profile:main'
+aws-configure-sso-profile  = 'aws_sso_credential_process.aws_configure_sso_profile:main'
 
 [tool.poetry.dependencies]
 python = ">=3.5"
