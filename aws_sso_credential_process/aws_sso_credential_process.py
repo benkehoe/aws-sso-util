@@ -199,7 +199,8 @@ def main():
             "AccessKeyId": credentials['access_key'],
             "SecretAccessKey": credentials['secret_key'],
             "SessionToken": credentials['token'],
-            "Expiration": credentials['expiry_time'].replace('UTC', 'Z')
+            # as provided the expiration isn't valid ISO8601 and that causes parsing errors for some SDKs
+            "Expiration": credentials['expiry_time'].replace('UTC', 'Z'),
         }
         LOGGER.debug('CREDENTIALS: ' + json.dumps(output))
 

@@ -7,6 +7,8 @@ If you try this and your tools still don't work with the credentials, you can ge
 
 ## Quickstart
 
+If you're using the Go SDK, you'll need to make sure you've got the environment variable `AWS_SDK_LOAD_CONFIG=1`, because [otherwise it doesn't use your `.aws/config` file](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html).
+
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
 Mac:
