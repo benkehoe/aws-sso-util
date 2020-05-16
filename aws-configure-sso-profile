@@ -27,14 +27,14 @@
 
 if [ -n "$1" ]; then
     if [ -z "$(aws configure get profile.$1.sso_start_url)" ]; then
-        aws configure set profile.$1.sso_start_url $AWS_CONFIGURE_SSO_DEFAULT_START_URL
+        aws configure set profile.$1.sso_start_url $AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL
     fi;
     if [ -z "$(aws configure get profile.$1.sso_region)" ]; then
-        aws configure set profile.$1.sso_region $AWS_CONFIGURE_SSO_DEFAULT_REGION
+        aws configure set profile.$1.sso_region $AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION
     fi;
     aws configure sso --profile $1
 else
     echo Usage: $(basename $0) PROFILE
-    echo Set default sso_start_url with AWS_CONFIGURE_SSO_DEFAULT_START_URL
-    echo Set default sso_region    with AWS_CONFIGURE_SSO_DEFAULT_REGION
+    echo Set default sso_start_url with AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL
+    echo Set default sso_region    with AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION
 fi;
