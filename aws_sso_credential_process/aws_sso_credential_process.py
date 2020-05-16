@@ -40,7 +40,7 @@ from botocore.exceptions import ClientError
 from .utils import SSOTokenFetcher
 from .credentials import SSOCredentialFetcher
 
-__version__ = '0.2.3'
+__version__ = '0.2.5'
 
 class InvalidSSOConfigError(Exception):
     pass
@@ -61,6 +61,10 @@ def boto_error_matches(client_error, *args):
     return any(arg in errs for arg in args)
 
 SSO_TOKEN_DIR = os.path.expanduser(
+    os.path.join('~', '.aws', 'sso', 'cache')
+)
+
+CREDENTIALS_CACHE_DIR = os.path.expanduser(
     os.path.join('~', '.aws', 'sso', 'cache')
 )
 
@@ -195,7 +199,7 @@ def main():
             "AccessKeyId": credentials['access_key'],
             "SecretAccessKey": credentials['secret_key'],
             "SessionToken": credentials['token'],
-            "Expiration": credentials['expiry_time']
+            "Expiration": credentials['expiry_time'].replace('UTC', 'Z')
         }
         LOGGER.debug('CREDENTIALS: ' + json.dumps(output))
 
@@ -321,7 +325,7 @@ def get_token_loader(session, sso_region, interactive=False, token_cache=None,
 def get_credentials(session, sso_region, start_url, account_id, role_name, token_loader, cache=None):
 
     if cache is None:
-        cache = JSONFileCache(SSO_TOKEN_DIR)
+        cache = JSONFileCache(CREDENTIALS_CACHE_DIR)
 
     credential_fetcher = SSOCredentialFetcher(
         start_url=start_url,
