@@ -40,7 +40,7 @@ from botocore.exceptions import ClientError
 from .utils import SSOTokenFetcher
 from .credentials import SSOCredentialFetcher
 
-__version__ = '0.2.5'
+__version__ = '0.3.0'
 
 class InvalidSSOConfigError(Exception):
     pass
@@ -65,7 +65,7 @@ SSO_TOKEN_DIR = os.path.expanduser(
 )
 
 CREDENTIALS_CACHE_DIR = os.path.expanduser(
-    os.path.join('~', '.aws', 'sso', 'cache')
+    os.path.join('~', '.aws', 'cli', 'cache')
 )
 
 LOG_FILE = os.path.expanduser(
@@ -278,7 +278,8 @@ class OpenBrowserHandler(object):
 
         print_tty(message)
 
-        if self._open_browser:
+        disable_browser = os.environ.get('AWS_SSO_DISABLE_BROWSER', '').lower() in ['1', 'true']
+        if self._open_browser and not disable_browser:
             try:
                 return self._open_browser(verificationUriComplete)
             except InteractiveAuthDisabledError:

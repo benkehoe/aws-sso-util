@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-__version__ = '0.2.4'
+__version__ = '0.3.0'
 
 def main():
     parser = argparse.ArgumentParser()
