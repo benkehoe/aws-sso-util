@@ -7,8 +7,6 @@ If you try this and your tools still don't work with the credentials, you can ge
 
 ## Quickstart
 
-If you're using the Go SDK, you'll need to make sure you've got the environment variable `AWS_SDK_LOAD_CONFIG=1`, because [otherwise it doesn't use your `.aws/config` file](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html).
-
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
 Mac:
@@ -65,6 +63,9 @@ aws sso login --profile my-sso-profile
 python -c "import boto3; print(boto3.Session(profile_name='my-sso-profile').client('sts').get_caller_identity())"
 ```
 
+NOTE: if you test it out with your favorite script or application and get something like `NoCredentialProviders: no valid providers in chain.`, you may need to set the environment variable `AWS_SDK_LOAD_CONFIG=1`. The Go SDK, and applications built with the Go SDK (like Terraform) [don't automatically use your `.aws/config` file](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html).
+
+
 6. Streamline the process. If you've got one main AWS SSO configuration, set up your `.bashrc` (or similar) like this:
 ```
 export AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL=https://something.awsapps.com/start
@@ -114,7 +115,7 @@ With interactive authentication turned on, the functionality of `aws sso login` 
 
 **To enable interactive authentication, the best way is to set `AWS_SSO_INTERACTIVE_AUTH=true` in your environment.** This lets you control whether interactive auth is enabled for a given profile depending on the situation you're using it for. Otherwise, you can set `sso_interactive_auth=true` in your profile in `.aws/config`, or use the `--interactive` flag for the process. Note that you can use the `--noninteractive` flag to disable interactive auth even if the environment variable is set.
 
-When setting up a profile using `aws-configure-sso-profile`, you can use `--set-auth-interactive` or `--set-auth-noninteractive` to fix that profile as either interative or noninteractive, respectively.
+When setting up a profile using `aws-configure-sso-profile`, you can use `--set-auth-interactive` or `--set-auth-noninteractive` to fix that profile as either interactive or noninteractive, respectively.
 
 Note that if you've got your profile set up as shown above, the AWS CLI v2 won't get interactive authentication, because it will natively use the profile configuration, skipping this tool as a credential process. If you *really* want interactive auth with the CLI, you could put the AWS SSO configuration information as parameters to the tool in the credential process directive, instead of directly in the profile, and then the CLI will use credential process as well, but I don't really recommend this route.
 
