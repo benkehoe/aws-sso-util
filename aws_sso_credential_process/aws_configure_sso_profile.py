@@ -17,7 +17,7 @@ import os
 import subprocess
 import sys
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -40,22 +40,25 @@ def main():
         parser.exit()
 
     def get(name):
-        return subprocess.run(['aws', 'configure', 'get', f'profile.{args.profile}.{name}'], capture_output=True).stdout
+        return subprocess.run(['aws', 'configure', 'get', 'profile.{}.{}'.format(args.profile, name)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
 
     def set(name, value):
-        subprocess.run(['aws', 'configure', 'set', f'profile.{args.profile}.{name}', value or ''], capture_output=True, check=True)
+        subprocess.run(['aws', 'configure', 'set', 'profile.{}.{}'.format(args.profile, name), value or ''], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
+    default_sso_start_url =  os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL',  os.environ.get('AWS_CONFIGURE_DEFAULT_SSO_START_URL'))
+    default_sso_region    =  os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION',     os.environ.get('AWS_CONFIGURE_DEFAULT_SSO_REGION'))
 
     if args.sso_start_url:
         set('sso_start_url', args.sso_start_url)
-    elif not get('sso_start_url') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL'):
-        set('sso_start_url', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL'))
+    elif not get('sso_start_url') and default_sso_start_url:
+        set('sso_start_url', default_sso_start_url)
 
     if args.sso_region:
         set('sso_region', args.sso_region)
-    elif not get('sso_region') and os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION'):
-        set('sso_region', os.environ.get('AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION'))
+    elif not get('sso_region') and default_sso_region:
+        set('sso_region', default_sso_region)
 
-    result = subprocess.run(f'aws configure sso --profile {args.profile}', shell=True).returncode
+    result = subprocess.run('aws configure sso --profile {}'.format(args.profile), shell=True).returncode
 
     if result:
         sys.exit(result)
@@ -66,7 +69,7 @@ def main():
             credential_process_opts += ' --interactive'
         elif args.interactive is False:
             credential_process_opts += ' --noninteractive'
-        set('credential_process', f'aws-sso-credential-process --profile {args.profile}{credential_process_opts}')
+        set('credential_process', 'aws-sso-credential-process --profile {profile}{opts}'.format(profile=args.profile, opts=credential_process_opts))
 
 if __name__ == '__main__':
     main()

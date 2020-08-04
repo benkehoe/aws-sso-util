@@ -40,7 +40,7 @@ from botocore.exceptions import ClientError
 from .utils import SSOTokenFetcher
 from .credentials import SSOCredentialFetcher
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 class InvalidSSOConfigError(Exception):
     pass
@@ -112,14 +112,14 @@ def main():
     else:
         logging.disable(logging.CRITICAL)
 
-    LOGGER.info(f'Starting credential process at {datetime.datetime.now().isoformat()}')
+    LOGGER.info('Starting credential process at {}'.format(datetime.datetime.now().isoformat()))
 
     if args.role_name is None and os.environ.get('AWS_SSO_ROLE_NAME'):
-        LOGGER.debug(f"Using role from env: {os.environ['AWS_SSO_ROLE_NAME']}")
+        LOGGER.debug("Using role from env: {}".format(os.environ['AWS_SSO_ROLE_NAME']))
         args.role_name = os.environ['AWS_SSO_ROLE_NAME']
 
     if args.account_id is None and os.environ.get('AWS_SSO_ACCOUNT_ID'):
-        LOGGER.debug(f"Using acccount from env: {os.environ['AWS_SSO_ACCOUNT_ID']}")
+        LOGGER.debug("Using acccount from env: {}".format(os.environ['AWS_SSO_ACCOUNT_ID']))
         args.account_id = os.environ['AWS_SSO_ACCOUNT_ID']
 
     # if args.role_name and args.role_name.startswith('arn'):
@@ -135,7 +135,7 @@ def main():
 
     if args.interactive is None:
         if os.environ.get('AWS_SSO_INTERACTIVE_AUTH'):
-            LOGGER.debug(f"Setting interactive auth from env: {os.environ['AWS_SSO_INTERACTIVE_AUTH']}")
+            LOGGER.debug("Setting interactive auth from env: {}".format(os.environ['AWS_SSO_INTERACTIVE_AUTH']))
             args.interactive = os.environ['AWS_SSO_INTERACTIVE_AUTH'].lower() in ['true', '1']
         else:
             args.interactive = False
@@ -153,20 +153,20 @@ def main():
         'sso_interactive_auth': 'true' if args.interactive else 'false',
     }
 
-    LOGGER.info(f'CONFIG FROM ARGS: {json.dumps(arg_config)}')
+    LOGGER.info('CONFIG FROM ARGS: {}'.format(json.dumps(arg_config)))
 
     try:
         session = Session(**session_kwargs)
 
         if args.profile:
             profile_config = session.get_scoped_config()
-            LOGGER.info(f'CONFIG FROM PROFILE: {json.dumps(profile_config)}')
+            LOGGER.info('CONFIG FROM PROFILE: {}'.format(json.dumps(profile_config)))
         else:
             profile_config = {}
 
         config = get_config(arg_config, profile_config)
 
-        LOGGER.info(f'CONFIG: {json.dumps(config)}')
+        LOGGER.info('CONFIG: {}'.format(json.dumps(config)))
 
         interactive = config['sso_interactive_auth'].lower() == 'true'
 
@@ -263,7 +263,7 @@ class OpenBrowserHandler(object):
 
     def __call__(self, userCode, verificationUri,
                  verificationUriComplete, **kwargs):
-        message = textwrap.dedent(f"""\
+        message = textwrap.dedent("""\
         AWS SSO login required.
         Attempting to open the SSO authorization page in your default browser.
         If the browser does not open or you wish to use a different device to
@@ -274,7 +274,7 @@ class OpenBrowserHandler(object):
         Then enter the code:
 
         {userCode}
-        """)
+        """.format(verificationUri=verificationUri, userCode=userCode))
 
         print_tty(message)
 
@@ -318,7 +318,7 @@ def get_token_loader(session, sso_region, interactive=False, token_cache=None,
             start_url=start_url,
             force_refresh=force_refresh
         )
-        LOGGER.debug(f'TOKEN RESPONSE: {token_response}')
+        LOGGER.debug('TOKEN RESPONSE: {}'.format(token_response))
         return token_response['accessToken']
 
     return token_loader
