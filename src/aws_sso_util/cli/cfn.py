@@ -131,13 +131,20 @@ def generate_template(
 
     for input in inputs:
         LOGGER.debug(f"input: {input}")
+
+        if base_template:
+            num_parent_resources = len(base_template.get("Resources", {}))
+        else:
+            num_parent_resources = 0
+
         parent_template = templates.resolve_templates(
             input.assignments,
             input.permission_sets,
             max_resources_per_template=max_resources_per_template,
+            num_parent_resources=num_parent_resources,
         )
 
-        templates_to_write = parent_template.get_templates(
+        parent_template_to_write, child_templates_to_write = parent_template.get_templates(
             input.base_path,
             input.stem,
             template_file_suffix,
@@ -146,11 +153,17 @@ def generate_template(
             max_concurrent_assignments=max_concurrent_assignments
         )
 
-        for path, template in templates_to_write:
-            LOGGER.info(f"Writing template at path {path}")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w") as fp:
-                utils.dump_yaml(template, fp)
+        parent_path, parent_data = parent_template_to_write
+        LOGGER.info(f"Writing template at path {parent_path}")
+        Path(parent_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(parent_path, "w") as fp:
+            utils.dump_yaml(parent_data, fp)
+
+        for child_path, child_data in child_templates_to_write:
+            LOGGER.info(f"Writing child template at path {child_path}")
+            Path(child_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(child_path, "w") as fp:
+                utils.dump_yaml(child_data, fp)
 
 if __name__ == "__main__":
     generate_template(prog_name="python -m aws_sso_util.cli.cfn")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

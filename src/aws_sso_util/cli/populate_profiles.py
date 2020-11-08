@@ -117,6 +117,8 @@ def get_process_formatter(command):
 @click.option("--profile-name-region-style", type=click.Choice(["default", "always"]), default="default")
 @click.option("--profile-name-process")
 
+@click.option("--credential-process/--no-credential-process")
+
 @click.option("--force-refresh", is_flag=True)
 @click.option("--dry-run", is_flag=True)
 @click.option("--debug", is_flag=True)
@@ -130,6 +132,7 @@ def populate_profiles(
         profile_name_separator,
         profile_name_region_style,
         profile_name_process,
+        credential_process,
         force_refresh,
         dry_run,
         debug):
@@ -285,6 +288,11 @@ def populate_profiles(
             if k in existing_values and existing_config_action in ["keep"]:
                 continue
             config_values[k] = v
+
+        if credential_process:
+            config_values["credential_process"] = "aws-sso-util credential-process --profile {}".format(config.profile_name)
+        else:
+            config_values.pop("credential_process", None)
 
         LOGGER.debug("Config values for profile {}: {}".format(config.profile_name, config_values))
 

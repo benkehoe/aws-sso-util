@@ -21,7 +21,7 @@ Resources:
         Statement:
         - Sid: AllowCloudFormation
           Effect: Allow
-          Principal: {"Service": "cloudformation.amazonaws.com"},
+          Principal: {"Service": "cloudformation.amazonaws.com"}
           Action: s3:GetObject
           Resource: !Sub "arn:aws:s3:::${Bucket}/*"
 
@@ -48,7 +48,7 @@ Resources:
   Macro:
     Type: AWS::CloudFormation::Macro
     Properties:
-      Name: AWSSSOUtil
+      Name: AWS-SSO-Util-2020-11-08
       # Description: String
       FunctionName: !Ref Function
       # LogGroupName: String

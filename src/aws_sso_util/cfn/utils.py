@@ -1,4 +1,5 @@
 import logging
+import json
 from collections import OrderedDict
 
 import yaml
@@ -35,24 +36,45 @@ def get_instance_id_from_arn(instance_arn):
     return instance_arn.split('/', 1)[1]
 
 REF_TAG = getattr(cfn_yaml_tags, "Ref")
-def get_references(value, references=None):
-    if not references:
-        references = set()
+def get_references(value):
+    references = set()
     if isinstance(value, REF_TAG):
         references.add(value.data)
+    elif isinstance(value, dict) and "Ref" in value and len(value) == 1:
+        references.add(value["Ref"].split(".")[0])
+    elif isinstance(value, dict) and "Fn::GetAtt" in value and len(value) == 1:
+        get_att_value = value["Fn::GetAtt"]
+        if isinstance(get_att_value, str):
+            references.add(get_att_value.split(".")[0])
+        else:
+            references.add(get_att_value[0])
+    elif isinstance(value, cfn_yaml_tags.CloudFormationObject):
+        value_json = value.to_json()
+        references.update(value_json)
     elif isinstance(value, (list, set)):
         for v in value:
-            references.update(get_references(v, references))
+            references.update(get_references(v))
     elif isinstance(value, dict):
         for v in value.values():
-            references.update(get_references(v, references))
+            references.update(get_references(v))
     return references
 
-def get_hash_key(value):
-    if isinstance(value, REF_TAG):
-        return f"!Ref={value}".encode('utf-8')
+def is_reference(value):
+    if isinstance(value, cfn_yaml_tags.CloudFormationObject):
+        return True
+    elif isinstance(value, dict) and "Ref" in value and len(value) == 1:
+        return True
+    elif isinstance(value, dict) and "Fn::GetAtt" in value and len(value) == 1:
+        return True
     else:
-        return value.encode('utf-8')
+        return False
+
+def get_hash_key(value):
+    if isinstance(value, cfn_yaml_tags.CloudFormationObject):
+        value = value.to_json()
+    if not isinstance(value, str):
+        value = json.dumps(value, sort_keys=True)
+    return value.encode('utf-8')
 
 def chunk_list_generator(lst, chunk_length):
     for i in range(0, len(lst), chunk_length):

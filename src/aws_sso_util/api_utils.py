@@ -27,7 +27,7 @@ def get_session(logger=None):
 SSO_INSTANCE = None
 def get_sso_instance(session=None, logger=None):
     if not session:
-        session = get_session()
+        session = get_session(logger=logger)
 
     if not logger:
         logger = LOGGER
@@ -39,9 +39,9 @@ def get_sso_instance(session=None, logger=None):
         logger.info(f"Retrieving SSO instance")
         response = get_session().client('sso-admin').list_instances()
         if len(response['Instances']) == 0:
-            raise RetrievalError("No SSO instance found, please specify with --instance")
+            raise RetrievalError("No SSO instance found, must specify instance")
         elif len(response['Instances']) > 1:
-            raise RetrievalError("{} SSO instances found, please specify with --instance".format(len(response['Instances'])))
+            raise RetrievalError("{} SSO instances found, must specify instance".format(len(response['Instances'])))
         else:
             instance_arn = response['Instances'][0]['InstanceArn']
             instance_id = instance_arn.split('/')[-1]
@@ -54,7 +54,7 @@ def get_sso_instance(session=None, logger=None):
 OU_ACCOUNTS_CACHE = {}
 def get_accounts_for_ou(ou, refresh=False, session=None, cache=None, logger=None):
     if not session:
-        session = get_session()
+        session = get_session(logger=logger)
 
     if not logger:
         logger = LOGGER

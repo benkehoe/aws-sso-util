@@ -40,8 +40,7 @@ def add_parameters_to_template(template,
 def add_assignments_to_template(
         template,
         assignments: resources.AssignmentResources,
-        max_concurrent_assignments=None,
-        resource_name_prefix=None):
+        max_concurrent_assignments=None):
     if not max_concurrent_assignments:
         max_concurrent_assignments = MAX_CONCURRENT_ASSIGNMENTS
 
@@ -54,7 +53,7 @@ def add_assignments_to_template(
             depends_on = None
 
         assignment_resources.append((
-            assignment.get_resource_name(prefix=resource_name_prefix),
+            assignment.get_resource_name(),
             assignment.get_resource(depends_on=depends_on)))
 
     if "Resources" not in template:
@@ -79,8 +78,7 @@ class ChildTemplate:
         template["Resources"] = OrderedDict(template.get("Resources", {}))
 
         add_assignments_to_template(template, self.assignments,
-                max_concurrent_assignments=max_concurrent_assignments,
-                resource_name_prefix=resource_name_prefix)
+                max_concurrent_assignments=max_concurrent_assignments)
 
         return template
 
@@ -97,8 +95,7 @@ class ParentTemplate:
             child_templates=None,
             base_template=None,
             parameters=None,
-            max_concurrent_assignments=None,
-            resource_name_prefix=None):
+            max_concurrent_assignments=None):
         template = OrderedDict({
             "AWSTemplateFormatVersion": "2010-09-09",
         })
@@ -135,19 +132,18 @@ class ParentTemplate:
 
         if self.permission_sets:
             for permission_set in self.permission_sets:
-                resource_name = permission_set.get_resource_name(prefix=resource_name_prefix)
+                resource_name = permission_set.get_resource_name()
                 if not resource_name:
                     continue
                 template["Resources"][resource_name] = permission_set.get_resource()
 
         if self.assignments:
             add_assignments_to_template(template, self.assignments,
-                    max_concurrent_assignments=max_concurrent_assignments,
-                    resource_name_prefix=resource_name_prefix)
+                    max_concurrent_assignments=max_concurrent_assignments)
 
         if child_templates:
-            for child_path, child_template in child_templates:
-                resource_name = re.sub(r'[^a-zA-Z0-9]', '', child_path.stem)
+            for child_path, child_stem, child_template in child_templates:
+                resource_name = re.sub(r'[^a-zA-Z0-9]', '', child_stem)
                 resource = OrderedDict({
                     "Type": "AWS::CloudFormation::Stack",
                     "Properties": OrderedDict({
@@ -169,7 +165,6 @@ class ParentTemplate:
             base_template=None,
             parameters=None,
             max_concurrent_assignments=None,
-            resource_name_prefix=None,
             child_templates_in_subdir=True,
             path_joiner=None):
         if not path_joiner:
@@ -181,37 +176,36 @@ class ParentTemplate:
             child_path = base_path
             if child_templates_in_subdir:
                 child_path = path_joiner(child_path, stem)
-            child_path = path_joiner(child_path, f"{stem}{i:02d}{template_file_suffix}")
+            child_stem = f"{stem}{i:02d}"
+            child_path = path_joiner(child_path, f"{child_stem}{template_file_suffix}")
             child_templates.append((
                 child_path,
+                child_stem,
                 child.get_template(
-                    max_concurrent_assignments=max_concurrent_assignments,
-                    resource_name_prefix=resource_name_prefix)))
+                    max_concurrent_assignments=max_concurrent_assignments)))
 
         parent_path = path_joiner(base_path, (stem + template_file_suffix))
         parent_template = self._get_template(
             child_templates=child_templates,
             base_template=base_template,
             parameters=parameters,
-            max_concurrent_assignments=max_concurrent_assignments,
-            resource_name_prefix=resource_name_prefix)
+            max_concurrent_assignments=max_concurrent_assignments)
 
-        templates = [
-            (parent_path, parent_template)
-        ]
+        parent_output = (parent_path, parent_template)
 
-        templates.extend(child_templates)
+        child_output = [(c[0], c[2]) for c in child_templates]
 
-        return templates
+        return parent_output, child_output
 
 def resolve_templates(
         assignments: resources.AssignmentResources,
         permission_sets: resources.PermissionSetResources,
-        max_resources_per_template: int=None) -> ParentTemplate:
+        max_resources_per_template: int=None,
+        num_parent_resources: int=0) -> ParentTemplate:
 
     if not max_resources_per_template:
         max_resources_per_template = MAX_RESOURCES_PER_TEMPLATE
-    if len(assignments) + len(permission_sets) > max_resources_per_template:
+    if len(assignments) + len(permission_sets) + num_parent_resources > max_resources_per_template:
         child_templates = [ChildTemplate(c) for c in assignments.chunk(max_resources_per_template)]
         parent_assignments = resources.AssignmentResources([])
     else:

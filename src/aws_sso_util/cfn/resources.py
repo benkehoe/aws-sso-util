@@ -40,7 +40,7 @@ class PermissionSet:
 
     @classmethod
     def _get_type(cls, value):
-        if isinstance(value, utils.REF_TAG):
+        if utils.is_reference(value):
             return cls._Type.REFERENCE
         if isinstance(value, dict):
             return cls._Type.RESOURCE
@@ -52,19 +52,21 @@ class PermissionSet:
             return cls._Type.ID
         raise TypeError(f"Unknown permission set type {type(value)} for {value}")
 
-    def __init__(self, value, instance):
+    def __init__(self, value, instance, resource_name_prefix=None):
         self._instance = instance
 
         self._type = self._get_type(value)
         self._value = value
         self._arn = None
 
+        self._resource_name_prefix = resource_name_prefix
+
         self.references = utils.get_references(self._value)
+        if self._type == self._Type.RESOURCE:
+            self.references.add(self.get_resource_name())
 
     @property
     def hash_key(self):
-        if self._type == self._Type.RESOURCE:
-            return utils.get_hash_key(utils.REF_TAG(self.get_resource_name()))
         return utils.get_hash_key(self.arn)
 
     @property
@@ -80,9 +82,8 @@ class PermissionSet:
             return f"arn:aws:sso:::permissionSet/{instance_id}/{self._value}"
         raise TypeError(f"Invalid PermissionSet type {self._type}")
 
-    def get_resource_name(self, prefix=None):
-        if prefix is None:
-            prefix = ''
+    def get_resource_name(self):
+        prefix = self._resource_name_prefix or ''
         if self._type == self._Type.RESOURCE:
             return f"{prefix}{self.RESOURCE_NAME_PREFIX}{self._get_name()}"
         else:
@@ -157,17 +158,18 @@ class Target:
 class Assignment:
     RESOURCE_NAME_PREFIX = "Assignment"
 
-    def __init__(self, instance, principal, permission_set, target):
+    def __init__(self, instance, principal, permission_set, target, resource_name_prefix=None):
         self.instance = instance
         self.principal = principal
         self.permission_set = permission_set
         self.target = target
 
+        self._resource_name_prefix = resource_name_prefix
+
         self.references = utils.get_references(self.instance) | self.principal.references | self.permission_set.references | self.target.references
 
-    def get_resource_name(self, prefix=None):
-        if prefix is None:
-            prefix = ''
+    def get_resource_name(self):
+        prefix = self._resource_name_prefix or ''
         hasher = hashlib.md5()
         hasher.update(utils.get_hash_key(self.instance))
         hasher.update(self.principal.hash_key)
@@ -214,14 +216,6 @@ class ResourceList:
         for resource in self._resources:
             self.references.update(resource.references)
 
-    # def get_resources(self):
-    #     resources = OrderedDict()
-    #     for resource in self._resources:
-    #         resource_name = resource.get_resource_name()
-    #         if resource_name:
-    #             resources[resource_name] = resource.get_resource()
-    #     return resources
-
     def chunk(self, max_resources):
         return [self.__class__(chunk) for chunk in utils.chunk_list_generator(self._resources, max_resources)]
 
@@ -249,6 +243,8 @@ class PermissionSetResources(ResourceList):
 def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
     logger = utils.get_logger(logger, "resources")
 
+    if config.instance is None:
+        raise ValueError("SSO instance is not set on config")
 
     principals = []
     for group in config.groups:
@@ -258,7 +254,10 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
         principals.append(Principal(Principal.Type.USER, user))
     logger.debug(f"Got principals: [{', '.join(str(v) for v in principals)}]")
 
-    permission_sets = [PermissionSet(ps, instance=config.instance) for ps in config.permission_sets]
+    permission_sets = [
+        PermissionSet(ps, instance=config.instance, resource_name_prefix=config.resource_name_prefix)
+        for ps in config.permission_sets
+    ]
     logger.debug(f"Got permission sets: [{', '.join(str(v) for v in permission_sets)}]")
 
     targets = []
@@ -284,6 +283,7 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
                     principal,
                     permission_set,
                     target,
+                    resource_name_prefix=config.resource_name_prefix,
                 ))
 
     logger.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")
