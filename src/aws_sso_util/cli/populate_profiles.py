@@ -4,6 +4,7 @@ import logging
 import json
 import subprocess
 import shlex
+import re
 from collections import namedtuple
 
 import botocore
@@ -103,6 +104,12 @@ def get_process_formatter(command):
         return result.stdout.decode('utf-8').strip()
     return formatter
 
+def get_trim_formatter(regex, formatter):
+    def trim_formatter(i, **kwargs):
+        kwargs["account_name"] = re.sub(regex, '', kwargs["account_name"])
+        return formatter(i, **kwargs)
+    return trim_formatter
+
 @click.command()
 @click.option("--sso-start-url")
 @click.option("--sso-region")
@@ -115,6 +122,7 @@ def get_process_formatter(command):
 @click.option("--profile-name-components", default="account_name,role_name,short_region")
 @click.option("--profile-name-separator", "--sep", default="_")
 @click.option("--profile-name-region-style", type=click.Choice(["default", "always"]), default="default")
+@click.option("--profile-name-trim-regex")
 @click.option("--profile-name-process")
 
 @click.option("--credential-process/--no-credential-process")
@@ -131,6 +139,7 @@ def populate_profiles(
         profile_name_components,
         profile_name_separator,
         profile_name_region_style,
+        profile_name_trim_regex,
         profile_name_process,
         credential_process,
         force_refresh,
@@ -172,6 +181,8 @@ def populate_profiles(
         LOGGER.debug("Profile name format (region):    {}".format(region_format))
         LOGGER.debug("Profile name format (no region): {}".format(no_region_format))
         profile_name_formatter = get_formatter(profile_name_region_style, region_format, no_region_format)
+        if profile_name_trim_regex:
+            profile_name_formatter = get_trim_formatter(profile_name_trim_regex, profile_name_formatter)
 
     try:
         profile_name_formatter(0, account_name='foo', account_id='bar', role_name='baz', region='us-east-1')

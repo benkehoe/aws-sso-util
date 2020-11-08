@@ -1,7 +1,7 @@
 import enum
 import logging
 import hashlib
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 from .config import Config
 from . import utils
@@ -210,10 +210,10 @@ class ResourceList:
         self._resources = list(resources)
         self.references = set()
 
-        self._init()
+        self._init(resources)
 
-    def _init(self):
-        for resource in self._resources:
+    def _init(self, resources):
+        for resource in resources:
             self.references.update(resource.references)
 
     def chunk(self, max_resources):
@@ -231,6 +231,12 @@ class ResourceList:
     def __iter__(self):
         return iter(self._resources)
 
+    def extend(self, resources):
+        if isinstance(resources, ResourceList):
+            resources = resources._resources
+        self._resources.extend(resources)
+        self._init(resources)
+
 class AssignmentResources(ResourceList):
     def __init__(self, assignments):
         super().__init__(assignments)
@@ -240,11 +246,15 @@ class PermissionSetResources(ResourceList):
     def __init__(self, permission_sets):
         super().__init__(permission_sets)
 
-def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
+ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignments", "permission_sets"])
+
+def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> ResourceCollection:
     logger = utils.get_logger(logger, "resources")
 
     if config.instance is None:
         raise ValueError("SSO instance is not set on config")
+
+    num_resources = 0
 
     principals = []
     for group in config.groups:
@@ -258,6 +268,7 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
         PermissionSet(ps, instance=config.instance, resource_name_prefix=config.resource_name_prefix)
         for ps in config.permission_sets
     ]
+    num_resources += len([ps for ps in permission_sets if ps._type == PermissionSet._Type.RESOURCE])
     logger.debug(f"Got permission sets: [{', '.join(str(v) for v in permission_sets)}]")
 
     targets = []
@@ -285,8 +296,10 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None):
                     target,
                     resource_name_prefix=config.resource_name_prefix,
                 ))
+    num_resources += len(assignments)
 
     logger.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")
     logger.info(f"Generated {len(assignments)} assignments")
+    logger.info(f"{num_resources} total resources")
 
-    return AssignmentResources(assignments), PermissionSetResources(permission_sets)
+    return ResourceCollection(num_resources, AssignmentResources(assignments), PermissionSetResources(permission_sets))

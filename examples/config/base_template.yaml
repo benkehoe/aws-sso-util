@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  Foo:
+    Type: AWS::SNS::Topic
+    Properties: {}
+  Bar:
+    Type: AWS::SNS::Topic
+    Properties: {}
+  SomePermissionSet:
+    Type: AWS::SSO::PermissionSet
+    Properties:
+      InstanceArn: arn:aws:sso:::instance/ssoins-69e2ecd0b249f0cd
+      Name: PSOne
+      ManagedPolicies: []

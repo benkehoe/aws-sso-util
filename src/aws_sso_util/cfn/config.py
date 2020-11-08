@@ -1,7 +1,7 @@
 import numbers
 import jsonschema
 
-from . import utils
+from . import utils, cfn_yaml_tags
 
 class ConfigError(Exception):
     pass
@@ -191,6 +191,7 @@ def _check(properties, keys, required=True, parent="Resource"):
         raise ConfigError(f"{parent} must have one of {', '.join(keys)}")
 
 def validate_resource(resource):
+    resource = cfn_yaml_tags.to_json(resource)
     properties = resource.get("Properties", {})
     try:
         jsonschema.validate(
@@ -214,3 +215,17 @@ def validate_resource(resource):
     for target_entry in targets:
         _check(target_entry, ["Type", "TargetType"], parent=name)
         _check(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], parent=name)
+
+def validate_config(config, sso_instance, instance_fetcher, logger=None):
+    logger = utils.get_logger(logger, "config")
+    if config.instance and sso_instance and config.instance != sso_instance:
+        logger.warning(f"Config instance {config.instance} does not match input instance {sso_instance}")
+    if not config.instance:
+        config.instance = instance_fetcher(logger=logger)
+
+    if not (config.groups or config.users):
+       raise ConfigError("No principals specified")
+    if not config.permission_sets:
+        raise ConfigError("No permission sets specified")
+    if not (config.ous or config.accounts):
+        raise ConfigError("No targets specified")

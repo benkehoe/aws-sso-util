@@ -1,6 +1,7 @@
 import os
 import re
-from collections import OrderedDict
+import math
+from collections import OrderedDict, namedtuple
 from pathlib import PurePath
 
 from . import resources
@@ -8,6 +9,12 @@ from . import utils
 
 MAX_RESOURCES_PER_TEMPLATE = 500
 MAX_CONCURRENT_ASSIGNMENTS = 20
+
+WritableTemplate = namedtuple("WritableTemplate", ["path", "template"])
+TemplateCollection = namedtuple("TemplateCollection", [
+    "parent",
+    "children",
+])
 
 def is_name_in_template(name, template):
     for section in ["Parameters", "Conditions", "Resources"]:
@@ -184,18 +191,17 @@ class ParentTemplate:
                 child.get_template(
                     max_concurrent_assignments=max_concurrent_assignments)))
 
-        parent_path = path_joiner(base_path, (stem + template_file_suffix))
+        parent_path = path_joiner(base_path, f"{stem}{template_file_suffix}")
         parent_template = self._get_template(
             child_templates=child_templates,
             base_template=base_template,
             parameters=parameters,
             max_concurrent_assignments=max_concurrent_assignments)
 
-        parent_output = (parent_path, parent_template)
-
-        child_output = [(c[0], c[2]) for c in child_templates]
-
-        return parent_output, child_output
+        return TemplateCollection(
+            parent=WritableTemplate(parent_path, parent_template),
+            children=[WritableTemplate(c[0], c[2]) for c in child_templates]
+        )
 
 def resolve_templates(
         assignments: resources.AssignmentResources,
@@ -218,3 +224,7 @@ def resolve_templates(
 
     return parent_template
 
+def get_max_number_of_child_stacks(num_resources, max_resources_per_template=None):
+    max_per_template = max_resources_per_template or MAX_RESOURCES_PER_TEMPLATE
+
+    return math.ceil(num_resources/max_per_template)

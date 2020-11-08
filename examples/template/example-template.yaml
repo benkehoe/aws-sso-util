@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  AccountParameter:
+    Type: String
+Resources:
+  SomePSResource:
+    Type: AWS::SSO::PermissionSet
+    Properties:
+      InstanceArn: arn:aws:sso:::instance/ssoins-69e2ecd0b249f0cd
+      Name: Foo
+
+  SimpleAssignmentGroup:
+    Type: Custom::SSO::AssignmentGroup
+    Properties:
+      Principal:
+        PrincipalType: USER
+        PrincipalId: c843295c-d41f-4f23-9832-1521dbaf36f7
+
+      PermissionSets:
+      - !Ref SomePSResource
+
+      Targets:
+      - Type: AWS_ACCOUNT
+        TargetIds:
+        - 123456789012
+        - 174652129131
+
+  ComplexAssignmentGroup:
+    Type: Custom::SSO::AssignmentGroup
+    Properties:
+      Principal:
+      - Type: GROUP
+        Ids:
+        - 6c1645fc-37b5-40ba-8c3d-5216b9055505
+        - 67d02fc7-ef1e-463f-b572-ba9b2fe710ba
+
+      - PrincipalType: USER
+        PrincipalId: c843295c-d41f-4f23-9832-1521dbaf36f7
+
+      PermissionSets:
+      - arn:aws:sso:::permissionSet/ssoins-69e2ecd0b249f0cd/ps-45b2cb9e8a6aee12
+      - ps-b5b9375180ceaaac
+      - !Ref SomePSResource
+
+      Targets:
+      - Type: AWS_ACCOUNT
+        Id: {"Ref": "AccountParameter"}
+      - Type: AWS_ACCOUNT
+        TargetIds:
+        - 123456789012
+        - 174652129131
