@@ -23,10 +23,12 @@ import click
 @click.argument('profile')
 @click.option('--sso-start-url')
 @click.option('--sso-region')
+@click.option("--credential-process/--no-credential-process", default=None)
 def configure_profile(
         profile,
         sso_start_url,
-        sso_region):
+        sso_region,
+        credential_process):
     def get(name):
         return subprocess.run(['aws', 'configure', 'get', 'profile.{}.{}'.format(profile, name)], stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout
 
@@ -51,7 +53,11 @@ def configure_profile(
     if result:
         sys.exit(result)
 
-    if os.environ.get('AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS', '').lower() not in ['1', 'true']:
+    add_credential_process = os.environ.get('AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS', '').lower() not in ['1', 'true']
+    if credential_process is not None:
+        add_credential_process = credential_process
+
+    if add_credential_process:
         credential_process_opts = ''
         set('credential_process', 'aws-sso-util credential-process --profile {profile}{opts}'.format(profile=profile, opts=credential_process_opts))
 

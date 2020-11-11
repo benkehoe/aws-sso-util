@@ -1,20 +1,36 @@
+# Copyright 2018 iRobot Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Implements support for CloudFormation's YAML tags.
 Does not add these to the "safe" methods by default.
 Call the mark_safe() method to add it to these methods.
 
-Copyright 2018 iRobot Corporation
+import json
+import yaml
+import cfn_yaml_tags
+cfn_yaml_tags.mark_safe()
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+with open('template.yaml', 'r') as fp:
+    template = yaml.safe_load(fp)
 
-    http://www.apache.org/licenses/LICENSE-2.0
+template["Resources"]["MyResource"]["Properties"]["Foo"] = cfn_yaml_tags.Ref("Bar")
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+json.dumps(template, cls=cfn_yaml_tags.JSONEncoder)
+
+plain_template = cfn_yaml_tags.to_json(template)
+json.dumps(plain_template)
+
 """
 
 __version__ = '1.1.0'
@@ -103,7 +119,19 @@ class CloudFormationObject(object):
     def __eq__(self, other):
         return isinstance(other, self.__class__) and other.data == self.data
 
-class JSONFromYAMLEncoder(json.JSONEncoder):
+def to_json(obj):
+    """Return the JSON equivalent"""
+    if isinstance(obj, CloudFormationObject):
+        return obj.to_json()
+
+    if isinstance(obj, dict):
+        obj = type(obj)((k, to_json(v)) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple)):
+        obj = type(obj)(to_json(v) for v in obj)
+
+    return obj
+
+class JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, CloudFormationObject):
             return o.to_json()
@@ -165,15 +193,3 @@ def mark_safe():
         yaml.add_representer(obj_cls, obj_cls.represent, Dumper=yaml.SafeDumper)
 
 init()
-
-def to_json(obj):
-    """Return the JSON equivalent"""
-    if isinstance(obj, CloudFormationObject):
-        return obj.to_json()
-
-    if isinstance(obj, dict):
-        obj = type(obj)((k, to_json(v)) for k, v in obj.items())
-    elif isinstance(obj, (list, tuple)):
-        obj = type(obj)(to_json(v) for v in obj)
-
-    return obj

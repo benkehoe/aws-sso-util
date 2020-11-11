@@ -127,86 +127,6 @@ def generate_template(
 
     write_templates(templates_to_write)
 
-    # inputs = []
-
-    # for config_file_fp in config_file:
-    #     LOGGER.info(f"Loading config file {config_file_fp.name}")
-    #     config_file_path = Path(config_file_fp.name)
-    #     if output_dir:
-    #         base_path = Path(output_dir)
-    #     else:
-    #         base_path = config_file_path.parent / "templates"
-    #     stem = config_file_path.stem
-
-    #     data = utils.load_yaml(config_file_fp)
-    #     LOGGER.debug(f"Config file contents:\n{utils.dump_yaml(data)}")
-
-    #     config = Config()
-    #     config.load(data, logger=LOGGER)
-
-    #     try:
-    #         validate_config(config, sso_instance)
-    #     except ConfigValidationError as e:
-    #         LOGGER.fatal(f"{e!s} in {config_file_path}")
-    #         sys.exit(1)
-
-    #     num_resources, assignments, permission_sets = resources.get_resources_from_config(
-    #         config,
-    #         ou_fetcher=lambda ou: api_utils.get_accounts_for_ou(ou, logger=LOGGER),
-    #         logger=LOGGER)
-
-    #     LOGGER.debug(f"assignment refs {assignments.references}")
-    #     LOGGER.debug(f"ps refs {permission_sets.references}")
-
-    #     LOGGER.debug(f"assignment res {utils.dump_yaml(OrderedDict({v.get_resource_name(): v.get_resource() for v in assignments if v.get_resource_name()}))}")
-    #     LOGGER.debug(f"ps res {utils.dump_yaml(OrderedDict({v.get_resource_name(): v.get_resource() for v in permission_sets if v.get_resource_name()}))}")
-
-    #     inputs.append(Input(
-    #         base_path=base_path,
-    #         stem=stem,
-    #         assignments=assignments,
-    #         permission_sets=permission_sets,
-    #         base_template=base_template,
-    #     ))
-
-
-
-    # for input in inputs:
-    #     LOGGER.debug(f"input: {input}")
-
-    #     if input.base_template:
-    #         num_parent_resources = len(input.base_template.get("Resources", {}))
-    #     else:
-    #         num_parent_resources = 0
-
-    #     parent_template = templates.resolve_templates(
-    #         input.assignments,
-    #         input.permission_sets,
-    #         max_resources_per_template=max_resources_per_template,
-    #         num_parent_resources=num_parent_resources,
-    #     )
-
-    #     parent_template_to_write, child_templates_to_write = parent_template.get_templates(
-    #         input.base_path,
-    #         input.stem,
-    #         template_file_suffix,
-    #         base_template=input.base_template,
-    #         parameters=template_parameters,
-    #         max_concurrent_assignments=max_concurrent_assignments
-    #     )
-
-    #     parent_path, parent_data = parent_template_to_write
-    #     LOGGER.info(f"Writing template at path {parent_path}")
-    #     Path(parent_path).parent.mkdir(parents=True, exist_ok=True)
-    #     with open(parent_path, "w") as fp:
-    #         utils.dump_yaml(parent_data, fp)
-
-    #     for child_path, child_data in child_templates_to_write:
-    #         LOGGER.info(f"Writing child template at path {child_path}")
-    #         Path(child_path).parent.mkdir(parents=True, exist_ok=True)
-    #         with open(child_path, "w") as fp:
-    #             utils.dump_yaml(child_data, fp)
-
 def process_config(
     config_file,
     sso_instance,
@@ -240,7 +160,7 @@ def process_config(
 
         resource_collection = resources.get_resources_from_config(
             config,
-            ou_fetcher=lambda ou: api_utils.get_accounts_for_ou(ou, logger=LOGGER),
+            ou_fetcher=lambda ou, recursive: api_utils.get_accounts_for_ou(ou, recursive, logger=LOGGER),
             logger=LOGGER)
 
         max_stack_resources = templates.get_max_number_of_child_stacks(
@@ -270,7 +190,7 @@ def process_macro(
     template_process_inputs = {}
 
     for config_file_fp in config_file:
-        LOGGER.info(f"Loading config file {config_file_fp.name}")
+        LOGGER.info(f"Loading template file {config_file_fp.name}")
         config_file_path = Path(config_file_fp.name)
         if output_dir:
             base_path = Path(output_dir)
@@ -323,6 +243,7 @@ def process_templates(
 
             template_collection = parent_template.get_templates(
                 template_process_input.base_path,
+                ".",
                 template_process_input_item.stem,
                 template_file_suffix,
                 base_template=parent_template_to_write,

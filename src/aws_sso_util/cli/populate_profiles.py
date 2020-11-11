@@ -43,22 +43,27 @@ KNOWN_COMPONENTS = [
     "region",
     "short_region",
 ]
-def generate_profile_name_format(input, separator):
+def generate_profile_name_format(input, separator, region_style):
     def process_component(c):
+        if c == "default_style_region":
+            if region_style == "short":
+                c = "short_region"
+            else:
+                c = "region"
         if c in KNOWN_COMPONENTS:
             return "{" + c + "}"
         else:
             return c
     region_format = separator.join(process_component(c) for c in input.split(","))
-    no_region_format = separator.join(process_component(c) for c in input.split(",") if c not in ["region", "short_region"])
+    no_region_format = separator.join(process_component(c) for c in input.split(",") if c not in ["default_style_region", "region", "short_region"])
     return region_format, no_region_format
 
-def get_formatter(style, region_format, no_region_format):
+def get_formatter(include_region, region_format, no_region_format):
     def proc_kwargs(kwargs):
         kwargs["short_region"] = get_short_region(kwargs["region"])
         kwargs["account_number"] = kwargs["account_id"]
         return kwargs
-    if style == "default":
+    if include_region == "default":
         def formatter(i, **kwargs):
             kwargs = proc_kwargs(kwargs)
             if i == 0:
@@ -66,13 +71,13 @@ def get_formatter(style, region_format, no_region_format):
             else:
                 return region_format.format(**kwargs)
         return formatter
-    elif style == "always":
+    elif include_region == "always":
         def formatter(i, **kwargs):
             kwargs = proc_kwargs(kwargs)
             return region_format.format(**kwargs)
         return formatter
     else:
-        raise KeyError("Unknown style {}".format(style))
+        raise ValueError("Unknown include_region value {}".format(include_region))
 
 PROCESS_FORMATTER_ARGS = [
     "account_name",
@@ -104,9 +109,12 @@ def get_process_formatter(command):
         return result.stdout.decode('utf-8').strip()
     return formatter
 
-def get_trim_formatter(regex, formatter):
+def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
     def trim_formatter(i, **kwargs):
-        kwargs["account_name"] = re.sub(regex, '', kwargs["account_name"])
+        for pattern in account_name_patterns:
+            kwargs["account_name"] = re.sub(pattern, '', kwargs["account_name"])
+        for pattern in role_name_patterns:
+            kwargs["role_name"] = re.sub(pattern, '', kwargs["role_name"])
         return formatter(i, **kwargs)
     return trim_formatter
 
@@ -116,34 +124,39 @@ def get_trim_formatter(regex, formatter):
 
 @click.option("--region", "-r", "regions", multiple=True)
 
-@click.option("--config-defaults", "-d", multiple=True)
+@click.option("--dry-run", is_flag=True, help="Print the config to stdout")
+
+@click.option("--config-default", "-d", multiple=True)
 @click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep")
 
-@click.option("--profile-name-components", default="account_name,role_name,short_region")
-@click.option("--profile-name-separator", "--sep", default="_")
-@click.option("--profile-name-region-style", type=click.Choice(["default", "always"]), default="default")
-@click.option("--profile-name-trim-regex")
+@click.option("--components", "profile_name_components", default="account_name,role_name,default_style_region")
+@click.option("--separator", "--sep", "profile_name_separator", default="_")
+@click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default")
+@click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short")
+@click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
+@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
 @click.option("--profile-name-process")
 
 @click.option("--credential-process/--no-credential-process")
 
-@click.option("--force-refresh", is_flag=True)
-@click.option("--dry-run", is_flag=True)
+@click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--debug", is_flag=True)
 def populate_profiles(
         sso_start_url,
         sso_region,
         regions,
-        config_defaults,
+        dry_run,
+        config_default,
         existing_config_action,
         profile_name_components,
         profile_name_separator,
+        profile_name_include_region,
         profile_name_region_style,
-        profile_name_trim_regex,
+        profile_name_trim_account_name_patterns,
+        profile_name_trim_role_name_patterns,
         profile_name_process,
         credential_process,
         force_refresh,
-        dry_run,
         debug):
 
     logging.basicConfig()
@@ -161,7 +174,7 @@ def populate_profiles(
     if not sso_region:
         missing.append("--sso-region")
 
-    if not regions and "AWS_CONFIG_DEFAULT_REGION" in os.environ:
+    if not regions and os.environ.get("AWS_CONFIGURE_DEFAULT_REGION"):
         regions = [os.environ["AWS_CONFIGURE_DEFAULT_REGION"]]
     if not regions:
         missing.append("--region")
@@ -169,20 +182,20 @@ def populate_profiles(
     if missing:
         raise click.UsageError("Missing arguments: {}".format(", ".join(missing)))
 
-    if config_defaults:
-        config_defaults = dict(v.split("=", 1) for v in config_defaults)
+    if config_default:
+        config_default = dict(v.split("=", 1) for v in config_default)
     else:
-        config_defaults = {}
+        config_default = {}
 
     if profile_name_process:
         profile_name_formatter = get_process_formatter(profile_name_process)
     else:
-        region_format, no_region_format = generate_profile_name_format(profile_name_components, profile_name_separator)
+        region_format, no_region_format = generate_profile_name_format(profile_name_components, profile_name_separator, profile_name_region_style)
         LOGGER.debug("Profile name format (region):    {}".format(region_format))
         LOGGER.debug("Profile name format (no region): {}".format(no_region_format))
-        profile_name_formatter = get_formatter(profile_name_region_style, region_format, no_region_format)
-        if profile_name_trim_regex:
-            profile_name_formatter = get_trim_formatter(profile_name_trim_regex, profile_name_formatter)
+        profile_name_formatter = get_formatter(profile_name_include_region, region_format, no_region_format)
+        if profile_name_trim_account_name_patterns or profile_name_trim_role_name_patterns:
+            profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
 
     try:
         profile_name_formatter(0, account_name='foo', account_id='bar', role_name='baz', region='us-east-1')
@@ -295,12 +308,16 @@ def populate_profiles(
         }
 
 
-        for k, v in config_defaults.items():
+        for k, v in config_default.items():
             if k in existing_values and existing_config_action in ["keep"]:
                 continue
             config_values[k] = v
 
-        if credential_process:
+        add_credential_process = os.environ.get('AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS', '').lower() not in ['1', 'true']
+        if credential_process is not None:
+            add_credential_process = credential_process
+
+        if add_credential_process:
             config_values["credential_process"] = "aws-sso-util credential-process --profile {}".format(config.profile_name)
         else:
             config_values.pop("credential_process", None)

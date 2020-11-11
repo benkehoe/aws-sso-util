@@ -30,6 +30,7 @@ class Config:
         self.permission_sets = []
 
         self.ous = []
+        self.recursive_ous = []
         self.accounts = []
 
         self.resource_name_prefix = resource_name_prefix
@@ -42,16 +43,28 @@ class Config:
     def load(self, data, logger=None):
         logger = utils.get_logger(logger, "config")
 
-        if "Instance" in data:
-            self.instance = data["Instance"]
+        for name in ["Instance", "InstanceArn", "InstanceARN"]:
+            if name in data:
+                self.instance = data[name]
+                break
 
-        self.groups.extend(data.get("Groups", []))
-        self.users.extend(data.get("Users", []))
+        def get(names):
+            for name in names:
+                if name in data:
+                    value = data[name]
+                    if not isinstance(value, list):
+                        value = [value]
+                    return value
+            return []
 
-        self.permission_sets.extend(data.get("PermissionSets", []))
+        self.groups.extend(get(["Groups", "Group"]))
+        self.users.extend(get(["Users", "User"]))
 
-        self.ous.extend(data.get("OUs", []))
-        for account in data.get("Accounts", []):
+        self.permission_sets.extend(get(["PermissionSet", "PermissionSetArn", "PermissionSets", "PermissionSetArns"]))
+
+        self.ous.extend(get(["OUs", "Ous", "OU", "Ou"]))
+        self.recursive_ous.extend(get(["RecursiveOUs", "RecursiveOus", "RecursiveOU", "RecursiveOu"]))
+        for account in get(["Accounts", "Account"]):
             if isinstance(account, (str, numbers.Number)):
                 account = str(int(account)).rjust(12, '0')
             self.accounts.append(account)
@@ -61,7 +74,7 @@ class Config:
         logger = utils.get_logger(logger, "config")
 
         data = {}
-        _, instance = _get_value(resource_properties, ["Instance", "InstanceArn"])
+        _, instance = _get_value(resource_properties, ["Instance", "InstanceArn", "InstanceARN"])
         if instance is not None:
             data["Instance"] = instance
 
@@ -87,7 +100,10 @@ class Config:
             _, target_type = _get_value(target_entry, ["Type", "TargetType"])
             _, target_ids = _get_value(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], ensure_list=True)
             if target_type.upper() == "AWS_OU":
-                config_key = "Ous"
+                if target_entry.get("Recursive", False):
+                    config_key = "RecursiveOus"
+                else:
+                    config_key = "Ous"
             elif target_type.upper() == "AWS_ACCOUNT":
                 config_key = "Accounts"
             else:
@@ -168,13 +184,15 @@ TARGET_SCHEMA = {
             "enum": ["AWS_OU", "AWS_ACCOUNT"],
         }),
         "(Target)?Id(s)?": _opt_list({"type": ["string", "integer"]}, func=True),
+        "Recursive": {"type": "boolean"},
     }
 }
 
 RESOURCE_PROPERTY_SCHEMA = {
     "type": "object",
     "patternProperties": {
-        "Instance(Arn)?": _opt_func({"type": "string"}),
+        "Name": _opt_func({"type": "string"}),
+        "Instance(Arn|ARN)?": _opt_func({"type": "string"}),
         "Principal(s)?": _opt_list(PRINCIPAL_SCHEMA),
         "PermissionSet(Arn)?(s)?": _opt_list(PERMISSION_SET_SCHEMA),
         "Target(s)?": _opt_list(TARGET_SCHEMA),
@@ -200,7 +218,7 @@ def validate_resource(resource):
     except jsonschema.ValidationError as e:
         raise ConfigError(f"Resource is invalid: {e!s}")
 
-    _check(properties, ["Instance", "InstanceArn"], required=False)
+    _check(properties, ["Instance", "InstanceArn", "InstanceARN"], required=False)
 
     _check(properties, ["Principal", "Principals"])
 

@@ -17,6 +17,7 @@ click = "^7.1.2"
 boto3 = "^1.16.13"
 pyyaml = "^5.3.1"
 jsonschema = "^3.2.0"
+aws-error-utils = "^1.0.4"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.2"

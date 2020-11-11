@@ -15,6 +15,7 @@ TemplateCollection = namedtuple("TemplateCollection", [
     "parent",
     "children",
 ])
+_ChildData = namedtuple("_ChildData", ["path_for_writing", "path_for_resource", "stem", "template"])
 
 def is_name_in_template(name, template):
     for section in ["Parameters", "Conditions", "Resources"]:
@@ -44,24 +45,26 @@ def add_parameters_to_template(template,
             if not is_name_in_template(reference_name, template):
                 template["Parameters"][reference_name] = OrderedDict({"Type": "String"})
 
+    if not template["Parameters"]:
+        del template["Parameters"]
+
 def add_assignments_to_template(
         template,
         assignments: resources.AssignmentResources,
+        child_stack,
         max_concurrent_assignments=None):
-    if not max_concurrent_assignments:
-        max_concurrent_assignments = MAX_CONCURRENT_ASSIGNMENTS
+    max_concurrent_assignments = _get_num(max_concurrent_assignments, MAX_CONCURRENT_ASSIGNMENTS)
 
     assignment_resources = []
-    index_in_template = 0
     for assignment in assignments:
-        if max_concurrent_assignments and len(assignment_resources) >= max_concurrent_assignments:
-            depends_on = assignment_resources[index_in_template-max_concurrent_assignments][0]
+        if max_concurrent_assignments > 0 and len(assignment_resources) >= max_concurrent_assignments:
+            depends_on = assignment_resources[len(assignment_resources)-max_concurrent_assignments][0]
         else:
             depends_on = None
 
         assignment_resources.append((
             assignment.get_resource_name(),
-            assignment.get_resource(depends_on=depends_on)))
+            assignment.get_resource(child_stack=child_stack, depends_on=depends_on)))
 
     if "Resources" not in template:
         template["Resources"] = OrderedDict()
@@ -85,6 +88,7 @@ class ChildTemplate:
         template["Resources"] = OrderedDict(template.get("Resources", {}))
 
         add_assignments_to_template(template, self.assignments,
+                child_stack=True,
                 max_concurrent_assignments=max_concurrent_assignments)
 
         return template
@@ -132,7 +136,7 @@ class ParentTemplate:
             for key in base_template:
                 if key in ["AWSTemplateFormatVersion", "Parameters"]:
                     continue
-                template[key] = OrderedDict(base_template[key])
+                template[key] = utils.to_ordered_dict(base_template[key])
 
         if "Resources" not in template:
             template["Resources"] = OrderedDict()
@@ -146,27 +150,49 @@ class ParentTemplate:
 
         if self.assignments:
             add_assignments_to_template(template, self.assignments,
+                    child_stack=False,
                     max_concurrent_assignments=max_concurrent_assignments)
 
+        def get_reference(name):
+            DATA = [
+                (("AWS::SSO::PermissionSet"), "PermissionSetArn"),
+            ]
+            for resource_types, attr in DATA:
+                if name in template["Resources"] and template["Resources"][name]["Type"] in resource_types:
+                    if attr:
+                        return utils.GETATT_TAG([name, attr])
+            return utils.REF_TAG(name)
+
         if child_templates:
-            for child_path, child_stem, child_template in child_templates:
-                resource_name = re.sub(r'[^a-zA-Z0-9]', '', child_stem)
+            child_resource_names = []
+            for child in child_templates:
+                if max_concurrent_assignments and child_resource_names:
+                    depends_on = child_resource_names[-1]
+                else:
+                    depends_on = None
+
+                resource_name = re.sub(r'[^a-zA-Z0-9]', '', child.stem)
                 resource = OrderedDict({
                     "Type": "AWS::CloudFormation::Stack",
-                    "Properties": OrderedDict({
-                        "TemplateURL": str(child_path)
-                    })
                 })
-                if "Parameters" in child_template and child_template["Parameters"]:
+                if depends_on:
+                    resource["DependsOn"] = depends_on
+                resource["Properties"] =  OrderedDict({
+                    "TemplateURL": str(child.path_for_resource)
+                })
+                if "Parameters" in child.template and child.template["Parameters"]:
                     resource["Properties"]["Parameters"] = OrderedDict()
-                    for parameter_name in child_template["Parameters"].keys():
-                        resource["Properties"]["Parameters"][parameter_name] = utils.REF_TAG(parameter_name)
+                    for parameter_name in child.template["Parameters"].keys():
+                        resource["Properties"]["Parameters"][parameter_name] = get_reference(parameter_name)
                 template["Resources"][resource_name] = resource
+
+                child_resource_names.append(resource_name)
 
         return template
 
     def get_templates(self,
-            base_path: PurePath,
+            base_path: str,
+            child_base_path_for_resource: str,
             stem,
             template_file_suffix,
             base_template=None,
@@ -180,13 +206,18 @@ class ParentTemplate:
         child_templates = []
 
         for i, child in enumerate(self.child_templates):
-            child_path = base_path
+            child_path_for_writing = base_path
+            child_path_for_resource = child_base_path_for_resource
+
             if child_templates_in_subdir:
-                child_path = path_joiner(child_path, stem)
-            child_stem = f"{stem}{i:02d}"
-            child_path = path_joiner(child_path, f"{child_stem}{template_file_suffix}")
-            child_templates.append((
-                child_path,
+                child_path_for_writing = path_joiner(child_path_for_writing, stem)
+                child_path_for_resource = path_joiner(child_path_for_resource, stem)
+            child_stem = f"{stem}{i:03d}"
+            child_path_for_writing = path_joiner(child_path_for_writing, f"{child_stem}{template_file_suffix}")
+            child_path_for_resource = path_joiner(child_path_for_resource, f"{child_stem}{template_file_suffix}")
+            child_templates.append(_ChildData(
+                child_path_for_writing,
+                child_path_for_resource,
                 child_stem,
                 child.get_template(
                     max_concurrent_assignments=max_concurrent_assignments)))
@@ -200,7 +231,7 @@ class ParentTemplate:
 
         return TemplateCollection(
             parent=WritableTemplate(parent_path, parent_template),
-            children=[WritableTemplate(c[0], c[2]) for c in child_templates]
+            children=[WritableTemplate(c.path_for_writing, c.template) for c in child_templates]
         )
 
 def resolve_templates(
@@ -209,9 +240,8 @@ def resolve_templates(
         max_resources_per_template: int=None,
         num_parent_resources: int=0) -> ParentTemplate:
 
-    if not max_resources_per_template:
-        max_resources_per_template = MAX_RESOURCES_PER_TEMPLATE
-    if len(assignments) + len(permission_sets) + num_parent_resources > max_resources_per_template:
+    max_resources_per_template = _get_num(max_resources_per_template, MAX_RESOURCES_PER_TEMPLATE)
+    if assignments.num_resources() + permission_sets.num_resources() + num_parent_resources > max_resources_per_template:
         child_templates = [ChildTemplate(c) for c in assignments.chunk(max_resources_per_template)]
         parent_assignments = resources.AssignmentResources([])
     else:
@@ -225,6 +255,12 @@ def resolve_templates(
     return parent_template
 
 def get_max_number_of_child_stacks(num_resources, max_resources_per_template=None):
-    max_per_template = max_resources_per_template or MAX_RESOURCES_PER_TEMPLATE
+    max_per_template = _get_num(max_resources_per_template, MAX_RESOURCES_PER_TEMPLATE)
 
     return math.ceil(num_resources/max_per_template)
+
+def _get_num(value, default):
+    if value is None or value > 0:
+        return value
+    else:
+        return default

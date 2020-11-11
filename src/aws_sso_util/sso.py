@@ -38,6 +38,8 @@ CREDENTIALS_CACHE_DIR = os.path.expanduser(
 
 def get_token_loader(session, sso_region, interactive=False, token_cache=None,
                      on_pending_authorization=None, force_refresh=False, logger=None):
+    if hasattr(session, '_session'): #boto3 Session
+        session = session._session
 
     if token_cache is None:
         token_cache = JSONFileCache(SSO_TOKEN_DIR)
@@ -70,7 +72,11 @@ def get_token_loader(session, sso_region, interactive=False, token_cache=None,
     return token_loader
 
 
-def get_credentials(session, sso_region, start_url, account_id, role_name, token_loader, cache=None, logger=None):
+def get_credentials(session, sso_region, start_url, account_id, role_name, token_loader=None, cache=None, logger=None):
+    if hasattr(session, '_session'): #boto3 Session
+        session = session._session
+    if not token_loader:
+        token_loader = get_token_loader(session, sso_region, logger=logger)
 
     if cache is None:
         cache = JSONFileCache(CREDENTIALS_CACHE_DIR)

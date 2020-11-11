@@ -67,13 +67,22 @@ class PermissionSet:
 
     @property
     def hash_key(self):
-        return utils.get_hash_key(self.arn)
+        return utils.get_hash_key(self.get_arn())
 
-    @property
-    def arn(self):
+    def get_arn(self, force_ref=False):
         if self._type == self._Type.RESOURCE:
-            return utils.REF_TAG(self.get_resource_name())
-        if self._type in [self._Type.ARN, self._Type.REFERENCE]:
+            if force_ref:
+                utils.REF_TAG(self.get_resource_name())
+            else:
+                return utils.GETATT_TAG(f"{self.get_resource_name()}.PermissionSetArn")
+        if self._type == self._Type.REFERENCE:
+            if force_ref:
+                references = utils.get_references(self._value)
+                if len(references) != 1:
+                    raise ValueError(f"Cannot convert to ref: {self._value}")
+                return utils.REF_TAG(list(references)[0])
+            return self._value
+        if self._type == self._Type.ARN:
             return self._value
         if self._type == self._Type.SHORT_ARN:
             return f"arn:aws:sso:::permissionSet/{self._value}"
@@ -178,7 +187,7 @@ class Assignment:
         hash_value = hasher.hexdigest()[:6].upper()
         return f"{prefix}{self.RESOURCE_NAME_PREFIX}{hash_value}"
 
-    def get_resource(self, depends_on=None):
+    def get_resource(self, child_stack, depends_on=None):
         resource = OrderedDict({
             "Type": "AWS::SSO::Assignment"
         })
@@ -192,7 +201,7 @@ class Assignment:
             "InstanceArn": self.instance,
             "PrincipalType": self.principal.type.value,
             "PrincipalId": self.principal.name,
-            "PermissionSetArn": self.permission_set.arn,
+            "PermissionSetArn": self.permission_set.get_arn(force_ref=child_stack),
             "TargetType": self.target.type.value,
             "TargetId": self.target.name
         })
@@ -241,10 +250,15 @@ class AssignmentResources(ResourceList):
     def __init__(self, assignments):
         super().__init__(assignments)
 
+    def num_resources(self):
+        return len(self._resources)
 
 class PermissionSetResources(ResourceList):
     def __init__(self, permission_sets):
         super().__init__(permission_sets)
+
+    def num_resources(self):
+        return len([r for r in self._resources if r._type == PermissionSet._Type.RESOURCE])
 
 ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignments", "permission_sets"])
 
@@ -268,19 +282,31 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> R
         PermissionSet(ps, instance=config.instance, resource_name_prefix=config.resource_name_prefix)
         for ps in config.permission_sets
     ]
-    num_resources += len([ps for ps in permission_sets if ps._type == PermissionSet._Type.RESOURCE])
     logger.debug(f"Got permission sets: [{', '.join(str(v) for v in permission_sets)}]")
 
     targets = []
+
+    if (config.ous or config.recursive_ous) and not ou_fetcher:
+        logger.error("OU specified but ou_fetcher not provided")
+        raise ValueError("OU specified but ou_fetcher not provided")
+
     for ou in config.ous:
-        if not ou_fetcher:
-            logger.error("OU specified but ou_fetcher not provided")
-            raise ValueError("OU specified but ou_fetcher not provided")
         logger.debug(f"Translating OU {ou} to accounts")
-        accounts = ou_fetcher(ou)
+        accounts = ou_fetcher(ou, recursive=False)
 
         for account in accounts:
             targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
+
+    for ou in config.recursive_ous:
+        logger.debug(f"Translating OU {ou} recursively to accounts")
+        accounts = ou_fetcher(ou, recursive=True)
+
+        for account in accounts:
+            targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
+
+        for account in accounts:
+            targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
+
     for account in config.accounts:
         targets.append(Target(Target.Type.ACCOUNT, account))
     logger.debug(f"Got targets: [{', '.join(str(v) for v in targets)}]")
@@ -296,10 +322,13 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> R
                     target,
                     resource_name_prefix=config.resource_name_prefix,
                 ))
-    num_resources += len(assignments)
-
     logger.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")
     logger.info(f"Generated {len(assignments)} assignments")
+
+    ar = AssignmentResources(assignments)
+    psr = PermissionSetResources(permission_sets)
+    num_resources = ar.num_resources() + psr.num_resources()
+
     logger.info(f"{num_resources} total resources")
 
-    return ResourceCollection(num_resources, AssignmentResources(assignments), PermissionSetResources(permission_sets))
+    return ResourceCollection(num_resources, ar, psr)

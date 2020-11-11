@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS-SSO-Util-2020-11-08
 Parameters:
   AccountParameter:
     Type: String
@@ -10,7 +11,7 @@ Resources:
       Name: Foo
 
   SimpleAssignmentGroup:
-    Type: Custom::SSO::AssignmentGroup
+    Type: SSOUtil::SSO::AssignmentGroup
     Properties:
       Principal:
         PrincipalType: USER
@@ -26,7 +27,7 @@ Resources:
         - 174652129131
 
   ComplexAssignmentGroup:
-    Type: Custom::SSO::AssignmentGroup
+    Type: SSOUtil::SSO::AssignmentGroup
     Properties:
       Principal:
       - Type: GROUP

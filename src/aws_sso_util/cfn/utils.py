@@ -6,6 +6,14 @@ import yaml
 from . import cfn_yaml_tags
 cfn_yaml_tags.mark_safe()
 
+def to_ordered_dict(obj):
+    if isinstance(obj, dict):
+        return OrderedDict((k, to_ordered_dict(v)) for k, v in obj.items())
+    elif isinstance(obj, list):
+        return [to_ordered_dict(v) for v in obj]
+    else:
+        return obj
+
 def represent_ordereddict(dumper, data):
     value = []
 
@@ -28,7 +36,10 @@ def dump_yaml(*args, **kwargs):
 
 def get_logger(parent, name) -> logging.Logger:
     if parent:
-        return parent.getChild(name)
+        if parent.name == name:
+            return parent
+        else:
+            return parent.getChild(name)
     else:
         return logging.getLogger(name)
 
@@ -36,6 +47,7 @@ def get_instance_id_from_arn(instance_arn):
     return instance_arn.split('/', 1)[1]
 
 REF_TAG = getattr(cfn_yaml_tags, "Ref")
+GETATT_TAG = getattr(cfn_yaml_tags, "GetAtt")
 def get_references(value):
     references = set()
     if isinstance(value, REF_TAG):
@@ -50,7 +62,7 @@ def get_references(value):
             references.add(get_att_value[0])
     elif isinstance(value, cfn_yaml_tags.CloudFormationObject):
         value_json = value.to_json()
-        references.update(value_json)
+        references.update(get_references(value_json))
     elif isinstance(value, (list, set)):
         for v in value:
             references.update(get_references(v))
