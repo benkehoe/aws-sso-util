@@ -10,6 +10,9 @@
 * CloudFormation
 * Python library for AWS SSO authentication
 
+`aws-sso-util` supersedes `aws-sso-credential-process`, which is still available in its original form [here](https://github.com/benkehoe/aws-sso-credential-process).
+Read the updated docs for `aws-sso-util credential-process` [here](docs/credential-process.md).
+
 ## Quickstart
 
 0. Make sure you've got the AWS CLI v2 (which has AWS SSO support).
@@ -47,12 +50,9 @@ AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR=~/.local/share/aws-sso-util
 AWS_SSO_UTIL_COMPLETE_SCRIPT=$AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR/complete.sh
 if which aws-sso-util > /dev/null; then
   mkdir -p $AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR
-  echo before command
   (_AWS_SSO_UTIL_COMPLETE=source_bash aws-sso-util > $AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp ;
     mv $AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp $AWS_SSO_UTIL_COMPLETE_SCRIPT &)
-  echo after command
   if [ -f $AWS_SSO_UTIL_COMPLETE_SCRIPT ]; then
-    echo sourcing
     source $AWS_SSO_UTIL_COMPLETE_SCRIPT
   fi
 fi
@@ -80,7 +80,7 @@ However, they all have support for `credential_process`, which allows an externa
 `aws-sso-util credential-process` uses this to allow these SDKs to get credentials from AWS SSO.
 It's added automatically (by default) by the `aws-sso-util configure` commands.
 
-## Looking up identifiers
+## Looking up identifiers and assignments
 
 Read the full docs for `aws-sso-util lookup` and `aws-sso-util assignments` [here](docs/lookup.md).
 
