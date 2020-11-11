@@ -96,6 +96,11 @@ def generate_template(
 
     if base_template_file:
         base_template = utils.load_yaml(base_template_file)
+        base_template_path = Path(base_template_file.name).resolve()
+        prev_len = len(config_file)
+        config_file = [c for c in config_file if Path(c.name).resolve() != base_template_path]
+        if len(config_file) != prev_len:
+            LOGGER.debug("Removed base template file from list of config files")
     else:
         base_template = None
 

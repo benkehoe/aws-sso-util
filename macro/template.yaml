@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  LogLevel:
+    Type: String
+    Default: INFO
+  ArtifactS3KeyPrefix:
+    Type: String
+    Default: ""
+  S3PutObjectArgs:
+    Type: String
+    Default: ""
+  MaxResourcesPerTemplate:
+    Type: Number
+    Default: -1
+  MaxConcurrentAssignments:
+    Type: Number
+    Default: -1
+Resources:
+  MacroArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: True
+        BlockPublicAcls: True
+
+  MacroArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MacroArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: AllowCloudFormation
+          Effect: Allow
+          Principal: {"Service": "cloudformation.amazonaws.com"}
+          Action: s3:GetObject
+          Resource: !Sub "arn:aws:s3:::${MacroArtifactBucket}/*"
+
+  MacroFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.8
+      MemorySize: 1024
+      Timeout: 900
+      CodeUri: ./src
+      Handler: handler.handler
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+          BUCKET_NAME: !Ref MacroArtifactBucket
+          KEY_PREFIX: !Ref ArtifactS3KeyPrefix
+          S3_PUT_OBJECT_ARGS: !Ref S3PutObjectArgs
+          MAX_RESOURCES_PER_TEMPLATE: !Ref MaxResourcesPerTemplate
+          MAX_CONCURRENT_ASSIGNMENTS: !Ref MaxConcurrentAssignments
+      Policies:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: CloudFormation
+          Effect: Allow
+          Action: s3:PutObject
+          Resource: !Sub "arn:aws:s3:::${MacroArtifactBucket}/*"
+        - Sid: AWSSSO
+          Effect: Allow
+          Action: sso:ListInstances
+          Resource: "*"
+        - Sid: Organizations
+          Effect: Allow
+          Action:
+          - organizations:ListAccountsForParent
+          - organizations:ListOrganizationalUnitsForParent
+          Resource: "*"
+
+  MacroLogsRoleForCfn:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal: {"Service": "cloudformation.amazonaws.com"}
+          Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LogWriting
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              Effect: Allow
+              Action: "logs:*"
+              Resource: "*"
+
+  Macro:
+    Type: AWS::CloudFormation::Macro
+    Properties:
+      Name: AWS-SSO-Util-2020-11-08
+      Description: Handlers for AWS SSO
+      FunctionName: !Ref MacroFunction
+      LogGroupName: /sso-util/macro
+      LogRoleARN: !GetAtt MacroLogsRoleForCfn.Arn

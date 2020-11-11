@@ -4,13 +4,17 @@ INPUT_DIR ?= .
 INPUT_FILES ?= $(INPUT_DIR)/*.yaml
 
 ifdef OUTPUT_DIR
-_OUTPUT_DIR = $(OUTPUT_DIR)
-PARAMS += --output-dir $(OUTPUT_DIR)
+	_OUTPUT_DIR = $(OUTPUT_DIR)
+	PARAMS += --output-dir $(OUTPUT_DIR)
 else
-_OUTPUT_DIR = $(INPUT_DIR)/templates
+	_OUTPUT_DIR = $(INPUT_DIR)/templates
 endif
 
 OUTPUT_FILES = $(shell [ -d $(_OUTPUT_DIR) ] && find $(_OUTPUT_DIR) -maxdepth 1 -name "*.yaml")
+
+ifeq ($(MACRO),1)
+	PARAMS += --macro
+endif
 
 ifdef AWS_SSO_INSTANCE
 PARAMS += --instance $(AWS_SSO_INSTANCE)
