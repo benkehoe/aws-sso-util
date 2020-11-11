@@ -1,4 +1,0 @@
-jsonschema
-pyyaml
-boto3
-aws-sso-util

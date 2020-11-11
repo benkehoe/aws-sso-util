@@ -43,7 +43,7 @@ Resources:
       Runtime: python3.8
       MemorySize: 1024
       Timeout: 900
-      CodeUri: ./src
+      CodeUri: ../src
       Handler: handler.handler
       Environment:
         Variables:

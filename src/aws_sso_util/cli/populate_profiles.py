@@ -91,11 +91,11 @@ def get_process_formatter(command):
     def formatter(i, **kwargs):
         kwargs["region_index"] = str(i)
         kwargs["short_region"] = get_short_region(kwargs["region"])
-        run_args = [command]
+        run_args = shlex.split(command)
         for component in PROCESS_FORMATTER_ARGS:
-            run_args.append(shlex.quote(kwargs[component]))
+            run_args.append(kwargs[component])
         try:
-            result = subprocess.run(' '.join(run_args), shell=True, capture_output=True, check=True)
+            result = subprocess.run(shlex.join(run_args), shell=True, stdout=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as e:
             lines = [
                 "Profile name process failed ({})".format(e.returncode)

@@ -21,7 +21,14 @@ References on assignment resources are automatically wired through to the nested
 
 ## Deploy macro
 
-TODO
+This should be able to be a [SAR app](https://aws.amazon.com/serverless/serverlessrepo/), but until then, here is the manual process:
+
+```bash
+git clone https://github.com/benkehoe/aws-sso-util
+cd aws-sso-util/macro
+sam build --use-container
+sam deploy --guided
+```
 
 ## Use macro
 

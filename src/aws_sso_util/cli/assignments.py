@@ -185,3 +185,5 @@ def lookup_assignments(session, ids: Ids, principal_filter, permission_set_filte
                                 account_name,
                             )
 
+if __name__ == "__main__":
+    assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

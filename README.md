@@ -15,7 +15,7 @@ Read the updated docs for `aws-sso-util credential-process` [here](docs/credenti
 
 ## Quickstart
 
-0. Make sure you've got the AWS CLI v2 (which has AWS SSO support).
+0. Make sure you've [installed the AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) (which has AWS SSO support).
 
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
@@ -42,7 +42,8 @@ aws-sso-util --help
 ```
 
 4. Autocomplete
-`aws-sso-util` uses [click](https://click.palletsprojects.com/en/7.x/).
+
+`aws-sso-util` uses [click](https://click.palletsprojects.com/en/7.x/), which supports autocompletion.
 The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example that updates the completion in the background.
 
 ```bash

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# Copy the source directory here so that it doesn't have to be pip installed.
-
-DIR=$(readlink -f $(dirname $0))
-rsync -avz --delete $DIR/../src/aws_sso_util/ $DIR/aws_sso_util/
