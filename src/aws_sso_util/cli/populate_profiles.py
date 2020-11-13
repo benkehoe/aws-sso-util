@@ -32,7 +32,14 @@ from ..config import find_instances, SSOInstance
 from ..vendored_botocore.config_file_writer import ConfigFileWriter, write_values, get_config_filename
 from .utils import configure_logging
 
-from .configure_profile import DEFAULT_START_URL_VARS, DEFAULT_SSO_REGION_VARS, DEFAULT_REGION_VARS, DISABLE_CREDENTIAL_PROCESS_VAR
+from .configure_profile import (
+    DEFAULT_START_URL_VARS,
+    DEFAULT_SSO_REGION_VARS,
+    DEFAULT_REGION_VARS,
+    DISABLE_CREDENTIAL_PROCESS_VAR,
+    CREDENTIAL_PROCESS_NAME_VAR,
+    SET_CREDENTIAL_PROCESS_DEFAULT
+)
 
 DEFAULT_SEPARATOR = "."
 
@@ -157,7 +164,7 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
 @click.option("--profile-name-process")
 
-@click.option("--credential-process/--no-credential-process")
+@click.option("--credential-process/--no-credential-process", default=None)
 
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
@@ -361,13 +368,14 @@ def populate_profiles(
 
         if credential_process is not None:
             set_credential_process = credential_process
-        elif os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR):
-            set_credential_process = os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR, "").lower() not in ["1", "true"]
+        elif os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR, "").lower() in ["1", "true"]:
+            set_credential_process = False
         else:
-            set_credential_process = None
+            set_credential_process = SET_CREDENTIAL_PROCESS_DEFAULT
 
         if set_credential_process:
-            config_values["credential_process"] = "aws-sso-util credential-process --profile {}".format(config.profile_name)
+            credential_process_name = os.environ.get(CREDENTIAL_PROCESS_NAME_VAR) or "aws-sso-util credential-process"
+            config_values["credential_process"] = f"{credential_process_name} --profile {config.profile_name}"
         elif set_credential_process is False:
             config_values.pop("credential_process", None)
 

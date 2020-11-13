@@ -35,6 +35,10 @@ DEFAULT_SSO_REGION_VARS = ["AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION",    "AWS_CONFI
 DEFAULT_REGION_VARS = ["AWS_CONFIGURE_DEFAULT_REGION", "AWS_DEFAULT_REGION"]
 DISABLE_CREDENTIAL_PROCESS_VAR = "AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS"
 
+CREDENTIAL_PROCESS_NAME_VAR= "AWS_SSO_CREDENTIAL_PROCESS_NAME"
+
+SET_CREDENTIAL_PROCESS_DEFAULT = True
+
 @click.command("configure-profile")
 @click.argument("profile")
 @click.option("--sso-start-url", "-u")
@@ -140,13 +144,14 @@ def configure_profile(
 
     if credential_process is not None:
         set_credential_process = credential_process
-    elif os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR):
-        set_credential_process = os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR, "").lower() not in ["1", "true"]
+    elif os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR, "").lower() in ["1", "true"]:
+        set_credential_process = False
     else:
-        set_credential_process = None
+        set_credential_process = SET_CREDENTIAL_PROCESS_DEFAULT
 
     if set_credential_process:
-        config_values["credential_process"] = f"aws-sso-util credential-process --profile {profile}"
+        credential_process_name = os.environ.get(CREDENTIAL_PROCESS_NAME_VAR) or "aws-sso-util credential-process"
+        config_values["credential_process"] = f"{credential_process_name} --profile {profile}"
     elif set_credential_process is False:
         config_values.pop("credential_process", None)
 
