@@ -105,6 +105,8 @@ The current best you can do is [list all the users with a particular PermissionS
 
 ## CloudFormation support
 
+> :warning: The CloudFormation functionality is experimental. I have found the `AWS::SSO::Assignment` resources to be a little brittle and I am not yet confident they will work well if a particular assignment gets moved between nested stacks. This warning will be removed once I have confidence in the functionality.
+
 You'll want to read the full docs [here](docs/cloudformation.md).
 
 AWS SSO's CloudFormation support currently only includes [`AWS::SSO::Assignment`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sso-assignment.html), which means for every combination of principal (group or user), permission set, and target (AWS account), you need a separate CloudFormation resource.

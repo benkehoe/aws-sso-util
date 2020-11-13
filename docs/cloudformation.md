@@ -1,5 +1,7 @@
 # aws-sso-util CloudFormation support
 
+> :warning: The CloudFormation functionality is experimental. I have found the `AWS::SSO::Assignment` resources to be a little brittle and I am not yet confident they will work well if a particular assignment gets moved between nested stacks. This warning will be removed once I have confidence in the functionality.
+
 `aws-sso-util` helps patch over the lack of support in AWS SSO, and therefore in AWS SSO's CloudFormation resources, for managing assignments as groups.
 
 AWS SSO's CloudFormation support currently only includes [`AWS::SSO::Assignment`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sso-assignment.html), which means for every combination of principal (group or user), permission set, and target (AWS account), you need a separate CloudFormation resource.
