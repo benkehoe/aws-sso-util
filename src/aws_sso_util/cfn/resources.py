@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import enum
 import logging
 import hashlib
@@ -6,6 +19,8 @@ from collections import OrderedDict, namedtuple
 from .config import Config
 from . import utils
 from . import cfn_yaml_tags
+
+LOGGER = logging.getLogger(__name__)
 
 class Principal:
     class Type(enum.Enum):
@@ -262,9 +277,7 @@ class PermissionSetResources(ResourceList):
 
 ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignments", "permission_sets"])
 
-def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> ResourceCollection:
-    logger = utils.get_logger(logger, "resources")
-
+def get_resources_from_config(config: Config, ou_fetcher=None) -> ResourceCollection:
     if config.instance is None:
         raise ValueError("SSO instance is not set on config")
 
@@ -272,33 +285,33 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> R
 
     principals = []
     for group in config.groups:
-        logger.debug(f"Group: {group!s} {group!r}")
+        LOGGER.debug(f"Group: {group!s} {group!r}")
         principals.append(Principal(Principal.Type.GROUP, group))
     for user in config.users:
         principals.append(Principal(Principal.Type.USER, user))
-    logger.debug(f"Got principals: [{', '.join(str(v) for v in principals)}]")
+    LOGGER.debug(f"Got principals: [{', '.join(str(v) for v in principals)}]")
 
     permission_sets = [
         PermissionSet(ps, instance=config.instance, resource_name_prefix=config.resource_name_prefix)
         for ps in config.permission_sets
     ]
-    logger.debug(f"Got permission sets: [{', '.join(str(v) for v in permission_sets)}]")
+    LOGGER.debug(f"Got permission sets: [{', '.join(str(v) for v in permission_sets)}]")
 
     targets = []
 
     if (config.ous or config.recursive_ous) and not ou_fetcher:
-        logger.error("OU specified but ou_fetcher not provided")
+        LOGGER.error("OU specified but ou_fetcher not provided")
         raise ValueError("OU specified but ou_fetcher not provided")
 
     for ou in config.ous:
-        logger.debug(f"Translating OU {ou} to accounts")
+        LOGGER.debug(f"Translating OU {ou} to accounts")
         accounts = ou_fetcher(ou, recursive=False)
 
         for account in accounts:
             targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
 
     for ou in config.recursive_ous:
-        logger.debug(f"Translating OU {ou} recursively to accounts")
+        LOGGER.debug(f"Translating OU {ou} recursively to accounts")
         accounts = ou_fetcher(ou, recursive=True)
 
         for account in accounts:
@@ -309,7 +322,7 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> R
 
     for account in config.accounts:
         targets.append(Target(Target.Type.ACCOUNT, account))
-    logger.debug(f"Got targets: [{', '.join(str(v) for v in targets)}]")
+    LOGGER.debug(f"Got targets: [{', '.join(str(v) for v in targets)}]")
 
     assignments = []
     for principal in principals:
@@ -322,13 +335,10 @@ def get_resources_from_config(config: Config, ou_fetcher=None, logger=None) -> R
                     target,
                     resource_name_prefix=config.resource_name_prefix,
                 ))
-    logger.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")
-    logger.info(f"Generated {len(assignments)} assignments")
+    LOGGER.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")
 
     ar = AssignmentResources(assignments)
     psr = PermissionSetResources(permission_sets)
     num_resources = ar.num_resources() + psr.num_resources()
-
-    logger.info(f"{num_resources} total resources")
 
     return ResourceCollection(num_resources, ar, psr)

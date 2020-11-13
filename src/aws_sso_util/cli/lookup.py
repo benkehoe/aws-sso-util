@@ -1,12 +1,29 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import argparse
 import sys
 from collections import namedtuple
+import logging
 
 import boto3
 
 import click
 
 from ..api_utils import Ids
+from .utils import configure_logging
+
+LOGGER = logging.getLogger(__name__)
 
 @click.command('lookup')
 @click.argument('type', type=click.Choice(['instance', 'identity-store', 'group', 'user', 'permission-set']))
@@ -20,6 +37,7 @@ from ..api_utils import Ids
 @click.option('--error-if-not-found', '-e', is_flag=True)
 @click.option('--show-id/--hide-id', default=False, help='Print SSO instance/identity store id being used')
 @click.option('--separator', '--sep', default=': ')
+@click.option('--verbose', count=True)
 def lookup(
         type,
         value,
@@ -28,11 +46,13 @@ def lookup(
         profile,
         error_if_not_found,
         show_id,
-        separator):
+        separator,
+        verbose):
+    configure_logging(LOGGER, verbose)
 
     session = boto3.Session(profile_name=profile)
 
-    ids = Ids(session, instance_arn, identity_store_id)
+    ids = Ids(lambda: session, instance_arn, identity_store_id)
     ids.suppress_print = not show_id
 
     try:

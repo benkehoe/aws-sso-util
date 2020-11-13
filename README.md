@@ -5,6 +5,7 @@
 
 `aws-sso-util` contains utilities for the following:
 * Configuring `.aws/config`
+* Logging in/out
 * AWS SDK support
 * Looking up identifiers
 * CloudFormation
@@ -71,6 +72,15 @@ You probably want to set the environment variables `AWS_CONFIGURE_SSO_DEFAULT_SS
 
 `aws-sso-util configure populate` takes one or more regions, and generates a profile for each account+role+region combination.
 The profile names are completely customizable.
+
+## Logging in and out
+
+Read the full docs for `aws-sso-util login` and `aws-sso-util logout` [here](docs/login.md).
+
+A problem with [`aws sso login`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/sso/login.html) is that it's required to operate on a profile, that is, you have to tell it to log in to AWS SSO *plus some account and role.*
+But the whole point of AWS SSO is that you log in once for *many* accounts and roles.
+You could have a particular account and role set up in your default profile, but I prefer not to have a default profile so that I'm always explicitly selecting a profile and never accidentally end up in the default by mistake.
+`aws-sso-util login` solves this problem by letting you *just log in* without having to think about where you'll be using those credentials.
 
 ## Adding AWS SSO support to AWS SDKs
 

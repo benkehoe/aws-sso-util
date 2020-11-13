@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import logging
 
 import boto3
@@ -7,63 +20,9 @@ LOGGER = logging.getLogger(__name__)
 class RetrievalError(Exception):
     pass
 
-PROFILE = None
-SESSION = None
-def get_session(logger=None):
-    if not logger:
-        logger = LOGGER
-    else:
-        logger = logger.getChild("api_utils")
-
-    global PROFILE, SESSION
-    if not SESSION:
-        if PROFILE:
-            logger.debug(f"Creating session with profile {PROFILE}")
-        else:
-            logger.debug(f"Creating session")
-        SESSION = boto3.Session(profile_name=PROFILE)
-    return SESSION
-
-SSO_INSTANCE = None
-def get_sso_instance(session=None, logger=None):
-    if not session:
-        session = get_session(logger=logger)
-
-    if not logger:
-        logger = LOGGER
-    else:
-        logger = logger.getChild("api_utils")
-
-    global SSO_INSTANCE
-    if not SSO_INSTANCE:
-        logger.info(f"Retrieving SSO instance")
-        response = get_session().client('sso-admin').list_instances()
-        if len(response['Instances']) == 0:
-            raise RetrievalError("No SSO instance found, must specify instance")
-        elif len(response['Instances']) > 1:
-            raise RetrievalError("{} SSO instances found, must specify instance".format(len(response['Instances'])))
-        else:
-            instance_arn = response['Instances'][0]['InstanceArn']
-            instance_id = instance_arn.split('/')[-1]
-            logger.info("Using SSO instance {}".format(instance_id))
-            SSO_INSTANCE = instance_arn
-    if SSO_INSTANCE.startswith('ssoins-') or SSO_INSTANCE.startswith('ins-'):
-        SSO_INSTANCE = f"arn:aws:sso:::instance/{SSO_INSTANCE}"
-    return SSO_INSTANCE
-
-OU_CACHE = {}
-def get_accounts_for_ou(ou, recursive, refresh=False, session=None, cache=None, logger=None):
-    if not session:
-        session = get_session(logger=logger)
-
-    if not logger:
-        logger = LOGGER
-    else:
-        logger = logger.getChild("api_utils")
-
-    global OU_CACHE
+def get_accounts_for_ou(session, ou, recursive, refresh=False, cache=None):
     if not cache:
-        cache = OU_CACHE
+        cache = {}
 
     ou_children_key = f"{ou}#children"
     ou_accounts_key = f"{ou}#accounts"
@@ -71,7 +30,7 @@ def get_accounts_for_ou(ou, recursive, refresh=False, session=None, cache=None, 
     accounts = []
 
     if refresh or ou_accounts_key not in cache:
-        logger.info(f"Retrieving accounts for OU {ou}")
+        LOGGER.info(f"Retrieving accounts for OU {ou}")
         client = session.client('organizations')
 
         ou_accounts = []
@@ -88,7 +47,7 @@ def get_accounts_for_ou(ou, recursive, refresh=False, session=None, cache=None, 
 
     if recursive:
         if refresh or ou_children_key not in cache:
-            logger.info(f"Retrieving child OUs for OU {ou}")
+            LOGGER.info(f"Retrieving child OUs for OU {ou}")
             client = session.client('organizations')
 
             ou_children = []
@@ -101,7 +60,7 @@ def get_accounts_for_ou(ou, recursive, refresh=False, session=None, cache=None, 
             cache[ou_children_key] = ou_children
 
         for sub_ou_id in cache[ou_children_key]:
-            accounts.extend(get_accounts_for_ou(sub_ou_id, True, refresh=refresh, session=session, cache=cache, logger=logger))
+            accounts.extend(get_accounts_for_ou(session, sub_ou_id, True, refresh=refresh, cache=cache))
 
     return accounts
 
@@ -109,17 +68,33 @@ class LookupError(Exception):
     pass
 
 class Ids:
-    def __init__(self, session, instance_arn, identity_store_id):
-        self._client = session.client('sso-admin')
+    def __init__(self, session_fetcher, instance_arn=None, identity_store_id=None):
+        if instance_arn and not instance_arn.startswith('arn:'):
+            instance_arn = f"arn:aws:sso:::instance/{instance_arn}"
+
+        self._session_fetcher = session_fetcher
+        self._client = None
         self._instance_arn = instance_arn
         self._instance_arn_printed = False
         self._identity_store_id = identity_store_id
         self._identity_store_id_printed = False
         self.suppress_print = False
 
+    def _get_client(self):
+        if not self._client:
+            self._client = self._session_fetcher().client('sso-admin')
+        return self._client
+
     def _print(self, *args, **kwargs):
         if not self.suppress_print:
             print(*args, **kwargs)
+
+    def instance_arn_matches(self, instance):
+        if not self._instance_arn:
+            return True
+        if instance and not instance.startswith('arn:'):
+            instance = f"arn:aws:sso:::instance/{instance}"
+        return instance == self._instance_arn
 
     @property
     def instance_arn(self):
@@ -128,7 +103,7 @@ class Ids:
                 self._print("Using SSO instance {}".format(self._instance_arn.split('/')[-1]))
                 self._instance_arn_printed = True
             return self._instance_arn
-        response = self._client.list_instances()
+        response = self._get_client().list_instances()
         if len(response['Instances']) == 0:
             raise LookupError("No SSO instance found, please specify with --instance-arn")
         elif len(response['Instances']) > 1:
@@ -152,7 +127,7 @@ class Ids:
                 self._print("Using SSO identity store {}".format(self._identity_store_id))
                 self._identity_store_id_printed = True
             return self._identity_store_id
-        response = self._client.list_instances()
+        response = self._get_client().list_instances()
         if len(response['Instances']) == 0:
             raise LookupError("No SSO instance found, please specify identity store with --identity-store-id or instance with --instance-arn")
         elif len(response['Instances']) > 1:

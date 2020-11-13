@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import os
 import logging
 import copy
@@ -35,6 +48,9 @@ RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
 
 LOGGER = logging.getLogger(__name__)
 
+SESSION = boto3.Session()
+IDS = api_utils.Ids(SESSION)
+
 def is_macro_template(template):
     if "Transform" not in template:
         return False
@@ -45,12 +61,11 @@ def is_macro_template(template):
         return True
     return False
 
-def process_template(template, instance_fetcher,
+def process_template(template,
+        session,
+        ids: api_utils.Ids,
         ou_accounts_cache=None,
-        max_resources_per_template=None,
-        logger=None):
-    logger = utils.get_logger(logger, "macro")
-
+        max_resources_per_template=None):
     base_template = copy.deepcopy(template)
 
     if "Transform" in base_template:
@@ -61,18 +76,18 @@ def process_template(template, instance_fetcher,
 
     resource_keys = [k for k, v in base_template["Resources"].items() if v["Type"] == RESOURCE_TYPE]
     resource_dict = {k: base_template["Resources"].pop(k) for k in resource_keys}
-    logger.debug(f"Found AssignmentGroup resources: {', '.join(resource_keys)}")
+    LOGGER.debug(f"Found AssignmentGroup resources: {', '.join(resource_keys)}")
 
     configs = {}
 
     for resource_name, resource in resource_dict.items():
         validate_resource(resource)
         config = Config()
-        config.load_resource_properties(resource["Properties"], logger=LOGGER)
+        config.load_resource_properties(resource["Properties"])
         config.resource_name_prefix = resource_name
 
         if not config.instance:
-            config.instance = instance_fetcher(logger=LOGGER)
+            config.instance = ids.instance_arn
 
         configs[resource_name] = config
 
@@ -81,8 +96,7 @@ def process_template(template, instance_fetcher,
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
             config,
-            ou_fetcher=lambda ou, recursive: api_utils.get_accounts_for_ou(ou, recursive, cache=ou_accounts_cache, logger=LOGGER),
-            logger=LOGGER)
+            ou_fetcher=lambda ou, recursive: api_utils.get_accounts_for_ou(session, ou, recursive, cache=ou_accounts_cache))
 
         max_stack_resources += templates.get_max_number_of_child_stacks(resource_collection.num_resources, max_resources_per_template=max_resources_per_template)
 
@@ -120,10 +134,10 @@ def handler(event, context, put_object=None):
 
     LOGGER.info("Extracting resources from template")
     output_template, max_stack_resources, resource_collection_dict = process_template(input_template,
-            instance_fetcher=api_utils.get_sso_instance,
+            session=SESSION,
+            ids=IDS,
             ou_accounts_cache=ou_accounts_cache,
-            max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
-            logger=LOGGER)
+            max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE)
 
     all_child_templates_to_write = []
 

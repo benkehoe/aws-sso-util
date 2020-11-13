@@ -1,7 +1,24 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import numbers
 import jsonschema
+import logging
 
 from . import utils, cfn_yaml_tags
+from .. import api_utils
+
+LOGGER = logging.getLogger(__name__)
 
 class ConfigError(Exception):
     pass
@@ -40,9 +57,7 @@ class Config:
         if resource_properties:
             self.load_resource_properties(resource_properties)
 
-    def load(self, data, logger=None):
-        logger = utils.get_logger(logger, "config")
-
+    def load(self, data):
         for name in ["Instance", "InstanceArn", "InstanceARN"]:
             if name in data:
                 self.instance = data[name]
@@ -70,9 +85,7 @@ class Config:
             self.accounts.append(account)
 
 
-    def load_resource_properties(self, resource_properties, logger=None):
-        logger = utils.get_logger(logger, "config")
-
+    def load_resource_properties(self, resource_properties):
         data = {}
         _, instance = _get_value(resource_properties, ["Instance", "InstanceArn", "InstanceARN"])
         if instance is not None:
@@ -114,7 +127,7 @@ class Config:
 
         import yaml
 
-        self.load(data, logger=logger)
+        self.load(data)
 
 FUNC_SCHEMA = {
     "type": "object",
@@ -234,12 +247,11 @@ def validate_resource(resource):
         _check(target_entry, ["Type", "TargetType"], parent=name)
         _check(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], parent=name)
 
-def validate_config(config, sso_instance, instance_fetcher, logger=None):
-    logger = utils.get_logger(logger, "config")
-    if config.instance and sso_instance and config.instance != sso_instance:
-        logger.warning(f"Config instance {config.instance} does not match input instance {sso_instance}")
+def validate_config(config, ids: api_utils.Ids):
     if not config.instance:
-        config.instance = instance_fetcher(logger=logger)
+        config.instance = ids.instance_arn
+    elif not ids.instance_arn_matches(config.instance):
+        LOGGER.warning(f"Config instance {config.instance} does not match {ids.instance_arn}")
 
     if not (config.groups or config.users):
        raise ConfigError("No principals specified")

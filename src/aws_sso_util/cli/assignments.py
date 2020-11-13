@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import re
 from collections import namedtuple
 
@@ -74,7 +87,7 @@ def assignments(
         separator):
     session = boto3.Session()
 
-    ids = Ids(session, instance_arn, identity_store_id)
+    ids = Ids(lambda: session, instance_arn, identity_store_id)
     ids.suppress_print = not show_id
 
     principal_filter = get_principal_filter(group_values, user_values)

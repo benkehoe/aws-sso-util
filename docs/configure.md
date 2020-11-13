@@ -9,9 +9,86 @@ You probably want to set the environment variables `AWS_CONFIGURE_SSO_DEFAULT_SS
 `aws-sso-util configure populate` takes one or more regions, and generates a profile for each account+role+region combination.
 The profile names are completely customizable.
 
+# Common options
+
+## AWS SSO instance
+For both commands, an AWS SSO instance must be specified.
+This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
+However, `aws-sso-util configure` tries to be smart about finding this value.
+
+If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
+You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
+
+`aws-sso-util configure` uses the following algorithm to determine these values:
+1. Except for `aws-sso-util configure profile`, if you provide a profile name with `--profile`, this profile will be checked for the fields `sso_start_url` and `sso_region`. It fails if they are not found.
+2. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
+  1. `--sso-start-url`/`-u` and `--sso-region`
+  2. `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_DEFAULT_SSO_REGION`
+  3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
+3. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
+4. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
+  * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
+  * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
+  * If a region was found in step 2, instances must match this region.
+5. The resulting filtered list of instances must contain exactly one entry.
+
+In general: if you've got multiple AWS SSO instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
+
+For example, if you're using `https://foo.awsapps.com/start` (region `us-east-2`) and `https://bar.awsapps.com/start` (`ap-northeast-1`), and the first is your more used one, you'd set:
+```
+AWS_DEFAULT_SSO_START_URL=https://foo.awsapps.com/start
+AWS_DEFAULT_SSO_REGION=us-east-2
+```
+and you'd configure profiles for that with `aws-sso-util configure profile my-foo-profile`
+and for the other with `aws-sso-util configure profile my-bar-profile --sso-start-url https://bar.awsapps.com/start --sso-region ap-northeast-1` the first time, and then `aws-sso-util configure profile my-other-bar-profile --sso-start-url bar` afterwards, as the region would get found from the `my-bar-profile` profile.
+
+If you're finding that it's not correctly selecting the right instance, you can see the details with `--verbose`.
+
+## Config fields
+You can provide additional entries to include in profiles with the `--config-default`/`-c` parameter.
+You can provide multiple entries, each of the form `--config-default key=value`, e.g. `-c output=yaml`
+
+These defaults will not overwrite any existing values you have put in your config file.
+To change this, use the `--existing-config-action` parameter.
+There are three options:
+* `keep` (the default): for each profile, don't add provided default entries when they conflict with a default
+* `overwrite`: for each profile, provided default entries will overwrite existing entries
+* `discard`: for each profile, all existing entries will be discarded
+
+By default, a `credential_process` entry is created in profiles, see [the docs for `aws-sso-util credential-process`](credential-process.md) for details.
+To disable this, set `--no-credential-process` or the environment variable `AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS=true`.
+
 # aws-sso-util configure profile
 
-`aws-sso-util configure profile` allows you to configure a single profile for use with AWS SSO interactively, including prompting you to select from available accounts and roles.
+`aws-sso-util configure profile` allows you to configure a single profile for use with AWS SSO.
+You can set all the options for a profile, or let it prompt you interactively to select from available accounts and roles.
+
+A complete profile has the following required information, and you can set them with the listed parameters/environment variables:
+* AWS SSO start URL
+  * See above for how to set this
+  * `--sso-start-url`
+  * `AWS_CONFIGURE_DEFAULT_SSO_START_URL`
+  * `AWS_DEFAULT_SSO_START_URL`
+* AWS SSO region
+  * `--sso-region`
+  * `AWS_CONFIGURE_DEFAULT_SSO_REGION`
+  * `AWS_DEFAULT_SSO_REGION`
+* Account
+  * `--account-id`/`-a`
+* Role name
+  * `--role-name`/`-r`
+* Region
+  * `--region`
+  * `AWS_CONFIGURE_DEFAULT_REGION` environment variable
+  * `AWS_DEFAULT_REGION`
+
+You can additionally set the `output` field with `--output`/`-o`, and as mentioned above, you can provide additional fields with `--config-default`/`-c`.
+
+If not all of the required fields are provided, the interactive prompts appear, unless the `--non-interactive` flag is set.
+The interactive prompts come from the AWS CLI v2's `aws configure sso` command.
+If you do not have the AWS CLI v2, you'll receive a message about installing it.
+Get ahead of the game with [these installation instructions](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
+
 It will look something like this:
 ```
 $ aws-sso-util configure profile my-sso-profile
@@ -37,8 +114,6 @@ To use this profile, specify the profile name using --profile, as shown:
 aws s3 ls --profile my-sso-profile
 ```
 
-This tool wraps the AWS CLI v2's `aws configure sso` command, to provide auto-population of the start URL and SSO region based on the environment variables listed above, and automatically inserts the `credential_process` entry to enable support for SDK (see [the docs for `aws-sso-util credential-process` for more details](credential-process.md)).
-
 # aws-sso-util configure populate
 
 `aws-sso-util configure populate` allows you to configure profiles for all the access you have through AWS SSO.
@@ -48,22 +123,10 @@ You can provide regions through the `--region`/`-r` flag (multiple regions like 
 
 You can view the profiles without writing them using the `--dry-run` flag.
 
-## Config entries
-
-You can provide additional entries to include in each profile with the `--config-default`/`-d` parameter.
-You can provide multiple entries, each of the form `--config-default key=value`, e.g. `-d output=yaml`
-
-These defaults will not overwrite any existing values you have put in your config file.
-To change this, use the `--existing-config-action` parameter.
-There are three options:
-* `keep` (the default): for each profile, keep all entries that are specifically set by `aws-sso-util configure populate`, but add provided default entries that don't conflict
-* `overwrite`: for each profile, provided default entries will overwrite existing entries
-* `discard`: for each profile, all existing entries will be discarded
-
 ## Profile names
 The generated profile names are highly configurable.
 
-By default, the profile name is `{account_name}_{role_name}` for the first region given, and `{account_name}_{region_name}_{short_region}` for additional regions.
+By default, the profile name is `{account_name}.{role_name}` for the first region given, and `{account_name}.{role_name}.{short_region}` for additional regions.
 The "short region" is a five-character abbreviation of the region: the country code followed by either the first two letters of the location or the abbreviation for locations like "northwest" ("nw") followed by the number.
 For example, this results in "usea1" for "us-east-1", "apne1" for "ap-northeast-1", and "cace1" for "ca-central-1".
 
@@ -80,7 +143,7 @@ The components are:
 
 You can provide a comma separated list of components to the `--components` parameter.
 Any value that doesn't match the list above is included as a literal.
-The values are joined with `_` by default, which can be changed with `--separator`.
+The values are joined with `.` by default, which can be changed with `--separator`.
 
 Whether a region component (any of the three in the list) is included in the profile name is controlled by the `--include-region` parameter.
 `--include-region default` (the default, obviously) only includes the region component if it is not the first region listed, on the basis that it is your most-used region and therefore you shouldn't have to explicitly specify it.

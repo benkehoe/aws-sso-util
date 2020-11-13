@@ -18,13 +18,18 @@
 import os
 import sys
 import webbrowser
+import logging
+import datetime
+import uuid
 
+import boto3
+import botocore
 from botocore.credentials import JSONFileCache
 
 from .vendored_botocore.utils import SSOTokenFetcher
 from .vendored_botocore.credentials import SSOCredentialFetcher
 
-from .exceptions import InvalidSSOConfigError, AuthDispatchError, InteractiveAuthDisabledError
+from .exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError
 from .browser import OpenBrowserHandler, non_interactive_auth_raiser
 
 SSO_TOKEN_DIR = os.path.expanduser(
@@ -35,9 +40,10 @@ CREDENTIALS_CACHE_DIR = os.path.expanduser(
     os.path.join('~', '.aws', 'cli', 'cache')
 )
 
+LOGGER = logging.getLogger(__name__)
 
-def get_token_loader(session, sso_region, interactive=False, token_cache=None,
-                     on_pending_authorization=None, force_refresh=False, logger=None):
+def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
+                     on_pending_authorization=None):
     if hasattr(session, '_session'): #boto3 Session
         session = session._session
 
@@ -59,24 +65,36 @@ def get_token_loader(session, sso_region, interactive=False, token_cache=None,
         cache=token_cache,
         on_pending_authorization=on_pending_authorization,
     )
+    return token_fetcher
 
+def get_token_loader(session, sso_region, interactive=False, token_cache=None,
+                     on_pending_authorization=None, force_refresh=False):
+    token_fetcher = get_token_fetcher(
+        session=session,
+        sso_region=sso_region,
+        interactive=interactive,
+        token_cache=token_cache,
+        on_pending_authorization=on_pending_authorization,
+    )
+    return get_token_loader_from_token_fetcher(token_fetcher, force_refresh=force_refresh)
+
+def get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
     def token_loader(start_url):
         token_response = token_fetcher.fetch_token(
             start_url=start_url,
             force_refresh=force_refresh
         )
-        if logger:
-            logger.debug('TOKEN RESPONSE: {}'.format(token_response))
+        LOGGER.debug('TOKEN RESPONSE: {}'.format(token_response))
         return token_response['accessToken']
 
     return token_loader
 
 
-def get_credentials(session, sso_region, start_url, account_id, role_name, token_loader=None, cache=None, logger=None):
+def get_credentials(session, start_url, sso_region, account_id, role_name, token_loader=None, cache=None):
     if hasattr(session, '_session'): #boto3 Session
         session = session._session
     if not token_loader:
-        token_loader = get_token_loader(session, sso_region, logger=logger)
+        token_loader = get_token_loader(session, sso_region)
 
     if cache is None:
         cache = JSONFileCache(CREDENTIALS_CACHE_DIR)
@@ -92,3 +110,37 @@ def get_credentials(session, sso_region, start_url, account_id, role_name, token
     )
 
     return credential_fetcher.fetch_credentials()
+
+def get_botocore_session(start_url, sso_region, account_id, role_name):
+    botocore_session = botocore.session.Session()
+
+    profile_name = str(uuid.uuid4())
+    load_config = lambda: {
+        "profiles": {
+            profile_name: {
+                "sso_start_url": start_url,
+                "sso_region": sso_region,
+                "sso_account_id": account_id,
+                "sso_role_name": role_name,
+            }
+        }
+    }
+    sso_provider = botocore.credentials.SSOProvider(
+        load_config=load_config,
+        client_creator=botocore_session.create_client,
+        profile_name=profile_name
+    )
+
+    botocore_session.register_component(
+        'credential_provider',
+        botocore.credentials.CredentialResolver([sso_provider])
+    )
+
+    return botocore_session
+
+def get_boto3_session(start_url, sso_region, account_id, role_name, region):
+    botocore_session = get_botocore_session(start_url, sso_region, account_id, role_name)
+
+    session = boto3.Session(botocore_session=botocore_session, region_name=region)
+
+    return session

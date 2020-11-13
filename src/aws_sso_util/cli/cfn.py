@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import argparse
 from collections import namedtuple, OrderedDict
 from pathlib import Path
@@ -13,6 +26,8 @@ from .. import api_utils
 from ..cfn.config import Config, ConfigError, validate_config
 from ..cfn import resources, templates, macro, utils
 
+from .utils import configure_logging
+
 Input = namedtuple("Input", ["base_path", "stem", "assignments", "permission_sets", "base_template"])
 
 TemplateProcessInput = namedtuple("TemplateProcessInput", [
@@ -27,7 +42,7 @@ TemplateProcessInputItem = namedtuple("TemplateProcessInput", [
     "resource_collection",
 ])
 
-LOGGER = logging.getLogger("sso_cfn")
+LOGGER = logging.getLogger(__name__)
 
 def param_loader(ctx, param, value):
     if not value:
@@ -58,7 +73,6 @@ def param_loader(ctx, param, value):
 @click.option("--max-concurrent-assignments", type=int, default=templates.MAX_CONCURRENT_ASSIGNMENTS)
 
 @click.option("--verbose", "-v", count=True)
-
 def generate_template(
         config_file,
         macro,
@@ -71,23 +85,23 @@ def generate_template(
         max_resources_per_template,
         max_concurrent_assignments,
         verbose):
-    logging.basicConfig(format="{message}", style="{")
-    if verbose >= 1:
-        LOGGER.setLevel(logging.DEBUG)
-    else:
-        LOGGER.setLevel(logging.INFO)
-    if verbose == 2:
-        logging.getLogger().setLevel(logging.INFO)
-    elif verbose == 3:
-        logging.getLogger().setLevel(logging.DEBUG)
+    configure_logging(LOGGER, verbose)
+
 
     if macro and base_template_file:
         raise click.UsageError("--base-template-file not allowed with --macro")
     if macro and template_parameters:
         raise click.UsageError("--template-parameters not allowed with --macro")
 
-    api_utils.PROFILE = profile
-    api_utils.SSO_INSTANCE = sso_instance
+    session = []
+    def session_fetcher():
+        if not session:
+            session.append(boto3.Session(profile_name=profile))
+        return session[0]
+
+    ids = api_utils.Ids(session_fetcher, sso_instance, identity_store_id=None)
+
+    ou_fetcher = lambda ou, recursive: api_utils.get_accounts_for_ou(session, ou, recursive)
 
     if not template_file_suffix:
         template_file_suffix = ".yaml"
@@ -106,35 +120,42 @@ def generate_template(
 
     if macro:
         template_process_inputs = process_macro(
-            config_file,
-            sso_instance,
-            template_file_suffix,
-            output_dir,
-            max_resources_per_template,
-            max_concurrent_assignments
+            config_file=config_file,
+            session=session,
+            ids=ids,
+            ou_fetcher=ou_fetcher,
+            template_file_suffix=template_file_suffix,
+            output_dir=output_dir,
+            max_resources_per_template=max_resources_per_template,
+            max_concurrent_assignments=max_concurrent_assignments,
         )
     else:
         template_process_inputs = process_config(
-            config_file,
-            sso_instance,
-            template_file_suffix,
-            output_dir,
-            base_template,
-            max_resources_per_template,
-            max_concurrent_assignments
+            config_file=config_file,
+            session=session,
+            ids=ids,
+            ou_fetcher=ou_fetcher,
+            template_file_suffix=template_file_suffix,
+            output_dir=output_dir,
+            base_template=base_template,
+            max_resources_per_template=max_resources_per_template,
+            max_concurrent_assignments=max_concurrent_assignments,
         )
 
     templates_to_write = process_templates(
-        template_process_inputs,
-        template_file_suffix,
-        max_resources_per_template,
-        max_concurrent_assignments)
+        template_process_inputs=template_process_inputs,
+        template_file_suffix=template_file_suffix,
+        max_resources_per_template=max_resources_per_template,
+        max_concurrent_assignments=max_concurrent_assignments
+    )
 
     write_templates(templates_to_write)
 
 def process_config(
     config_file,
-    sso_instance,
+    session,
+    ids,
+    ou_fetcher,
     template_file_suffix,
     output_dir,
     base_template,
@@ -155,18 +176,19 @@ def process_config(
         LOGGER.debug(f"Config file contents:\n{utils.dump_yaml(data)}")
 
         config = Config()
-        config.load(data, logger=LOGGER)
+        config.load(data)
 
         try:
-            validate_config(config, sso_instance, api_utils.get_sso_instance, logger=LOGGER)
+            validate_config(config, ids)
         except ConfigError as e:
             LOGGER.fatal(f"{e!s} in {config_file_path}")
             sys.exit(1)
 
         resource_collection = resources.get_resources_from_config(
             config,
-            ou_fetcher=lambda ou, recursive: api_utils.get_accounts_for_ou(ou, recursive, logger=LOGGER),
-            logger=LOGGER)
+            ou_fetcher=ou_fetcher)
+
+        LOGGER.info(f"Generated {len(resource_collection.assignments)} assignments")
 
         max_stack_resources = templates.get_max_number_of_child_stacks(
             resource_collection.num_resources,
@@ -186,7 +208,9 @@ def process_config(
 
 def process_macro(
         config_file,
-        sso_instance,
+        session,
+        ids,
+        ou_fetcher,
         template_file_suffix,
         output_dir,
         max_resources_per_template,
@@ -208,9 +232,9 @@ def process_macro(
 
         LOGGER.info("Extracting resources from template")
         base_template, max_stack_resources, resource_collection_dict = macro.process_template(input_template,
-                instance_fetcher=api_utils.get_sso_instance,
-                max_resources_per_template=max_resources_per_template,
-                logger=LOGGER)
+                session=session,
+                ids=ids,
+                max_resources_per_template=max_resources_per_template)
 
         template_process_inputs[config_file_path] = TemplateProcessInput(
             base_path=base_path,

@@ -1,3 +1,16 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 import logging
 import json
 from collections import OrderedDict
@@ -33,15 +46,6 @@ def load_yaml(*args, **kwargs):
 
 def dump_yaml(*args, **kwargs):
     return yaml.safe_dump(*args, **kwargs)
-
-def get_logger(parent, name) -> logging.Logger:
-    if parent:
-        if parent.name == name:
-            return parent
-        else:
-            return parent.getChild(name)
-    else:
-        return logging.getLogger(name)
 
 def get_instance_id_from_arn(instance_arn):
     return instance_arn.split('/', 1)[1]

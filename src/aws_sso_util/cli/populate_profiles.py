@@ -1,3 +1,17 @@
+# Copyright 2020 Ben Kehoe
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+# http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
+import sys
 import os
 import argparse
 import logging
@@ -14,7 +28,13 @@ from botocore.exceptions import ClientError, ProfileNotFound
 import click
 
 from ..sso import get_token_loader
+from ..config import find_instances, SSOInstance
 from ..vendored_botocore.config_file_writer import ConfigFileWriter, write_values, get_config_filename
+from .utils import configure_logging
+
+from .configure_profile import DEFAULT_START_URL_VARS, DEFAULT_SSO_REGION_VARS, DEFAULT_REGION_VARS, DISABLE_CREDENTIAL_PROCESS_VAR
+
+DEFAULT_SEPARATOR = "."
 
 LOGGER = logging.getLogger(__name__)
 
@@ -101,36 +121,36 @@ def get_process_formatter(command):
                 "Profile name process failed ({})".format(e.returncode)
             ]
             if e.stdout:
-                lines.append(e.stdout.decode('utf-8'))
+                lines.append(e.stdout.decode("utf-8"))
             if e.stderr:
-                lines.append(e.stderr.decode('utf-8'))
+                lines.append(e.stderr.decode("utf-8"))
             LOGGER.error("\n".join(lines))
             raise e
-        return result.stdout.decode('utf-8').strip()
+        return result.stdout.decode("utf-8").strip()
     return formatter
 
 def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
     def trim_formatter(i, **kwargs):
         for pattern in account_name_patterns:
-            kwargs["account_name"] = re.sub(pattern, '', kwargs["account_name"])
+            kwargs["account_name"] = re.sub(pattern, "", kwargs["account_name"])
         for pattern in role_name_patterns:
-            kwargs["role_name"] = re.sub(pattern, '', kwargs["role_name"])
+            kwargs["role_name"] = re.sub(pattern, "", kwargs["role_name"])
         return formatter(i, **kwargs)
     return trim_formatter
 
 @click.command()
-@click.option("--sso-start-url")
+@click.option("--sso-start-url", "-u")
 @click.option("--sso-region")
 
 @click.option("--region", "-r", "regions", multiple=True)
 
 @click.option("--dry-run", is_flag=True, help="Print the config to stdout")
 
-@click.option("--config-default", "-d", multiple=True)
+@click.option("--config-default", "-c", multiple=True)
 @click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep")
 
 @click.option("--components", "profile_name_components", default="account_name,role_name,default_style_region")
-@click.option("--separator", "--sep", "profile_name_separator", default="_")
+@click.option("--separator", "--sep", "profile_name_separator", help=f"Default is {DEFAULT_SEPARATOR}")
 @click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default")
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
@@ -140,7 +160,7 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
 @click.option("--credential-process/--no-credential-process")
 
 @click.option("--force-refresh", is_flag=True, help="Re-login")
-@click.option("--debug", is_flag=True)
+@click.option("--verbose", "-v", count=True)
 def populate_profiles(
         sso_start_url,
         sso_region,
@@ -157,25 +177,45 @@ def populate_profiles(
         profile_name_process,
         credential_process,
         force_refresh,
-        debug):
+        verbose):
 
-    logging.basicConfig()
-    LOGGER.setLevel(logging.DEBUG if debug else logging.INFO)
+    configure_logging(LOGGER, verbose)
 
     missing = []
 
-    if not sso_start_url:
-        sso_start_url = os.environ.get("AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL", os.environ.get("AWS_CONFIGURE_DEFAULT_SSO_START_URL"))
-    if not sso_start_url:
-        missing.append("--start-url")
+    instances, specifier, all_instances = find_instances(
+        profile_name=None,
+        profile_source=None,
+        start_url=sso_start_url,
+        start_url_source="CLI input",
+        region=sso_region,
+        region_source="CLI input",
+        start_url_vars=DEFAULT_START_URL_VARS,
+        region_vars=DEFAULT_SSO_REGION_VARS,
+    )
 
-    if not sso_region:
-        sso_region = os.environ.get("AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION", os.environ.get("AWS_CONFIGURE_DEFAULT_SSO_REGION"))
-    if not sso_region:
-        missing.append("--sso-region")
+    if not instances:
+        if all_instances:
+            LOGGER.fatal((
+                f"No AWS SSO config matched {specifier.to_str(region=True)} " +
+                f"from {SSOInstance.to_strs(all_instances)}"))
+        else:
+            LOGGER.fatal("No AWS SSO config found")
+        sys.exit(1)
 
-    if not regions and os.environ.get("AWS_CONFIGURE_DEFAULT_REGION"):
-        regions = [os.environ["AWS_CONFIGURE_DEFAULT_REGION"]]
+    if len(instances) > 1:
+        LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one: {SSOInstance.to_strs(instances)}")
+        sys.exit(1)
+
+    instance = instances[0]
+
+    if not regions:
+        for var_name in DEFAULT_REGION_VARS:
+            value = os.environ.get(var_name)
+            if value:
+                LOGGER.debug(f"Got default region {value} from {var_name}")
+                regions = [value]
+                break
     if not regions:
         missing.append("--region")
 
@@ -186,6 +226,9 @@ def populate_profiles(
         config_default = dict(v.split("=", 1) for v in config_default)
     else:
         config_default = {}
+
+    if not profile_name_separator:
+        profile_name_separator = os.environ.get("AWS_CONFIGURE_SSO_DEFAULT_PROFILE_NAME_SEPARATOR") or DEFAULT_SEPARATOR
 
     if profile_name_process:
         profile_name_formatter = get_process_formatter(profile_name_process)
@@ -198,25 +241,24 @@ def populate_profiles(
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
 
     try:
-        profile_name_formatter(0, account_name='foo', account_id='bar', role_name='baz', region='us-east-1')
+        profile_name_formatter(0, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
     except Exception as e:
         raise click.UsageError("Invalid profile name format: {}".format(e))
 
     session = Session()
 
     token_loader = get_token_loader(session,
-            sso_region,
+            instance.region,
             interactive=True,
-            force_refresh=force_refresh,
-            logger=LOGGER)
+            force_refresh=force_refresh)
 
-    LOGGER.info("Logging in")
-    token = token_loader(sso_start_url)
+    LOGGER.info(f"Logging in to {instance.start_url}")
+    token = token_loader(instance.start_url)
 
     LOGGER.debug("Token: {}".format(token))
 
     config = botocore.config.Config(
-        region_name=sso_region,
+        region_name=instance.region,
         signature_version=botocore.UNSIGNED,
     )
     client = session.create_client("sso", config=config)
@@ -291,35 +333,42 @@ def populate_profiles(
     for config in configs:
         LOGGER.debug("Processing config: {}".format(config))
 
-        existing_values = {}
+        config_values = {}
+        existing_profile = False
+        existing_config = {}
         if existing_config_action != "discard":
             try:
-                existing_values = Session(profile=config.profile_name).get_scoped_config()
+                existing_config = Session(profile=config.profile_name).get_scoped_config()
+                config_values.update(existing_config)
+                existing_profile = True
             except ProfileNotFound:
                 pass
 
-        config_values = {
+        config_values.update({
+            "sso_start_url": instance.start_url,
+            "sso_region": instance.region,
             "sso_account_name": config.account_name,
             "sso_account_id": config.account_id,
             "sso_role_name": config.role_name,
-            "sso_start_url": sso_start_url,
-            "sso_region": sso_region,
             "region": config.region,
-        }
+        })
 
 
         for k, v in config_default.items():
-            if k in existing_values and existing_config_action in ["keep"]:
+            if k in existing_config and existing_config_action in ["keep"]:
                 continue
             config_values[k] = v
 
-        add_credential_process = os.environ.get('AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS', '').lower() not in ['1', 'true']
         if credential_process is not None:
-            add_credential_process = credential_process
-
-        if add_credential_process:
-            config_values["credential_process"] = "aws-sso-util credential-process --profile {}".format(config.profile_name)
+            set_credential_process = credential_process
+        elif os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR):
+            set_credential_process = os.environ.get(DISABLE_CREDENTIAL_PROCESS_VAR, "").lower() not in ["1", "true"]
         else:
+            set_credential_process = None
+
+        if set_credential_process:
+            config_values["credential_process"] = "aws-sso-util credential-process --profile {}".format(config.profile_name)
+        elif set_credential_process is False:
             config_values.pop("credential_process", None)
 
         LOGGER.debug("Config values for profile {}: {}".format(config.profile_name, config_values))
