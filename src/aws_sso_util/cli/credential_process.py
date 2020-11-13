@@ -177,7 +177,7 @@ def credential_process(
             aws_sso_util_cmd = f"aws-sso-util login --profile {profile}"
             aws_sso_cmd = f"aws sso login --profile {profile}"
         else:
-            aws_sso_util_cmd = f"aws-sso-util login --sso-start-url {config['sso_start_url']} --sso-region {config['sso_region']}"
+            aws_sso_util_cmd = f"aws-sso-util login {config['sso_start_url']} {config['sso_region']}"
             aws_sso_cmd = f"aws sso login"
         print(f"Login required. Use `{aws_sso_util_cmd}` or `{aws_sso_cmd}` and try again.", file=sys.stderr)
         sys.exit(1)
