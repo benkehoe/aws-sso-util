@@ -93,6 +93,18 @@ The `--profile` parameter on `aws-sso-util credential-process` doesn't work like
 ### Debugging
 Setting the `--debug` flag or the env var `AWS_SSO_CREDENTIAL_PROCESS_DEBUG=true` will cause debug output to be sent to `.aws/sso/aws-sso-util credential-process-log.txt`. Note that this file will contain your credentials, though these credentials are both short-lived and also cached within the same directory.
 
+### SSO Start URL
+
+* `.aws/config`: `sso_start_url`
+* env var: `AWS_SSO_START_URL`
+* parameter: `--sso-start-url`
+
+### SSO Region
+
+* `.aws/config`: `sso_region`
+* env var: `AWS_SSO_REGION`
+* parameter: `--sso-region`
+
 ### Account
 
 * `.aws/config`: `sso_account_id`
@@ -104,15 +116,3 @@ Setting the `--debug` flag or the env var `AWS_SSO_CREDENTIAL_PROCESS_DEBUG=true
 * `.aws/config`: `sso_role_name`
 * env var: `AWS_SSO_ROLE_NAME`
 * parameter: `--role-name`
-
-### SSO Start URL
-
-* `.aws/config`: `sso_start_url`
-* env var: `AWS_SSO_START_URL`
-* parameter: `--start-url`
-
-### SSO Region
-
-* `.aws/config`: `sso_region`
-* env var: `AWS_SSO_REGION`
-* parameter: `--region`

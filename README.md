@@ -125,7 +125,7 @@ I look forward to discarding this part of the tool once there are two prerequisi
 I am against client-side generation of CloudFormation templates, but if you don't want to trust this 3rd party macro, you can generate the CloudFormation templates directly.
 
 `aws-sso-util cfn` takes one or more input files, and for each input file, generates a CloudFormation template and potentially one or more child templates.
-These templates can then be packaged and uploaded using [`sam`](), for example.
+These templates can then be packaged and uploaded using [`aws cloudformation package`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudformation/package.html) or [the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html), for example.
 
 The input files can either be templates using the Macro (using the `--macro` flag), or somewhat simpler configuration files using a different syntax.
 These configuration files can define permission sets inline, have references that turn into template parameters, and you can provide a base template that the resulting resources are layered on top of.
