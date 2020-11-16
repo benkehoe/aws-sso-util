@@ -21,6 +21,7 @@ import webbrowser
 import logging
 import datetime
 import uuid
+import numbers
 
 import boto3
 import botocore
@@ -43,7 +44,7 @@ CREDENTIALS_CACHE_DIR = os.path.expanduser(
 LOGGER = logging.getLogger(__name__)
 
 def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
-                     on_pending_authorization=None):
+                     on_pending_authorization=None, message=None, outfile=None):
     if hasattr(session, '_session'): #boto3 Session
         session = session._session
 
@@ -53,8 +54,8 @@ def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
     if on_pending_authorization is None:
         if interactive:
             on_pending_authorization = OpenBrowserHandler(
-                outfile=sys.stderr,
-                open_browser=webbrowser.open_new_tab,
+                outfile=outfile,
+                message=message,
             )
         else:
             on_pending_authorization = non_interactive_auth_raiser
@@ -68,13 +69,14 @@ def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
     return token_fetcher
 
 def get_token_loader(session, sso_region, interactive=False, token_cache=None,
-                     on_pending_authorization=None, force_refresh=False):
+                     on_pending_authorization=None, message=None, force_refresh=False):
     token_fetcher = get_token_fetcher(
         session=session,
         sso_region=sso_region,
         interactive=interactive,
         token_cache=token_cache,
         on_pending_authorization=on_pending_authorization,
+        message=message,
     )
     return get_token_loader_from_token_fetcher(token_fetcher, force_refresh=force_refresh)
 
@@ -84,7 +86,7 @@ def get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
             start_url=start_url,
             force_refresh=force_refresh
         )
-        LOGGER.debug('TOKEN RESPONSE: {}'.format(token_response))
+        LOGGER.debug('TOKEN: {}'.format(token_response))
         return token_response['accessToken']
 
     return token_loader
@@ -138,9 +140,36 @@ def get_botocore_session(start_url, sso_region, account_id, role_name):
 
     return botocore_session
 
-def get_boto3_session(start_url, sso_region, account_id, role_name, region):
+def get_boto3_session(start_url, sso_region, account_id, role_name, region, login=False):
+    """Get a boto3 session with the input configuration"""
+    if login:
+        _login(start_url, sso_region)
+
+    if isinstance(account_id, (str, numbers.Number)):
+        account_id = str(int(account_id)).rjust(12, '0')
+
     botocore_session = get_botocore_session(start_url, sso_region, account_id, role_name)
 
     session = boto3.Session(botocore_session=botocore_session, region_name=region)
 
     return session
+
+def login(start_url, sso_region, force_refresh=False, message=None, outfile=None):
+    """Interactively log in the user if their AWS SSO credentials have expired"""
+    session = botocore.session.Session()
+
+    token_fetcher = get_token_fetcher(
+        session=session,
+        sso_region=sso_region,
+        interactive=True,
+        message=message,
+        outfile=outfile)
+
+    token = token_fetcher.fetch_token(
+        start_url=start_url,
+        force_refresh=force_refresh
+    )
+
+    return token
+
+_login = login
