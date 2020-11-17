@@ -20,7 +20,7 @@ PermissionSets:
 
 Ous:
 # Using an OU will currently cause API calls to your account, so fake OU ID is commented out.
-- ou-7w1i-suzvrczk
+# - ou-7w1i-suzvrczk
 RecursiveOus: []
 
 Accounts:
