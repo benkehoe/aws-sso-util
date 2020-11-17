@@ -93,13 +93,9 @@ def generate_template(
     if macro and template_parameters:
         raise click.UsageError("--template-parameters not allowed with --macro")
 
-    session = []
-    def session_fetcher():
-        if not session:
-            session.append(boto3.Session(profile_name=profile))
-        return session[0]
+    session = boto3.Session(profile_name=profile)
 
-    ids = api_utils.Ids(session_fetcher, sso_instance, identity_store_id=None)
+    ids = api_utils.Ids(lambda: session, sso_instance, identity_store_id=None)
 
     ou_fetcher = lambda ou, recursive: api_utils.get_accounts_for_ou(session, ou, recursive)
 

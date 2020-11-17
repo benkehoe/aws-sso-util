@@ -80,8 +80,10 @@ class Config:
         self.ous.extend(get(["OUs", "Ous", "OU", "Ou"]))
         self.recursive_ous.extend(get(["RecursiveOUs", "RecursiveOus", "RecursiveOU", "RecursiveOu"]))
         for account in get(["Accounts", "Account"]):
-            if isinstance(account, (str, numbers.Number)):
-                account = str(int(account)).rjust(12, '0')
+            if isinstance(account, numbers.Number):
+                account = str(int(account))
+            if isinstance(account, str):
+                account = account.rjust(12, '0')
             self.accounts.append(account)
 
 

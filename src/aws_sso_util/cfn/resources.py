@@ -305,19 +305,12 @@ def get_resources_from_config(config: Config, ou_fetcher=None) -> ResourceCollec
 
     for ou in config.ous:
         LOGGER.debug(f"Translating OU {ou} to accounts")
-        accounts = ou_fetcher(ou, recursive=False)
-
-        for account in accounts:
+        for account in ou_fetcher(ou, recursive=False):
             targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
 
     for ou in config.recursive_ous:
         LOGGER.debug(f"Translating OU {ou} recursively to accounts")
-        accounts = ou_fetcher(ou, recursive=True)
-
-        for account in accounts:
-            targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
-
-        for account in accounts:
+        for account in ou_fetcher(ou, recursive=True):
             targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
 
     for account in config.accounts:

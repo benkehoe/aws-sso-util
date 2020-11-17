@@ -146,7 +146,9 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, region, logi
         _login(start_url, sso_region)
 
     if isinstance(account_id, (str, numbers.Number)):
-        account_id = str(int(account_id)).rjust(12, '0')
+        account_id = str(int(account_id))
+    if len(account_id) < 12:
+        account_id = account_id.rjust(12, '0')
 
     botocore_session = get_botocore_session(start_url, sso_region, account_id, role_name)
 

@@ -121,6 +121,10 @@ class Ids:
         return self._instance_arn
 
     @property
+    def instance_id(self):
+        return self.instance_arn.split("/", 1)[1]
+
+    @property
     def identity_store_id(self):
         if self._identity_store_id:
             if not self._identity_store_id_printed:

@@ -18,12 +18,12 @@ PermissionSets:
 - Name: PermissionSetName
   ManagedPolicies: []
 
-Ous: []
+Ous:
 # Using an OU will currently cause API calls to your account, so fake OU ID is commented out.
-#- ou-7w1i-suzvrczk
+- ou-7w1i-suzvrczk
 RecursiveOus: []
 
 Accounts:
 - 123456789012
-- 174652129131
+- "74652129131"
 - !Ref AccountParameter
