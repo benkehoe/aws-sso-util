@@ -1,4 +1,6 @@
-# aws-sso-util configure
+# `aws-sso-util configure` and `aws-sso-util roles`
+
+You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles, but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 
@@ -8,6 +10,30 @@ You probably want to set the environment variables `AWS_CONFIGURE_SSO_DEFAULT_SS
 
 `aws-sso-util configure populate` takes one or more regions, and generates a profile for each account+role+region combination.
 The profile names are completely customizable.
+
+# `aws-sso-util roles`
+
+`aws-sso-util roles` prints out a table of the accounts and roles you have access to.
+This table contains the following columns: account ID, account name, role name.
+
+An AWS SSO instance must be specified when using `aws-sso-util roles`.
+If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
+You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
+Otherwise, see below for the full resolution algorithm.
+
+`aws-sso-util roles` has the following options:
+* `--account`/`-a`: either an explicit 12-digit account ID (which will speed up the process) or a patterns to match, either the account ID prefix or suffix, or a regex to match against the account name.
+  * This option can be provided multiple times.
+  * If explicit account IDs are provided, the account name will always be `UNKNOWN`.
+* `--role-name`/`-r`: a regex to match against the role name
+* `--separator`/`--sep`: the field separator
+  * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end.
+* `--header`: print a header row
+* `--sort-by`: sort the output according to the specification. The input must be two comma-separated values:
+  * `id` is the account ID
+  * `name` is the account name
+  * `role` is the role name
+  * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
 
 # Common options
 
@@ -20,17 +46,16 @@ If you've only got one AWS SSO instance, and you've already got a profile config
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
 `aws-sso-util configure` uses the following algorithm to determine these values:
-1. Except for `aws-sso-util configure profile`, if you provide a profile name with `--profile`, this profile will be checked for the fields `sso_start_url` and `sso_region`. It fails if they are not found.
-2. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
+1. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
   1. `--sso-start-url`/`-u` and `--sso-region`
   2. `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_DEFAULT_SSO_REGION`
   3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
-3. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
-4. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
+2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
+3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
   * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
   * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
   * If a region was found in step 2, instances must match this region.
-5. The resulting filtered list of instances must contain exactly one entry.
+4. The resulting filtered list of instances must contain exactly one entry.
 
 In general: if you've got multiple AWS SSO instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
 

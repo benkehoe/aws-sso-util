@@ -62,7 +62,9 @@ fi
 
 ## Configuring `.aws/config`
 
-Read the full docs for `aws-sso-util configure` [here](docs/configure.md).
+Read the full docs for `aws-sso-util configure` and `aws-sso-util roles` [here](docs/configure.md).
+
+You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles, but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 

@@ -9,6 +9,8 @@ from ..sso import list_available_roles, login
 
 LOGGER = logging.getLogger(__name__)
 
+HEADER_FIELDS = ["Account ID", "Account name", "Role name"]
+
 @click.command()
 @click.option("--sso-start-url", "-u")
 @click.option("--sso-region")
@@ -35,7 +37,7 @@ def roles(
     if not account_values:
         account_ids = None
         account_filter = lambda id, name: True
-    elif all(re.match(r"\d+", a) for a in account_values):
+    elif all(re.match(r"^\d{12}$", a) for a in account_values):
         account_ids = account_values
         account_filter = lambda id, name: True
     else:
@@ -72,12 +74,12 @@ def roles(
 
     if separator:
         def print_header(col_2_width):
-            print(separator.join(["account_id", "account_name", "role_name"]))
+            print(separator.join(HEADER_FIELDS))
         def print_row(col_2_width, account_id, account_name, role_name):
             print(separator.join([account_id, account_name, role_name]))
     else:
         def print_header(col_2_width):
-            fields = ["Account ID", "Account name", "Role name"]
+            fields = HEADER_FIELDS
             col_2_width = max(col_2_width, len(fields[1]))
             print(" ".join([
                 fields[0].ljust(12),
