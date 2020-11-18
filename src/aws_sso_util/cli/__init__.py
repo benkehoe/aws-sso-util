@@ -24,6 +24,7 @@ from .login import login
 from .logout import logout
 from .lookup import lookup
 from .populate_profiles import populate_profiles
+from .roles import roles
 
 @click.group(name="aws-sso-util")
 @click.version_option(version=__version__, message='%(version)s')
@@ -39,6 +40,7 @@ configure.add_command(populate_profiles, "populate")
 
 cli.add_command(login)
 cli.add_command(logout)
+cli.add_command(roles)
 
 cli.add_command(lookup)
 cli.add_command(assignments)

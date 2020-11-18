@@ -37,7 +37,7 @@ def get_accounts_for_ou(session, ou, recursive, refresh=False, cache=None):
 
         paginator = client.get_paginator('list_accounts_for_parent')
         for response in paginator.paginate(ParentId=ou):
-            ou_accounts.extend(data['Id'] for data in response['Accounts'])
+            ou_accounts.extend(response['Accounts'])
 
         cache[ou_accounts_key] = ou_accounts
 

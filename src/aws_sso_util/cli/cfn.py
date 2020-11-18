@@ -97,7 +97,7 @@ def generate_template(
 
     ids = api_utils.Ids(lambda: session, sso_instance, identity_store_id=None)
 
-    ou_fetcher = lambda ou, recursive: api_utils.get_accounts_for_ou(session, ou, recursive)
+    ou_fetcher = lambda ou, recursive: [a["Id"] for a in api_utils.get_accounts_for_ou(session, ou, recursive)]
 
     if not template_file_suffix:
         template_file_suffix = ".yaml"

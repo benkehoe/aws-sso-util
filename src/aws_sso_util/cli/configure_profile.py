@@ -26,7 +26,7 @@ import click
 
 from ..config import find_instances, SSOInstance
 from ..vendored_botocore.config_file_writer import write_values
-from .utils import configure_logging
+from .utils import configure_logging, get_instance, GetInstanceError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,29 +67,15 @@ def configure_profile(
         verbose):
     configure_logging(LOGGER, verbose)
 
-    instances, specifier, all_instances = find_instances(
-        profile_name=None,
-        profile_source=None,
-        start_url=sso_start_url,
-        start_url_source="CLI input",
-        region=sso_region,
-        region_source="CLI input",
-        start_url_vars=DEFAULT_START_URL_VARS,
-        region_vars=DEFAULT_SSO_REGION_VARS,
-    )
-
-    if not instances and all_instances:
-        LOGGER.fatal((
-            f"No AWS SSO config matched {specifier.to_str(region=True)} " +
-            f"from {SSOInstance.to_strs(all_instances)}"))
+    try:
+        instance = get_instance(
+            sso_start_url,
+            sso_region,
+            sso_start_url_vars=DEFAULT_START_URL_VARS,
+            sso_region_vars=DEFAULT_SSO_REGION_VARS,)
+    except GetInstanceError as e:
+        LOGGER.fatal(str(e))
         sys.exit(1)
-
-
-    if len(instances) > 1:
-        LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one or use --all: {SSOInstance.to_strs(instances)}")
-        sys.exit(1)
-
-    instance = instances[0] if instances else None
 
     sso_start_url = instance.start_url if instance else None
     sso_region    = instance.region    if instance else None

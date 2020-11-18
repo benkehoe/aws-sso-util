@@ -21,7 +21,7 @@ import aws_error_utils
 import click
 
 from ..api_utils import Ids
-from ..assignments import _get_assignments
+from ..assignments import _list_assignments, Assignment
 from .utils import configure_logging
 
 LOGGER = logging.getLogger(__name__)
@@ -78,10 +78,13 @@ def get_target_filter(values):
 @click.option("--user", "-u", "user_values", multiple=True, default=[])
 @click.option("--permission-set", "-p", "permission_set_values", multiple=True, default=[])
 @click.option("--account", "-a", "account_values", multiple=True, default=[])
+@click.option("--ou", "ou_values", multiple=True, default=[])
+@click.option("--ou-recursive/--ou-not-recursive")
 
 @click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
 @click.option("--separator", "--sep", default=",")
 @click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="id")
+@click.option("--header/--no-header", default=True, help="Include a header row")
 @click.option("--verbose", "-v", count=True)
 def assignments(
         instance_arn,
@@ -90,29 +93,23 @@ def assignments(
         user_values,
         permission_set_values,
         account_values,
+        ou_values,
+        ou_recursive,
         show_id,
         separator,
         permission_set_style,
+        header,
         verbose):
 
     configure_logging(LOGGER, verbose)
 
-    if len(group_values) + len(user_values) == 1:
-        if user_values:
-            principal = ("USER", user_values[0])
-        else:
-            principal = ("GROUP", group_values[0])
-        LOGGER.debug(f"Selected a single principal: {':'.join(principal)}")
-        principal_filter = None
-    else:
-        if group_values or user_values:
-            LOGGER.debug(f"Filtering principals")
-        principal = None
-        principal_filter = get_principal_filter(group_values, user_values)
+    principal = None
+    principal_filter = get_principal_filter(group_values, user_values)
 
-    if len(permission_set_values) == 1:
-        LOGGER.debug(f"Selected a single permission set: {permission_set_values[0]}")
-        permission_set = permission_set_values[0]
+    ps_pattern = r"^(arn:aws:sso:::permissionSet/)?((sso)?ins-[0-9a-f]+/)?ps-[0-9a-f]+$"
+    if all(re.match(ps_pattern, ps) for ps in permission_set_values):
+        LOGGER.debug(f"Using specific permission set ids")
+        permission_set = permission_set_values
         permission_set_filter = None
     else:
         if permission_set_values:
@@ -120,13 +117,20 @@ def assignments(
         permission_set = None
         permission_set_filter = get_permission_set_filter(permission_set_values)
 
-    if len(account_values) == 1 and re.match(r"^\d{12}$", account_values[0]):
-        LOGGER.debug(f"Selected a single account: {account_values[0]}")
-        target = account_values[0]
+    if account_values and all(re.match(r"^\d{12}$", a) for a in account_values):
+        if ou_values:
+            LOGGER.debug(f"Using specific accounts and OUs")
+        else:
+            LOGGER.debug(f"Using specific accounts")
+        target = account_values + ou_values
         target_filter = None
+    elif account_values and ou_values:
+        raise click.UsageError("Cannot provide account names and OUs")
+    elif ou_values:
+        target = ou_values
+        target_filter =  None
     else:
-        if account_values:
-            LOGGER.debug("Filtering account values")
+        LOGGER.debug("Filtering account values")
         target = None
         target_filter = get_target_filter(account_values)
 
@@ -135,7 +139,7 @@ def assignments(
     ids = Ids(lambda: session, instance_arn, identity_store_id)
     ids.suppress_print = not show_id
 
-    assignments_iterator = _get_assignments(
+    assignments_iterator = _list_assignments(
         session,
         ids,
         principal=principal,
@@ -145,23 +149,19 @@ def assignments(
         target=target,
         target_filter=target_filter,
         get_principal_names=True,
-        get_permission_set_names=True)
+        get_permission_set_names=True,
+        ou_recursive=ou_recursive)
+
+    if header:
+        fields = list(Assignment._fields)
+        if permission_set_style == "id":
+            fields[fields.index("permission_set_arn")] = "permission_set_id"
+        print(separator.join(fields))
 
     for assignment in assignments_iterator: #lookup_assignments(session, ids, principal_filter, permission_set_filter, target_filter):
         if permission_set_style == "id":
             assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/")[-1])
-        print(f"{separator}".join(assignment))
-
-Assignment = namedtuple("Assignment", [
-    "principal_type",
-    "principal_id",
-    "principal_name",
-    "permission_set_id",
-    "permission_set_name",
-    "target_type",
-    "target_id",
-    "target_name",
-])
+        print(separator.join(assignment))
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

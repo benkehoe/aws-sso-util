@@ -33,7 +33,7 @@ Then enter the code:
 
 class OpenBrowserHandler(object):
     def __init__(self, outfile=None, open_browser=None, message=None):
-        if not outfile:
+        if outfile is None:
             outfile = sys.stderr
         self._outfile = outfile
 
@@ -54,7 +54,8 @@ class OpenBrowserHandler(object):
             userCode=userCode
         )
 
-        print(message, file=self._outfile)
+        if self._outfile:
+            print(message, file=self._outfile)
 
         disable_browser = os.environ.get('AWS_SSO_DISABLE_BROWSER', '').lower() in ['1', 'true']
         if self._open_browser and not disable_browser:

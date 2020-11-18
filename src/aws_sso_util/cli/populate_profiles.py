@@ -27,10 +27,10 @@ from botocore.exceptions import ClientError, ProfileNotFound
 
 import click
 
-from ..sso import get_token_loader
+from ..sso import get_token_fetcher
 from ..config import find_instances, SSOInstance
 from ..vendored_botocore.config_file_writer import ConfigFileWriter, write_values, get_config_filename
-from .utils import configure_logging
+from .utils import configure_logging, get_instance, GetInstanceError
 
 from .configure_profile import (
     DEFAULT_START_URL_VARS,
@@ -153,15 +153,15 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
 
 @click.option("--dry-run", is_flag=True, help="Print the config to stdout")
 
-@click.option("--config-default", "-c", multiple=True)
+@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE")
 @click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep")
 
 @click.option("--components", "profile_name_components", default="account_name,role_name,default_style_region")
-@click.option("--separator", "--sep", "profile_name_separator", help=f"Default is {DEFAULT_SEPARATOR}")
+@click.option("--separator", "--sep", "profile_name_separator", help=f"Default is '{DEFAULT_SEPARATOR}'")
 @click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default")
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
-@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
+@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names")
 @click.option("--profile-name-process")
 
 @click.option("--credential-process/--no-credential-process", default=None)
@@ -190,31 +190,15 @@ def populate_profiles(
 
     missing = []
 
-    instances, specifier, all_instances = find_instances(
-        profile_name=None,
-        profile_source=None,
-        start_url=sso_start_url,
-        start_url_source="CLI input",
-        region=sso_region,
-        region_source="CLI input",
-        start_url_vars=DEFAULT_START_URL_VARS,
-        region_vars=DEFAULT_SSO_REGION_VARS,
-    )
-
-    if not instances:
-        if all_instances:
-            LOGGER.fatal((
-                f"No AWS SSO config matched {specifier.to_str(region=True)} " +
-                f"from {SSOInstance.to_strs(all_instances)}"))
-        else:
-            LOGGER.fatal("No AWS SSO config found")
+    try:
+        instance = get_instance(
+            sso_start_url,
+            sso_region,
+            sso_start_url_vars=DEFAULT_START_URL_VARS,
+            sso_region_vars=DEFAULT_SSO_REGION_VARS,)
+    except GetInstanceError as e:
+        LOGGER.fatal(str(e))
         sys.exit(1)
-
-    if len(instances) > 1:
-        LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one: {SSOInstance.to_strs(instances)}")
-        sys.exit(1)
-
-    instance = instances[0]
 
     if not regions:
         for var_name in DEFAULT_REGION_VARS:
@@ -254,13 +238,13 @@ def populate_profiles(
 
     session = Session()
 
-    token_loader = get_token_loader(session,
+    token_fetcher = get_token_fetcher(session,
             instance.region,
             interactive=True,
-            force_refresh=force_refresh)
+            )
 
     LOGGER.info(f"Logging in to {instance.start_url}")
-    token = token_loader(instance.start_url)
+    token = token_fetcher.fetch_token(instance.start_url, force_refresh=force_refresh)
 
     LOGGER.debug("Token: {}".format(token))
 
@@ -273,7 +257,7 @@ def populate_profiles(
     LOGGER.info("Gathering accounts and roles")
     accounts = []
     list_accounts_args = {
-        "accessToken": token
+        "accessToken": token["accessToken"]
     }
     while True:
         response = client.list_accounts(**list_accounts_args)
@@ -292,7 +276,7 @@ def populate_profiles(
     for account in accounts:
         LOGGER.debug("Getting roles for {}".format(account["accountId"]))
         list_role_args = {
-            "accessToken": token,
+            "accessToken": token["accessToken"],
             "accountId": account["accountId"],
         }
 

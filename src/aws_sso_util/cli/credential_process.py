@@ -27,7 +27,7 @@ from botocore.exceptions import ClientError
 
 import click
 
-from ..sso import get_token_loader, get_credentials
+from ..sso import get_token_fetcher, get_credentials
 from ..exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError
 from ..vendored_botocore.exceptions import UnauthorizedSSOTokenError
 
@@ -140,12 +140,6 @@ def credential_process(
         if (config.get("sso_interactive_auth") or "").lower() == "true":
             raise InvalidSSOConfigError("Interactive auth has been removed. See https://github.com/benkehoe/aws-sso-credential-process/issues/4")
 
-        token_loader = get_token_loader(
-            session=session,
-            sso_region=config["sso_region"],
-            force_refresh=force_refresh,
-        )
-
         if not config["sso_account_id"]:
             raise InvalidSSOConfigError("Missing account id")
 
@@ -158,7 +152,7 @@ def credential_process(
             sso_region=config["sso_region"],
             account_id=config["sso_account_id"],
             role_name=config["sso_role_name"],
-            token_loader=token_loader,
+            force_refresh=force_refresh,
         )
 
         output = {

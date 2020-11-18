@@ -93,10 +93,11 @@ def process_template(template,
 
     resource_collection_dict = {}
     max_stack_resources = 0
+    ou_fetcher = lambda ou, recursive: [a["Id"] for a in api_utils.get_accounts_for_ou(session, ou, recursive, cache=ou_accounts_cache)]
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
             config,
-            ou_fetcher=lambda ou, recursive: api_utils.get_accounts_for_ou(session, ou, recursive, cache=ou_accounts_cache))
+            ou_fetcher=ou_fetcher)
 
         max_stack_resources += templates.get_max_number_of_child_stacks(resource_collection.num_resources, max_resources_per_template=max_resources_per_template)
 
