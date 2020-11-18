@@ -44,7 +44,7 @@ Resources:
       MemorySize: 1024
       Timeout: 900
       CodeUri: ../src
-      Handler: handler.handler
+      Handler: cfn_macro_handler.handler
       Environment:
         Variables:
           LOG_LEVEL: !Ref LogLevel
