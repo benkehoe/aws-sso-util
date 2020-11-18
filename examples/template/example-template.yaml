@@ -1,5 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS-SSO-Util-2020-11-08
+Metadata:
+  SSO:
+    NumChildStacks: 10
 Parameters:
   AccountParameter:
     Type: String

@@ -16,6 +16,12 @@ Parameters:
   MaxConcurrentAssignments:
     Type: Number
     Default: -1
+  MaxAssignmentsAllocation:
+    Type: Number
+    Default: -1
+  NumChildStacks:
+    Type: Number
+    Default: -1
 Resources:
   MacroArtifactBucket:
     Type: AWS::S3::Bucket
@@ -53,6 +59,8 @@ Resources:
           S3_PUT_OBJECT_ARGS: !Ref S3PutObjectArgs
           MAX_RESOURCES_PER_TEMPLATE: !Ref MaxResourcesPerTemplate
           MAX_CONCURRENT_ASSIGNMENTS: !Ref MaxConcurrentAssignments
+          MAX_ASSIGNMENTS_ALLOCATION: !Ref MaxAssignmentsAllocation
+          NUM_CHILD_STACKS: !Ref NumChildStacks
       Policies:
         Version: "2012-10-17"
         Statement:

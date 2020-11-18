@@ -19,7 +19,7 @@ import math
 
 import boto3
 
-from .config import Config, validate_resource
+from .config import Config, validate_resource, GenerationConfig
 from . import resources, templates, utils, cfn_yaml_tags
 from .. import api_utils
 
@@ -64,9 +64,12 @@ def is_macro_template(template):
 def process_template(template,
         session,
         ids: api_utils.Ids,
-        ou_accounts_cache=None,
-        max_resources_per_template=None):
+        generation_config: GenerationConfig,
+        generation_config_template_priority: bool,
+        ou_accounts_cache=None,):
     base_template = copy.deepcopy(template)
+
+    generation_config.load(base_template.get("Metadata", {}).get("SSO", {}), overwrite=generation_config_template_priority)
 
     if "Transform" in base_template:
         if base_template["Transform"] == TRANSFORM_NAME:
@@ -99,7 +102,7 @@ def process_template(template,
             config,
             ou_fetcher=ou_fetcher)
 
-        max_stack_resources += templates.get_max_number_of_child_stacks(resource_collection.num_resources, max_resources_per_template=max_resources_per_template)
+        max_stack_resources += generation_config.get_max_number_of_child_stacks(resource_collection.num_resources)
 
         resource_collection_dict[resource_name] = resource_collection
 
@@ -112,6 +115,8 @@ def handler(event, context, put_object=None):
 
     MAX_RESOURCES_PER_TEMPLATE = int(os.environ["MAX_RESOURCES_PER_TEMPLATE"]) if os.environ.get("MAX_RESOURCES_PER_TEMPLATE") else None
     MAX_CONCURRENT_ASSIGNMENTS = int(os.environ["MAX_CONCURRENT_ASSIGNMENTS"]) if os.environ.get("MAX_CONCURRENT_ASSIGNMENTS") else None
+    MAX_ASSIGNMENTS_ALLOCATION = int(os.environ["MAX_ASSIGNMENTS_ALLOCATION"]) if os.environ.get("MAX_ASSIGNMENTS_ALLOCATION") else None
+    NUM_CHILD_STACKS = int(os.environ["NUM_CHILD_STACKS"]) if os.environ.get("NUM_CHILD_STACKS") else None
 
     BUCKET_NAME = os.environ["BUCKET_NAME"]
     KEY_PREFIX = os.environ.get("KEY_PREFIX", "")
@@ -131,14 +136,23 @@ def handler(event, context, put_object=None):
     if "Resources" not in input_template:
         raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
 
+    generation_config = GenerationConfig()
+    generation_config.set(
+        max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
+        max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
+        max_assignments_allocation=MAX_ASSIGNMENTS_ALLOCATION,
+        num_child_stacks=NUM_CHILD_STACKS,
+    )
+
     ou_accounts_cache = {}
 
     LOGGER.info("Extracting resources from template")
     output_template, max_stack_resources, resource_collection_dict = process_template(input_template,
             session=SESSION,
             ids=IDS,
-            ou_accounts_cache=ou_accounts_cache,
-            max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE)
+            generation_config=generation_config,
+            generation_config_template_priority=True,
+            ou_accounts_cache=ou_accounts_cache)
 
     all_child_templates_to_write = []
 
@@ -157,7 +171,7 @@ def handler(event, context, put_object=None):
         parent_template = templates.resolve_templates(
             resource_collection.assignments,
             resource_collection.permission_sets,
-            max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
+            generation_config=generation_config,
             num_parent_resources=num_parent_resources,
         )
 
@@ -166,8 +180,8 @@ def handler(event, context, put_object=None):
             f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
             resource_name,
             ".yaml",
+            generation_config=generation_config,
             base_template=output_template,
-            max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
             path_joiner=lambda *args: "/".join(args)
 
         )

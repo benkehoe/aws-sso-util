@@ -14,6 +14,7 @@
 import numbers
 import jsonschema
 import logging
+import math
 
 from . import utils, cfn_yaml_tags
 from .. import api_utils
@@ -23,19 +24,120 @@ LOGGER = logging.getLogger(__name__)
 class ConfigError(Exception):
     pass
 
-def _get_value(dct, keys, ensure_list=False):
+def _get_value(dct, keys, ensure_list=False, type=None):
     if not isinstance(keys, list):
         keys = [keys]
+    found_key = None
+    found_value = [] if ensure_list else None
     for key in keys:
         if key in dct:
             value = dct[key]
+            if value is None:
+                continue
             if ensure_list and not isinstance(value, list):
                 value = [value]
-            return key, value
-    if ensure_list:
-        return None, []
-    else:
-        return None, None
+            found_key = key
+            found_value = value
+            break
+    if type is not None:
+        if ensure_list:
+            found_value = [type(v) for v in found_value]
+        elif found_value is not None:
+            found_value = type(found_value)
+    return found_key, found_value
+
+class GenerationConfig:
+    DEFAULT_MAX_RESOURCES_PER_TEMPLATE = 500
+    DEFAULT_MAX_CONCURRENT_ASSIGNMENTS = 20
+    DEFAULT_NUM_CHILD_STACKS = None
+
+    def __init__(self):
+        self._max_resources_per_template = None
+        self._max_concurrent_assignments = None
+        self._max_assignments_allocation = None
+        self._num_child_stacks = None
+
+    def copy(self):
+        obj = self.__class__()
+        obj.set(
+            max_resources_per_template=self._max_resources_per_template,
+            max_concurrent_assignments=self._max_concurrent_assignments,
+            max_assignments_allocation=self._max_assignments_allocation,
+            num_child_stacks=self._num_child_stacks
+        )
+        return obj
+
+    @property
+    def max_resources_per_template(self):
+        if self._max_resources_per_template is None or self._max_resources_per_template < 1:
+            return self.DEFAULT_MAX_RESOURCES_PER_TEMPLATE
+        else:
+            return self._max_resources_per_template
+
+    @property
+    def max_concurrent_assignments(self):
+        if self._max_concurrent_assignments is None or self._max_concurrent_assignments < 1:
+            return self.DEFAULT_MAX_CONCURRENT_ASSIGNMENTS
+        else:
+            return self._max_concurrent_assignments
+
+    @property
+    def num_child_stacks(self):
+        num_stacks_1 = None
+        if self._max_assignments_allocation is not None and self._max_assignments_allocation >= 1:
+            num_stacks_1 = math.ceil(self._max_assignments_allocation / self.max_resources_per_template)
+
+        num_stacks_2 = None
+        if self._num_child_stacks is not None and self._num_child_stacks >= 0:
+            num_stacks_2 = self._num_child_stacks
+
+        if num_stacks_1 is not None and num_stacks_2 is not None:
+            return max(num_stacks_1, num_stacks_2)
+        elif num_stacks_1 is not None:
+            return num_stacks_1
+        elif num_stacks_2 is not None:
+            return num_stacks_2
+        else:
+            return self.DEFAULT_NUM_CHILD_STACKS
+
+    def get_max_number_of_child_stacks(self, num_resources):
+        num_child_stacks = self.num_child_stacks
+        if num_child_stacks is not None:
+            return num_child_stacks
+        return math.ceil(num_resources / self.max_resources_per_template)
+
+    def set(self,
+            max_resources_per_template=None,
+            max_concurrent_assignments=None,
+            max_assignments_allocation=None,
+            num_child_stacks=None,
+            overwrite=False):
+
+        if self._max_resources_per_template is None or (max_resources_per_template is not None and overwrite):
+            self._max_resources_per_template = max_resources_per_template
+
+        if self._max_concurrent_assignments is None or (max_concurrent_assignments is not None and overwrite):
+            self._max_concurrent_assignments = max_concurrent_assignments
+
+        if self._max_assignments_allocation is None or (max_assignments_allocation is not None and overwrite):
+            self._max_assignments_allocation = max_assignments_allocation
+
+        if self._num_child_stacks is None or (num_child_stacks is not None and overwrite):
+            self._num_child_stacks = num_child_stacks
+
+    def load(self, data, overwrite=False):
+        max_resources_per_template = _get_value(data, ["MaxResourcesPerTemplate"], type=int)[1]
+        max_concurrent_assignments = _get_value(data, ["MaxConcurrentAssignments"], type=int)[1]
+        max_assignments_allocation = _get_value(data, ["MaxAssignmentsAllocation"], type=int)[1]
+        num_child_stacks = _get_value(data, ["NumChildStacks", "NumChildTemplates"], type=int)[1]
+
+        self.set(
+            max_resources_per_template=max_resources_per_template,
+            max_concurrent_assignments=max_concurrent_assignments,
+            max_assignments_allocation=max_assignments_allocation,
+            num_child_stacks=num_child_stacks,
+            overwrite=overwrite
+        )
 
 class Config:
     def __init__(self, data=None, resource_properties=None, resource_name_prefix=None):
@@ -58,19 +160,10 @@ class Config:
             self.load_resource_properties(resource_properties)
 
     def load(self, data):
-        for name in ["Instance", "InstanceArn", "InstanceARN"]:
-            if name in data:
-                self.instance = data[name]
-                break
+        self.instance = _get_value(data, ["Instance", "InstanceArn", "InstanceARN"])[1]
 
         def get(names):
-            for name in names:
-                if name in data:
-                    value = data[name]
-                    if not isinstance(value, list):
-                        value = [value]
-                    return value
-            return []
+            return _get_value(data, names, ensure_list=True)[1]
 
         self.groups.extend(get(["Groups", "Group"]))
         self.users.extend(get(["Users", "User"]))
@@ -86,6 +179,11 @@ class Config:
                 account = account.rjust(12, '0')
             self.accounts.append(account)
 
+    def load_template_metadata(self, metadata):
+        self.max_resources_per_template = _get_value(metadata, ["MaxResourcesPerTemplate"], type=int)
+        self.max_concurrent_assignments = _get_value(metadata, ["MaxConcurrentAssignments"], type=int)
+        self.max_assignments_allocation = _get_value(metadata, ["MaxAssignmentsAllocation"], type=int)
+        self.num_child_stacks = _get_value(metadata, ["NumChildStacks", "NumChildTemplates"], type=int)
 
     def load_resource_properties(self, resource_properties):
         data = {}

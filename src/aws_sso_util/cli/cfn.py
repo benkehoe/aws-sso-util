@@ -23,7 +23,7 @@ import boto3
 import click
 
 from .. import api_utils
-from ..cfn.config import Config, ConfigError, validate_config
+from ..cfn.config import Config, ConfigError, validate_config, GenerationConfig
 from ..cfn import resources, templates, macro, utils
 
 from .utils import configure_logging
@@ -34,6 +34,7 @@ TemplateProcessInput = namedtuple("TemplateProcessInput", [
     "base_path",
     "base_stem",
     "base_template",
+    "generation_config",
     "max_stack_resources",
     "items"
 ])
@@ -69,8 +70,10 @@ def param_loader(ctx, param, value):
 @click.option("--base-template-file", type=click.File("r"), help="Base template to build from")
 @click.option("--template-parameters", callback=param_loader, help="String-type parameters on the template")
 
-@click.option("--max-resources-per-template", type=int, default=templates.MAX_RESOURCES_PER_TEMPLATE)
-@click.option("--max-concurrent-assignments", type=int, default=templates.MAX_CONCURRENT_ASSIGNMENTS)
+@click.option("--max-resources-per-template", type=int)
+@click.option("--max-concurrent-assignments", type=int)
+@click.option("--max-assignments-allocation", type=int)
+@click.option("--num-child-stacks", type=int)
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(
@@ -84,14 +87,24 @@ def generate_template(
         template_parameters,
         max_resources_per_template,
         max_concurrent_assignments,
+        max_assignments_allocation,
+        num_child_stacks,
         verbose):
     configure_logging(LOGGER, verbose)
-
 
     if macro and base_template_file:
         raise click.UsageError("--base-template-file not allowed with --macro")
     if macro and template_parameters:
         raise click.UsageError("--template-parameters not allowed with --macro")
+
+    generation_config = GenerationConfig()
+
+    generation_config.set(
+        max_resources_per_template=max_resources_per_template,
+        max_concurrent_assignments=max_concurrent_assignments,
+        max_assignments_allocation=max_assignments_allocation,
+        num_child_stacks=num_child_stacks,
+    )
 
     session = boto3.Session(profile_name=profile)
 
@@ -122,8 +135,7 @@ def generate_template(
             ou_fetcher=ou_fetcher,
             template_file_suffix=template_file_suffix,
             output_dir=output_dir,
-            max_resources_per_template=max_resources_per_template,
-            max_concurrent_assignments=max_concurrent_assignments,
+            base_generation_config=generation_config,
         )
     else:
         template_process_inputs = process_config(
@@ -134,15 +146,12 @@ def generate_template(
             template_file_suffix=template_file_suffix,
             output_dir=output_dir,
             base_template=base_template,
-            max_resources_per_template=max_resources_per_template,
-            max_concurrent_assignments=max_concurrent_assignments,
+            base_generation_config=generation_config,
         )
 
     templates_to_write = process_templates(
         template_process_inputs=template_process_inputs,
         template_file_suffix=template_file_suffix,
-        max_resources_per_template=max_resources_per_template,
-        max_concurrent_assignments=max_concurrent_assignments
     )
 
     write_templates(templates_to_write)
@@ -155,8 +164,7 @@ def process_config(
     template_file_suffix,
     output_dir,
     base_template,
-    max_resources_per_template,
-    max_concurrent_assignments):
+    base_generation_config):
     template_process_inputs = {}
 
     for config_file_fp in config_file:
@@ -174,6 +182,9 @@ def process_config(
         config = Config()
         config.load(data)
 
+        generation_config = base_generation_config.copy()
+        generation_config.load(data)
+
         try:
             validate_config(config, ids)
         except ConfigError as e:
@@ -186,14 +197,13 @@ def process_config(
 
         LOGGER.info(f"Generated {len(resource_collection.assignments)} assignments")
 
-        max_stack_resources = templates.get_max_number_of_child_stacks(
-            resource_collection.num_resources,
-            max_resources_per_template=max_resources_per_template)
+        max_stack_resources = generation_config.get_max_number_of_child_stacks(resource_collection.num_resources)
 
         template_process_inputs[config_file_path] = TemplateProcessInput(
             base_path=base_path,
             base_stem=stem,
             base_template=base_template,
+            generation_config=generation_config,
             max_stack_resources=max_stack_resources,
             items=[TemplateProcessInputItem(
                 stem=stem,
@@ -209,8 +219,7 @@ def process_macro(
         ou_fetcher,
         template_file_suffix,
         output_dir,
-        max_resources_per_template,
-        max_concurrent_assignments):
+        base_generation_config):
 
     template_process_inputs = {}
 
@@ -226,16 +235,20 @@ def process_macro(
         input_template = utils.load_yaml(config_file_fp)
         LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
 
+        generation_config = base_generation_config.copy()
+
         LOGGER.info("Extracting resources from template")
         base_template, max_stack_resources, resource_collection_dict = macro.process_template(input_template,
                 session=session,
                 ids=ids,
-                max_resources_per_template=max_resources_per_template)
+                generation_config=generation_config,
+                generation_config_template_priority=False)
 
         template_process_inputs[config_file_path] = TemplateProcessInput(
             base_path=base_path,
             base_stem=stem,
             base_template=base_template,
+            generation_config=generation_config,
             max_stack_resources=max_stack_resources,
             items=[TemplateProcessInputItem(
                 stem=resource_name,
@@ -247,9 +260,7 @@ def process_macro(
 
 def process_templates(
         template_process_inputs,
-        template_file_suffix,
-        max_resources_per_template,
-        max_concurrent_assignments):
+        template_file_suffix):
     templates_to_write = {}
 
     for name, template_process_input in template_process_inputs.items():
@@ -262,7 +273,7 @@ def process_templates(
             parent_template = templates.resolve_templates(
                 template_process_input_item.resource_collection.assignments,
                 template_process_input_item.resource_collection.permission_sets,
-                max_resources_per_template=max_resources_per_template,
+                generation_config=template_process_input.generation_config,
                 num_parent_resources=num_parent_resources,
             )
 
@@ -273,7 +284,7 @@ def process_templates(
                 template_file_suffix,
                 base_template=parent_template_to_write,
                 parameters=None,
-                max_concurrent_assignments=max_concurrent_assignments,
+                generation_config=template_process_input.generation_config,
                 path_joiner=os.path.join
 
             )

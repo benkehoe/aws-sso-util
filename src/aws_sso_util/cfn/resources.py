@@ -87,7 +87,7 @@ class PermissionSet:
     def get_arn(self, force_ref=False):
         if self._type == self._Type.RESOURCE:
             if force_ref:
-                utils.REF_TAG(self.get_resource_name())
+                return utils.REF_TAG(self.get_resource_name())
             else:
                 return utils.GETATT_TAG(f"{self.get_resource_name()}.PermissionSetArn")
         if self._type == self._Type.REFERENCE:
@@ -192,13 +192,17 @@ class Assignment:
 
         self.references = utils.get_references(self.instance) | self.principal.references | self.permission_set.references | self.target.references
 
-    def get_resource_name(self):
-        prefix = self._resource_name_prefix or ''
+    def get_hash(self):
         hasher = hashlib.md5()
         hasher.update(utils.get_hash_key(self.instance))
         hasher.update(self.principal.hash_key)
         hasher.update(self.permission_set.hash_key)
         hasher.update(self.target.hash_key)
+        return hasher
+
+    def get_resource_name(self):
+        prefix = self._resource_name_prefix or ''
+        hasher = self.get_hash()
         hash_value = hasher.hexdigest()[:6].upper()
         return f"{prefix}{self.RESOURCE_NAME_PREFIX}{hash_value}"
 
@@ -267,6 +271,15 @@ class AssignmentResources(ResourceList):
 
     def num_resources(self):
         return len(self._resources)
+
+    def allocate(self, num):
+        chunks = [list() for _ in range(num)]
+        for assignment in self._resources:
+            hash = assignment.get_hash()
+            hash_int = int.from_bytes(hash.digest(), 'big', signed=False)
+            ind = hash_int % num
+            chunks[ind].append(assignment)
+        return [self.__class__(chunk) for chunk in chunks]
 
 class PermissionSetResources(ResourceList):
     def __init__(self, permission_sets):

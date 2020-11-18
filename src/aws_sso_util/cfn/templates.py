@@ -20,11 +20,9 @@ import logging
 
 from . import resources
 from . import utils
+from .config import GenerationConfig
 
 LOGGER = logging.getLogger(__name__)
-
-MAX_RESOURCES_PER_TEMPLATE = 500
-MAX_CONCURRENT_ASSIGNMENTS = 20
 
 WritableTemplate = namedtuple("WritableTemplate", ["path", "template"])
 TemplateCollection = namedtuple("TemplateCollection", [
@@ -68,12 +66,12 @@ def add_assignments_to_template(
         template,
         assignments: resources.AssignmentResources,
         child_stack,
-        max_concurrent_assignments=None):
-    max_concurrent_assignments = _get_num(max_concurrent_assignments, MAX_CONCURRENT_ASSIGNMENTS)
+        generation_config: GenerationConfig):
+    max_concurrent_assignments = generation_config.max_concurrent_assignments
 
     assignment_resources = []
     for assignment in assignments:
-        if max_concurrent_assignments > 0 and len(assignment_resources) >= max_concurrent_assignments:
+        if max_concurrent_assignments and len(assignment_resources) >= max_concurrent_assignments:
             depends_on = assignment_resources[len(assignment_resources)-max_concurrent_assignments][0]
         else:
             depends_on = None
@@ -95,8 +93,11 @@ class ChildTemplate:
         return self.assignments.references
 
     def get_template(self,
-            max_concurrent_assignments=None,
+            generation_config: GenerationConfig,
             resource_name_prefix=None):
+        if not self.assignments:
+            return None
+
         template = OrderedDict({
             "AWSTemplateFormatVersion": "2010-09-09",
         })
@@ -104,8 +105,8 @@ class ChildTemplate:
         template["Resources"] = OrderedDict(template.get("Resources", {}))
 
         add_assignments_to_template(template, self.assignments,
-                child_stack=True,
-                max_concurrent_assignments=max_concurrent_assignments)
+                generation_config=generation_config,
+                child_stack=True)
 
         return template
 
@@ -119,10 +120,10 @@ class ParentTemplate:
         self.child_templates = list(child_templates) if child_templates else []
 
     def _get_template(self,
+            generation_config: GenerationConfig,
             child_templates=None,
             base_template=None,
-            parameters=None,
-            max_concurrent_assignments=None):
+            parameters=None):
         template = OrderedDict({
             "AWSTemplateFormatVersion": "2010-09-09",
         })
@@ -166,8 +167,8 @@ class ParentTemplate:
 
         if self.assignments:
             add_assignments_to_template(template, self.assignments,
-                    child_stack=False,
-                    max_concurrent_assignments=max_concurrent_assignments)
+                    generation_config=generation_config,
+                    child_stack=False)
 
         def get_reference(name):
             DATA = [
@@ -182,7 +183,9 @@ class ParentTemplate:
         if child_templates:
             child_resource_names = []
             for child in child_templates:
-                if max_concurrent_assignments and child_resource_names:
+                if not child.template:
+                    continue
+                if generation_config.max_concurrent_assignments and child_resource_names:
                     depends_on = child_resource_names[-1]
                 else:
                     depends_on = None
@@ -211,9 +214,9 @@ class ParentTemplate:
             child_base_path_for_resource: str,
             stem,
             template_file_suffix,
+            generation_config,
             base_template=None,
             parameters=None,
-            max_concurrent_assignments=None,
             child_templates_in_subdir=True,
             path_joiner=None):
         if not path_joiner:
@@ -235,48 +238,54 @@ class ParentTemplate:
                 child_path_for_writing,
                 child_path_for_resource,
                 child_stem,
-                child.get_template(
-                    max_concurrent_assignments=max_concurrent_assignments)))
+                child.get_template(generation_config=generation_config)))
 
         parent_path = path_joiner(base_path, f"{stem}{template_file_suffix}")
         parent_template = self._get_template(
+            generation_config=generation_config,
             child_templates=child_templates,
             base_template=base_template,
-            parameters=parameters,
-            max_concurrent_assignments=max_concurrent_assignments)
+            parameters=parameters)
 
         return TemplateCollection(
             parent=WritableTemplate(parent_path, parent_template),
-            children=[WritableTemplate(c.path_for_writing, c.template) for c in child_templates]
+            children=[WritableTemplate(c.path_for_writing, c.template) for c in child_templates if c.template]
         )
 
 def resolve_templates(
         assignments: resources.AssignmentResources,
         permission_sets: resources.PermissionSetResources,
-        max_resources_per_template: int=None,
+        generation_config: GenerationConfig,
         num_parent_resources: int=0) -> ParentTemplate:
 
-    max_resources_per_template = _get_num(max_resources_per_template, MAX_RESOURCES_PER_TEMPLATE)
-    if assignments.num_resources() + permission_sets.num_resources() + num_parent_resources > max_resources_per_template:
-        child_templates = [ChildTemplate(c) for c in assignments.chunk(max_resources_per_template)]
-        parent_assignments = resources.AssignmentResources([])
-    else:
+    num_child_stacks = generation_config.num_child_stacks
+    max_resources_per_template = generation_config.max_resources_per_template
+    num_resources_to_add = assignments.num_resources() + permission_sets.num_resources()
+    too_many_resources_for_parent = (num_resources_to_add + num_parent_resources > max_resources_per_template)
+
+    if num_child_stacks is None:
+        if too_many_resources_for_parent:
+            parent_assignments = resources.AssignmentResources([])
+            child_templates = [ChildTemplate(c) for c in assignments.chunk(max_resources_per_template)]
+        else:
+            parent_assignments = assignments
+            child_templates = []
+    elif num_child_stacks == 0:
+        if too_many_resources_for_parent:
+            raise ValueError(f"Too many resources ({num_resources_to_add}) to fit into template")
         parent_assignments = assignments
         child_templates = []
+    else:
+        if num_child_stacks * max_resources_per_template < len(assignments):
+            raise ValueError(f"Too many assignments ({len(assignments)}) to fit into {num_child_stacks} child templates")
+        parent_assignments = resources.AssignmentResources([])
+        child_templates = [ChildTemplate(c) for c in assignments.allocate(num_child_stacks)]
+
+    if permission_sets.num_resources() + num_parent_resources > max_resources_per_template:
+        raise ValueError(f"Too many permission sets {permission_sets.num_resources()} to fit into template")
 
     parent_template = ParentTemplate(parent_assignments,
             permission_sets=permission_sets,
             child_templates=child_templates)
 
     return parent_template
-
-def get_max_number_of_child_stacks(num_resources, max_resources_per_template=None):
-    max_per_template = _get_num(max_resources_per_template, MAX_RESOURCES_PER_TEMPLATE)
-
-    return math.ceil(num_resources/max_per_template)
-
-def _get_num(value, default):
-    if value is None or value > 0:
-        return value
-    else:
-        return default

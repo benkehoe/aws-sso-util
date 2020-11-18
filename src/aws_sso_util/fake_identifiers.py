@@ -23,7 +23,8 @@ start url: https://d-X.awsapps.com/start
 group: uuid
 user: uuid
 permission set: arn:aws:sso:::permissionSet/ssoins-X/ps-{16 hex}
-ou: ou- 4 alphanum - 8 alphanum
+root: r- [0-9a-z]{4,32}
+ou: ou- [0-9a-z]{4,32} - [a-z0-9]{8,32}
 account: 123456789012
 """
 
@@ -39,11 +40,12 @@ FakeIdentifiers = namedtuple("FakeIdentifiers", [
     "start_url",
     "principal_id",
     "permission_set_arn",
+    "root_id",
     "ou_id",
     "account_id"
 ])
 
-def generate_fake_identifiers():
+def generate_fake_identifiers(short_org=False):
     instance_id = "ssoins-{}".format(sample(hex, 16))
     identity_store_id = "d-{}".format(sample(hex, 10))
 
@@ -51,7 +53,14 @@ def generate_fake_identifiers():
     start_url = "https://{}.awsapps.com/start".format(identity_store_id)
     principal_id = str(uuid.uuid4())
     permission_set_arn = "arn:aws:sso:::permissionSet/{}/ps-{}".format(instance_id, sample(hex, 16))
-    ou_id = "ou-{}-{}".format(sample(alphanum, 4), sample(alphanum, 8))
+
+    root_length = 4 if short_org else random.randint(4, 32)
+    root_key = sample(alphanum, root_length)
+    ou_length = 8 if short_org else random.randint(8, 32)
+
+    root_id = "r-{}".format(root_key)
+    ou_id = "ou-{}-{}".format(root_key, sample(alphanum, ou_length))
+
     account_id = sample(string.digits, 12)
 
     return FakeIdentifiers(
@@ -60,6 +69,7 @@ def generate_fake_identifiers():
         start_url,
         principal_id,
         permission_set_arn,
+        root_id,
         ou_id,
         account_id
     )
