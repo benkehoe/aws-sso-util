@@ -28,7 +28,39 @@ Parameters:
       - "true"
       - "false"
     Default: "false"
+Outputs:
+  MacroName:
+    Value: !Ref Macro
+  MacroFunctionName:
+    Value: !Ref MacroFunction
+  MacroFunctionArn:
+    Value: !GetAtt MacroFunction.Arn
+    Export:
+      Name: SSOUtilMacroFunctionArn
+  MacroArtifactBucketName:
+    Value: !Ref MacroArtifactBucket
+  MacroArtifactBucketArn:
+    Value: !GetAtt MacroArtifactBucket.Arn
+  MacroAccessPolicy:
+    Value: !Ref MacroAccessPolicyResource
+    Export:
+      Name: SSOUtilMacroAccessPolicy
 Resources:
+  MacroAccessPolicyResource:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: SSOUtilMacroAccess
+      Description: Allow invoke on the macro Lambda function and GetObject on the artifact bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: lambda:InvokeFunction
+          Resource: !GetAtt MacroFunction.Arn
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource: !Sub "${MacroArtifactBucket.Arn}/*"
+
   MacroArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
