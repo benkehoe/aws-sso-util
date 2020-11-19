@@ -51,34 +51,36 @@ class GenerationConfig:
     DEFAULT_MAX_CONCURRENT_ASSIGNMENTS = 20
     DEFAULT_NUM_CHILD_STACKS = None
 
-    def __init__(self):
+    def __init__(self, ids: api_utils.Ids):
+        self.ids = ids
         self._max_resources_per_template = None
         self._max_concurrent_assignments = None
         self._max_assignments_allocation = None
         self._num_child_stacks = None
 
+        self._default_session_duration = None
+
     def __str__(self):
         return str({
+            "max_resources_per_template": self.max_resources_per_template,
+            "max_concurrent_assignments": self.max_concurrent_assignments,
+            "num_child_stacks": self.num_child_stacks,
             "internal": {
                 "max_resources_per_template": self._max_resources_per_template,
                 "max_concurrent_assignments": self._max_concurrent_assignments,
                 "max_assignments_allocation": self._max_assignments_allocation,
                 "num_child_stacks": self._num_child_stacks,
             },
-            "external": {
-                "max_resources_per_template": self.max_resources_per_template,
-                "max_concurrent_assignments": self.max_concurrent_assignments,
-                "num_child_stacks": self.num_child_stacks,
-            }
         })
 
     def copy(self):
-        obj = self.__class__()
+        obj = self.__class__(self.ids)
         obj.set(
             max_resources_per_template=self._max_resources_per_template,
             max_concurrent_assignments=self._max_concurrent_assignments,
             max_assignments_allocation=self._max_assignments_allocation,
-            num_child_stacks=self._num_child_stacks
+            num_child_stacks=self._num_child_stacks,
+            default_session_duration=self._default_session_duration,
         )
         return obj
 
@@ -121,11 +123,19 @@ class GenerationConfig:
             return num_child_stacks
         return math.ceil(num_resources / self.max_resources_per_template)
 
+    @property
+    def default_session_duration(self):
+        if self._default_session_duration is None or self._default_session_duration < 1:
+            return None
+        else:
+            return self._default_session_duration
+
     def set(self,
             max_resources_per_template=None,
             max_concurrent_assignments=None,
             max_assignments_allocation=None,
             num_child_stacks=None,
+            default_session_duration=None,
             overwrite=False):
 
         if self._max_resources_per_template is None or (max_resources_per_template is not None and overwrite):
@@ -140,17 +150,22 @@ class GenerationConfig:
         if self._num_child_stacks is None or (num_child_stacks is not None and overwrite):
             self._num_child_stacks = num_child_stacks
 
+        if self._default_session_duration is None or (default_session_duration is not None and overwrite):
+            self._default_session_duration = default_session_duration
+
     def load(self, data, overwrite=False):
         max_resources_per_template = _get_value(data, ["MaxResourcesPerTemplate"], type=int)[1]
         max_concurrent_assignments = _get_value(data, ["MaxConcurrentAssignments"], type=int)[1]
         max_assignments_allocation = _get_value(data, ["MaxAssignmentsAllocation"], type=int)[1]
         num_child_stacks = _get_value(data, ["NumChildStacks", "NumChildTemplates"], type=int)[1]
+        default_session_duration = _get_value(data, ["DefaultSessionDuration"], type=int)[1]
 
         self.set(
             max_resources_per_template=max_resources_per_template,
             max_concurrent_assignments=max_concurrent_assignments,
             max_assignments_allocation=max_assignments_allocation,
             num_child_stacks=num_child_stacks,
+            default_session_duration=default_session_duration,
             overwrite=overwrite
         )
 

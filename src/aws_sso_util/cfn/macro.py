@@ -121,6 +121,7 @@ def handler(event, context, put_object=None):
     MAX_CONCURRENT_ASSIGNMENTS = int(os.environ["MAX_CONCURRENT_ASSIGNMENTS"]) if os.environ.get("MAX_CONCURRENT_ASSIGNMENTS") else None
     MAX_ASSIGNMENTS_ALLOCATION = int(os.environ["MAX_ASSIGNMENTS_ALLOCATION"]) if os.environ.get("MAX_ASSIGNMENTS_ALLOCATION") else None
     NUM_CHILD_STACKS = int(os.environ["NUM_CHILD_STACKS"]) if os.environ.get("NUM_CHILD_STACKS") else None
+    DEFAULT_SESSION_DURATION = int(os.environ["DEFAULT_SESSION_DURATION"]) if os.environ.get("DEFAULT_SESSION_DURATION") else None
 
     BUCKET_NAME = os.environ["BUCKET_NAME"]
     KEY_PREFIX = os.environ.get("KEY_PREFIX", "")
@@ -140,12 +141,13 @@ def handler(event, context, put_object=None):
     if "Resources" not in input_template:
         raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
 
-    generation_config = GenerationConfig()
+    generation_config = GenerationConfig(IDS)
     generation_config.set(
         max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
         max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
         max_assignments_allocation=MAX_ASSIGNMENTS_ALLOCATION,
         num_child_stacks=NUM_CHILD_STACKS,
+        default_session_duration=DEFAULT_SESSION_DURATION,
     )
 
     ou_accounts_cache = {}

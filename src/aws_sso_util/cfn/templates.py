@@ -17,6 +17,7 @@ import math
 from collections import OrderedDict, namedtuple
 from pathlib import PurePath
 import logging
+import json
 
 from . import resources
 from . import utils
@@ -207,6 +208,11 @@ class ParentTemplate:
 
                 child_resource_names.append(resource_name)
 
+        for resource in template["Resources"].values():
+            if resource["Type"] != "AWS::SSO::PermissionSet":
+                continue
+            process_permission_set_resource(resource, generation_config)
+
         return template
 
     def get_templates(self,
@@ -265,8 +271,7 @@ def resolve_templates(
 
     if num_child_stacks is None:
         if too_many_resources_for_parent:
-            parent_assignments = resources.AssignmentResources([])
-            child_templates = [ChildTemplate(c) for c in assignments.chunk(max_resources_per_template)]
+            raise ValueError(f"Too many assignments ({len(assignments)}) to fit into template, specify a number of child stacks")
         else:
             parent_assignments = assignments
             child_templates = []
@@ -289,3 +294,23 @@ def resolve_templates(
             child_templates=child_templates)
 
     return parent_template
+
+def _fmt_managed_policy(policy):
+    if isinstance(policy, str) and not policy.startswith("arn:"):
+        return f"arn:aws:iam::aws:policy/{policy}"
+    else:
+        return policy
+
+def process_permission_set_resource(resource, generation_config):
+    properties = resource["Properties"]
+    if generation_config.default_session_duration and "SessionDuration" not in properties:
+        properties["SessionDuration"] = str(generation_config.default_session_duration)
+    if "InlinePolicy" in properties and not isinstance(properties["InlinePolicy"], str):
+        properties["InlinePolicy"] = json.dumps(properties["InlinePolicy"])
+    if "InstanceArn" not in properties:
+        properties["InstanceArn"] = generation_config.ids.instance_arn
+    if "ManagedPolicies" in properties:
+        if not isinstance(properties["ManagedPolicies"], (list, tuple)):
+            properties["ManagedPolicies"] = [_fmt_managed_policy(properties["ManagedPolicies"])]
+        else:
+            properties["ManagedPolicies"] = [_fmt_managed_policy(p) for p in properties["ManagedPolicies"]]

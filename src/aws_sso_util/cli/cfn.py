@@ -74,6 +74,7 @@ def param_loader(ctx, param, value):
 @click.option("--max-concurrent-assignments", type=int)
 @click.option("--max-assignments-allocation", type=int)
 @click.option("--num-child-stacks", type=int)
+@click.option("--default-session-duration", type=int)
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(
@@ -89,6 +90,7 @@ def generate_template(
         max_concurrent_assignments,
         max_assignments_allocation,
         num_child_stacks,
+        default_session_duration,
         verbose):
     configure_logging(LOGGER, verbose)
 
@@ -97,18 +99,19 @@ def generate_template(
     if macro and template_parameters:
         raise click.UsageError("--template-parameters not allowed with --macro")
 
-    generation_config = GenerationConfig()
+    session = boto3.Session(profile_name=profile)
+
+    ids = api_utils.Ids(lambda: session, sso_instance, identity_store_id=None)
+
+    generation_config = GenerationConfig(ids)
 
     generation_config.set(
         max_resources_per_template=max_resources_per_template,
         max_concurrent_assignments=max_concurrent_assignments,
         max_assignments_allocation=max_assignments_allocation,
         num_child_stacks=num_child_stacks,
+        default_session_duration=default_session_duration,
     )
-
-    session = boto3.Session(profile_name=profile)
-
-    ids = api_utils.Ids(lambda: session, sso_instance, identity_store_id=None)
 
     ou_fetcher = lambda ou, recursive: [a["Id"] for a in api_utils.get_accounts_for_ou(session, ou, recursive)]
 
