@@ -20,9 +20,9 @@ from collections import namedtuple
 instance arn: arn:aws:sso:::instance/ssoins-{16 hex}
 identity store: d-{10 hex}
 start url: https://d-X.awsapps.com/start
-group: uuid
-user: uuid
-permission set: arn:aws:sso:::permissionSet/ssoins-X/ps-{16 hex}
+group: {identity-store-id}-uuid
+user: {identity-store-id}-uuid
+permission set: arn:aws:sso:::permissionSet/{instance-id}/ps-{16 hex}
 root: r- [0-9a-z]{4,32}
 ou: ou- [0-9a-z]{4,32} - [a-z0-9]{8,32}
 account: 123456789012
@@ -47,11 +47,12 @@ FakeIdentifiers = namedtuple("FakeIdentifiers", [
 
 def generate_fake_identifiers(short_org=False):
     instance_id = "ssoins-{}".format(sample(hex, 16))
-    identity_store_id = "d-{}".format(sample(hex, 10))
+    identity_store_id_num = sample(hex, 10)
+    identity_store_id = "d-{}".format(identity_store_id_num)
 
     instance_arn = "arn:aws:sso:::instance/{}".format(instance_id)
     start_url = "https://{}.awsapps.com/start".format(identity_store_id)
-    principal_id = str(uuid.uuid4())
+    principal_id = "{}-{}".format(identity_store_id_num, uuid.uuid4())
     permission_set_arn = "arn:aws:sso:::permissionSet/{}/ps-{}".format(instance_id, sample(hex, 16))
 
     root_length = 4 if short_org else random.randint(4, 32)

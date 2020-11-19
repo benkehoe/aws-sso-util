@@ -159,7 +159,7 @@ def handler(event, context, put_object=None):
             ou_accounts_cache=ou_accounts_cache)
 
     num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
-    LOGGER.info(f"Generated {num_assignments} assignments")
+    LOGGER.info(f"Generated {num_assignments} assignments from {len(resource_collection_dict)} resources")
 
     all_child_templates_to_write = []
 
@@ -171,7 +171,6 @@ def handler(event, context, put_object=None):
         s3_base_path_parts.insert(1, KEY_PREFIX)
     s3_base_path = "/".join(s3_base_path_parts)
 
-    LOGGER.info(f"Processing {len(resource_collection_dict)} resources")
     for resource_name, resource_collection in resource_collection_dict.items():
         num_parent_resources = len(output_template["Resources"]) + max_stack_resources
 
@@ -184,7 +183,7 @@ def handler(event, context, put_object=None):
 
         suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
 
-        parent_template_to_write, child_templates_to_write = parent_template.get_templates(
+        template_collection = parent_template.get_templates(
             s3_base_path,
             f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
             resource_name,
@@ -194,10 +193,10 @@ def handler(event, context, put_object=None):
             path_joiner=lambda *args: "/".join(args)
 
         )
-        output_template = parent_template_to_write.template
+        output_template = template_collection.parent.template
         LOGGER.debug(f"Intermediate output template:\n{utils.dump_yaml(output_template)}")
 
-        all_child_templates_to_write.extend(child_templates_to_write)
+        all_child_templates_to_write.extend(template_collection.children)
 
     LOGGER.info(f"Writing {len(all_child_templates_to_write)} child templates")
 
@@ -208,7 +207,7 @@ def handler(event, context, put_object=None):
         if CHILD_TEMPLATES_IN_YAML:
             content = utils.dump_yaml(child_template)
         else:
-            child_template = cfn_yaml_tags.to_json(output_template)
+            child_template = cfn_yaml_tags.to_json(child_template)
             content = json.dumps(child_template)
 
         put_object_args = copy.deepcopy(S3_PUT_OBJECT_ARGS)
@@ -218,7 +217,8 @@ def handler(event, context, put_object=None):
             "Body": content,
         })
         if "ContentType" not in put_object_args:
-            put_object_args["ContentType"] = "text/plain"
+            content_type = "text/plain" if CHILD_TEMPLATES_IN_YAML else "application/json"
+            put_object_args["ContentType"] = content_type
 
         if put_object:
             put_object(**put_object_args)

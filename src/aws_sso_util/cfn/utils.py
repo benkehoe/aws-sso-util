@@ -13,6 +13,7 @@
 
 import logging
 import json
+import hashlib
 from collections import OrderedDict
 
 import yaml
@@ -86,8 +87,7 @@ def is_reference(value):
         return False
 
 def get_hash_key(value):
-    if isinstance(value, cfn_yaml_tags.CloudFormationObject):
-        value = value.to_json()
+    value = cfn_yaml_tags.to_json(value)
     if not isinstance(value, str):
         value = json.dumps(value, sort_keys=True)
     return value.encode('utf-8')
@@ -95,3 +95,8 @@ def get_hash_key(value):
 def chunk_list_generator(lst, chunk_length):
     for i in range(0, len(lst), chunk_length):
         yield lst[i:i + chunk_length]
+
+def hash_obj(obj):
+    hasher = hashlib.md5()
+    hasher.update(json.dumps(obj, sort_keys=True))
+    return hasher.hexdigest()
