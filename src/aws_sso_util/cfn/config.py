@@ -57,6 +57,21 @@ class GenerationConfig:
         self._max_assignments_allocation = None
         self._num_child_stacks = None
 
+    def __str__(self):
+        return str({
+            "internal": {
+                "max_resources_per_template": self._max_resources_per_template,
+                "max_concurrent_assignments": self._max_concurrent_assignments,
+                "max_assignments_allocation": self._max_assignments_allocation,
+                "num_child_stacks": self._num_child_stacks,
+            },
+            "external": {
+                "max_resources_per_template": self.max_resources_per_template,
+                "max_concurrent_assignments": self.max_concurrent_assignments,
+                "num_child_stacks": self.num_child_stacks,
+            }
+        })
+
     def copy(self):
         obj = self.__class__()
         obj.set(

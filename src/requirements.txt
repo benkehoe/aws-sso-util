@@ -1,3 +1,4 @@
 jsonschema
 pyyaml
 boto3
+aws_error_utils

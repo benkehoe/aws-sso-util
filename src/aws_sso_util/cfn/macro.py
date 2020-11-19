@@ -16,6 +16,7 @@ import logging
 import copy
 import json
 import math
+import datetime
 
 import boto3
 
@@ -70,6 +71,7 @@ def process_template(template,
     base_template = copy.deepcopy(template)
 
     generation_config.load(base_template.get("Metadata", {}).get("SSO", {}), overwrite=generation_config_template_priority)
+    LOGGER.debug(f"generation_config: {generation_config!s}")
 
     if "Transform" in base_template:
         if base_template["Transform"] == TRANSFORM_NAME:
@@ -113,6 +115,8 @@ def handler(event, context, put_object=None):
     LOGGER.setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
     logging.basicConfig()
 
+    CHILD_TEMPLATES_IN_YAML = os.environ.get("CHILD_TEMPLATES_IN_YAML", "false").lower() in ["true", "1"]
+
     MAX_RESOURCES_PER_TEMPLATE = int(os.environ["MAX_RESOURCES_PER_TEMPLATE"]) if os.environ.get("MAX_RESOURCES_PER_TEMPLATE") else None
     MAX_CONCURRENT_ASSIGNMENTS = int(os.environ["MAX_CONCURRENT_ASSIGNMENTS"]) if os.environ.get("MAX_CONCURRENT_ASSIGNMENTS") else None
     MAX_ASSIGNMENTS_ALLOCATION = int(os.environ["MAX_ASSIGNMENTS_ALLOCATION"]) if os.environ.get("MAX_ASSIGNMENTS_ALLOCATION") else None
@@ -154,11 +158,14 @@ def handler(event, context, put_object=None):
             generation_config_template_priority=True,
             ou_accounts_cache=ou_accounts_cache)
 
+    num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
+    LOGGER.info(f"Generated {num_assignments} assignments")
+
     all_child_templates_to_write = []
 
     s3_base_path_parts = [
         "templates",
-        f"{request_id}",
+        f"{datetime.datetime.utcnow().isoformat()[:16]}_{request_id}",
     ]
     if KEY_PREFIX:
         s3_base_path_parts.insert(1, KEY_PREFIX)
@@ -175,11 +182,13 @@ def handler(event, context, put_object=None):
             num_parent_resources=num_parent_resources,
         )
 
+        suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
+
         parent_template_to_write, child_templates_to_write = parent_template.get_templates(
             s3_base_path,
             f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
             resource_name,
-            ".yaml",
+            suffix,
             generation_config=generation_config,
             base_template=output_template,
             path_joiner=lambda *args: "/".join(args)
@@ -196,7 +205,11 @@ def handler(event, context, put_object=None):
 
     for child_template_key, child_template in all_child_templates_to_write:
         LOGGER.debug(f"Writing child template {child_template_key}")
-        content = utils.dump_yaml(child_template)
+        if CHILD_TEMPLATES_IN_YAML:
+            content = utils.dump_yaml(child_template)
+        else:
+            child_template = cfn_yaml_tags.to_json(output_template)
+            content = json.dumps(child_template)
 
         put_object_args = copy.deepcopy(S3_PUT_OBJECT_ARGS)
 

@@ -22,6 +22,12 @@ Parameters:
   NumChildStacks:
     Type: Number
     Default: -1
+  ChildTemplatesInYaml:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
 Resources:
   MacroArtifactBucket:
     Type: AWS::S3::Bucket
@@ -61,6 +67,7 @@ Resources:
           MAX_CONCURRENT_ASSIGNMENTS: !Ref MaxConcurrentAssignments
           MAX_ASSIGNMENTS_ALLOCATION: !Ref MaxAssignmentsAllocation
           NUM_CHILD_STACKS: !Ref NumChildStacks
+          CHILD_TEMPLATES_IN_YAML: !Ref ChildTemplatesInYaml
       Policies:
         Version: "2012-10-17"
         Statement:

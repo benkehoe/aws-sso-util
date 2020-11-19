@@ -185,6 +185,8 @@ def process_config(
         generation_config = base_generation_config.copy()
         generation_config.load(data)
 
+        LOGGER.debug(f"generation_config: {generation_config!s}")
+
         try:
             validate_config(config, ids)
         except ConfigError as e:
@@ -243,6 +245,9 @@ def process_macro(
                 ids=ids,
                 generation_config=generation_config,
                 generation_config_template_priority=False)
+
+        num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
+        LOGGER.info(f"Generated {num_assignments} assignments")
 
         template_process_inputs[config_file_path] = TemplateProcessInput(
             base_path=base_path,
