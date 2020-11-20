@@ -74,7 +74,7 @@ def param_loader(ctx, param, value):
 @click.option("--max-concurrent-assignments", type=int)
 @click.option("--max-assignments-allocation", type=int)
 @click.option("--num-child-stacks", type=int)
-@click.option("--default-session-duration", type=int)
+@click.option("--default-session-duration")
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(

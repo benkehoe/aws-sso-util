@@ -69,6 +69,9 @@ class LookupError(Exception):
 
 class Ids:
     def __init__(self, session_fetcher, instance_arn=None, identity_store_id=None):
+        if isinstance(session_fetcher, boto3.Session):
+            session_fetcher = lambda: session_fetcher
+
         if instance_arn and not instance_arn.startswith('arn:'):
             instance_arn = f"arn:aws:sso:::instance/{instance_arn}"
 

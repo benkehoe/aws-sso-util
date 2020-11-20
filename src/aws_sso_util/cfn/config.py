@@ -65,11 +65,13 @@ class GenerationConfig:
             "max_resources_per_template": self.max_resources_per_template,
             "max_concurrent_assignments": self.max_concurrent_assignments,
             "num_child_stacks": self.num_child_stacks,
+            "default_session_duration": self.default_session_duration,
             "internal": {
                 "max_resources_per_template": self._max_resources_per_template,
                 "max_concurrent_assignments": self._max_concurrent_assignments,
                 "max_assignments_allocation": self._max_assignments_allocation,
                 "num_child_stacks": self._num_child_stacks,
+                "default_session_duration": self._default_session_duration,
             },
         })
 
@@ -125,7 +127,7 @@ class GenerationConfig:
 
     @property
     def default_session_duration(self):
-        if self._default_session_duration is None or self._default_session_duration < 1:
+        if not self._default_session_duration:
             return None
         else:
             return self._default_session_duration
@@ -150,7 +152,7 @@ class GenerationConfig:
         if self._num_child_stacks is None or (num_child_stacks is not None and overwrite):
             self._num_child_stacks = num_child_stacks
 
-        if self._default_session_duration is None or (default_session_duration is not None and overwrite):
+        if default_session_duration and (self._default_session_duration is None or overwrite):
             self._default_session_duration = default_session_duration
 
     def load(self, data, overwrite=False):

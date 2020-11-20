@@ -18,7 +18,9 @@ from collections import OrderedDict, namedtuple
 from pathlib import PurePath
 import logging
 import json
+import numbers
 
+from . import cfn_yaml_tags
 from . import resources
 from . import utils
 from .config import GenerationConfig
@@ -303,12 +305,22 @@ def _fmt_managed_policy(policy):
 
 def process_permission_set_resource(resource, generation_config):
     properties = resource["Properties"]
+
     if generation_config.default_session_duration and "SessionDuration" not in properties:
         properties["SessionDuration"] = str(generation_config.default_session_duration)
-    if "InlinePolicy" in properties and not isinstance(properties["InlinePolicy"], str):
-        properties["InlinePolicy"] = json.dumps(properties["InlinePolicy"])
+    # If it's a number, we don't know what units
+    # elif "SessionDuration" in properties and isinstance(properties["SessionDuration"], numbers.Number):
+    #     properties["SessionDuration"] = str(properties["SessionDuration"])
+
+    if "InlinePolicy" in properties and not isinstance(properties["InlinePolicy"], (str, cfn_yaml_tags.CloudFormationObject)):
+        try:
+            properties["InlinePolicy"] = json.dumps(properties["InlinePolicy"])
+        except:
+            pass
+
     if "InstanceArn" not in properties:
         properties["InstanceArn"] = generation_config.ids.instance_arn
+
     if "ManagedPolicies" in properties:
         if not isinstance(properties["ManagedPolicies"], (list, tuple)):
             properties["ManagedPolicies"] = [_fmt_managed_policy(properties["ManagedPolicies"])]

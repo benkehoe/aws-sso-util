@@ -23,8 +23,8 @@ Parameters:
     Type: Number
     Default: -1
   DefaultSessionDuration:
-    Type: Number
-    Default: -1
+    Type: String
+    Default: ""
   ChildTemplatesInYaml:
     Type: String
     AllowedValues:

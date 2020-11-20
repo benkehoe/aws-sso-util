@@ -49,9 +49,6 @@ RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
 
 LOGGER = logging.getLogger(__name__)
 
-SESSION = boto3.Session()
-IDS = api_utils.Ids(SESSION)
-
 def is_macro_template(template):
     if "Transform" not in template:
         return False
@@ -115,13 +112,16 @@ def handler(event, context, put_object=None):
     LOGGER.setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
     logging.basicConfig()
 
+    SESSION = boto3.Session()
+    IDS = api_utils.Ids(lambda: SESSION)
+
     CHILD_TEMPLATES_IN_YAML = os.environ.get("CHILD_TEMPLATES_IN_YAML", "false").lower() in ["true", "1"]
 
     MAX_RESOURCES_PER_TEMPLATE = int(os.environ["MAX_RESOURCES_PER_TEMPLATE"]) if os.environ.get("MAX_RESOURCES_PER_TEMPLATE") else None
     MAX_CONCURRENT_ASSIGNMENTS = int(os.environ["MAX_CONCURRENT_ASSIGNMENTS"]) if os.environ.get("MAX_CONCURRENT_ASSIGNMENTS") else None
     MAX_ASSIGNMENTS_ALLOCATION = int(os.environ["MAX_ASSIGNMENTS_ALLOCATION"]) if os.environ.get("MAX_ASSIGNMENTS_ALLOCATION") else None
     NUM_CHILD_STACKS = int(os.environ["NUM_CHILD_STACKS"]) if os.environ.get("NUM_CHILD_STACKS") else None
-    DEFAULT_SESSION_DURATION = int(os.environ["DEFAULT_SESSION_DURATION"]) if os.environ.get("DEFAULT_SESSION_DURATION") else None
+    DEFAULT_SESSION_DURATION = os.environ["DEFAULT_SESSION_DURATION"] if os.environ.get("DEFAULT_SESSION_DURATION") else None
 
     BUCKET_NAME = os.environ["BUCKET_NAME"]
     KEY_PREFIX = os.environ.get("KEY_PREFIX", "")
