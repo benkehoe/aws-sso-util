@@ -6,8 +6,8 @@ These two utilities help deal with that.
 The AWS SSO APIs and CloudFormation resources require the use of identifiers that are not displayed in the console, and that the APIs do not make easy to look up by name.
 `aws-sso-util lookup` is provided to make this a little easier.
 
-| Item                    | Syntax                                             |
-| ----------------------- | -------------------------------------------------- |
+| Item                    | Syntax                                                  |
+| ----------------------- | ------------------------------------------------------- |
 | AWS SSO instance        | `aws-sso-util lookup instance`                          |
 | AWS SSO identity store  | `aws-sso-util lookup identity-store`                    |
 | Groups                  | `aws-sso-util lookup groups GROUP_NAME [GROUP_NAME...]` |
@@ -21,7 +21,39 @@ You can control the field separator with `--sep` (e.g., to output a CSV).
 By default, any names not found will have `NOT_FOUND` as their identifier, but with `--error-if-not-found`/`-e` it will exit with an error at the first name not found.
 
 For group/user/permission set lookups, the instance/identity store will be automatically retrieved if you do not provide `--instance-arn` (for permission sets) or `--instance-store-id` (for groups and users).
+After the first lookup, the instance and identity store will be cached in `~/.aws/cli/cache` in a file prefixed `aws-sso-util-ids-`, with a suffix corresponding to the profile in use or the account+region.
 By default, the ids will not be printed when they are looked up; you can display them `--show-id`.
+
+## Shortcuts
+
+Because AWS SSO APIs require the instance ARN, I find these shell functions handy to put in your `.bashrc`/`.profile`:
+```bash
+sso-ins() {
+    aws-sso-util lookup instance "$@"
+}
+
+sso-ins-id() {
+    aws-sso-util lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g"
+}
+
+sso-store() {
+    aws-sso-util lookup identity-store "$@"
+}
+
+sso-ps() {
+    _PS=$1
+    shift
+    _INS=$(sso-ins-id "$@")
+    echo arn:aws:sso:::permission-set/arn:aws:sso:::permissionSet/$_INS/$_PS
+}
+```
+
+You can then use it like:
+```
+$ aws sso-admin describe-permission-set --instance-arn $(sso-ins) --permission-set-arn $(sso-ps ps-fd6a454dd00d9c28)
+```
+
+Then you can
 
 # `aws-sso-util assignments`
 There is no simple API for retrieving all assignments or even a decent subset.

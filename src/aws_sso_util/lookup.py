@@ -28,34 +28,50 @@ class LookupError(Exception):
     pass
 
 class Ids:
-    def __init__(self, session, instance_arn=None, identity_store_id=None):
-        if isinstance(session, boto3.Session):
-            session_fetcher = lambda: session
-        elif callable(session):
-            session_fetcher = session
-        else:
-            raise TypeError("Session must be a boto3 Session or a callable returning one")
+    CACHE_KEY_PREFIX = "aws-sso-util-ids-"
 
+    def __init__(self, session, instance_arn=None, identity_store_id=None, cache=None):
         if instance_arn and not instance_arn.startswith("arn:"):
             instance_arn = f"arn:aws:sso:::instance/{instance_arn}"
 
-        self._session_fetcher = session_fetcher
-        self._client = None
+        if isinstance(session, boto3.Session):
+            self._session_fetcher = None
+            self._session = session
+        elif callable(session):
+            self._session_fetcher = session
+            self._session = None
+        else:
+            raise TypeError("Session must be a boto3 Session or a callable returning one")
+
+        self._sso_client = None
+
         self._instance_arn = instance_arn
-        self._instance_arn_printed = False
+        self._instance_arn_specified = (instance_arn is not None)
+        self._instance_arn_printed = self._instance_arn_specified
+
         self._identity_store_id = identity_store_id
-        self._identity_store_id_printed = False
+        self._identity_store_id_specified = (identity_store_id is not None)
+        self._identity_store_id_printed = self._identity_store_id_specified
+
         self.print_on_fetch = None
 
-    def _get_client(self):
-        if not self._client:
-            self._client = self._session_fetcher().client("sso-admin")
-        return self._client
+        # only cache if we're looking up everything
+        if self._instance_arn_specified or self._identity_store_id_specified:
+            cache = None
+        self._cache = cache
+        self._cache_load_attempted = False
 
-    def _print(self, message):
-        LOGGER.info(message)
-        if self.print_on_fetch:
-            print(message)
+    @property
+    def session(self):
+        if not self._session:
+            self._session = self._session_fetcher()
+        return self._session
+
+    @property
+    def sso_client(self):
+        if not self._sso_client:
+            self._sso_client = self.session.client("sso-admin")
+        return self._sso_client
 
     def instance_arn_matches(self, instance):
         if not self._instance_arn:
@@ -67,25 +83,18 @@ class Ids:
     @property
     def instance_arn(self):
         if self._instance_arn:
-            if not self._instance_arn_printed:
-                self._print("Using SSO instance {}".format(self._instance_arn.split('/')[-1]))
-                self._instance_arn_printed = True
+            self._print_instance()
             return self._instance_arn
-        response = self._get_client().list_instances()
-        if len(response["Instances"]) == 0:
-            raise LookupError("No SSO instance found, please specify with --instance-arn")
-        elif len(response["Instances"]) > 1:
-            raise LookupError("{} SSO instances found, please specify with --instance-arn".format(len(response["Instances"])))
-        else:
-            instance_arn = response["Instances"][0]["InstanceArn"]
-            self._instance_arn = instance_arn
-            self._print("Using SSO instance {}".format(self._instance_arn.split("/")[-1]))
-            self._instance_arn_printed = True
-            identity_store_id = response["Instances"][0]["IdentityStoreId"]
-            if self._identity_store_id and self._identity_store_id != identity_store_id:
-                raise LookupError("SSO instance identity store {} does not match given identity store {}".format(identity_store_id, self._identity_store_id))
-            else:
-                self._identity_store_id = identity_store_id
+
+        if not self._cache_load_attempted:
+            success = self._load_from_cache()
+            self._cache_load_attempted = True
+            if success:
+                self._print_instance()
+                return self._instance_arn
+
+        self._do_lookup("SSO instance", "ARN")
+        self._print_instance()
         return self._instance_arn
 
     @property
@@ -95,33 +104,103 @@ class Ids:
     @property
     def identity_store_id(self):
         if self._identity_store_id:
-            if not self._identity_store_id_printed:
-                self._print("Using SSO identity store {}".format(self._identity_store_id))
-                self._identity_store_id_printed = True
+            self._print_identity_store()
             return self._identity_store_id
-        response = self._get_client().list_instances()
-        if len(response["Instances"]) == 0:
-            raise LookupError("No SSO instance found, please specify identity store with --identity-store-id or instance with --instance-arn")
-        elif len(response["Instances"]) > 1:
-            raise LookupError("{} SSO instances found, please specify identity store with --identity-store-id or instance with --instance-arn".format(len(response["Instances"])))
-        else:
-            identity_store_id = response["Instances"][0]["IdentityStoreId"]
-            self._identity_store_id = identity_store_id
-            self._print("Using SSO identity store {}".format(self._identity_store_id))
-            self._identity_store_id_printed = True
-            instance_arn = response["Instances"][0]["InstanceArn"]
-            instance_id = instance_arn.split("/")[-1]
-            if self._instance_arn and self._instance_arn != instance_arn:
-                raise LookupError("SSO instance {} does not match given instance {}".format(instance_id, self._instance_arn.split("/")[-1]))
-            else:
-                self._instance_arn = instance_arn
+
+        if not self._cache_load_attempted:
+            success = self._load_from_cache()
+            self._cache_load_attempted = True
+            if success:
+                self._print_instance()
+                return self._identity_store_id
+
+        self._do_lookup("identity store", "ID")
+        self._print_instance()
         return self._identity_store_id
 
-def _acct_str(account):
-    if "Name" in account:
-        return f"{account['Id']}:{account['Name']}"
-    else:
-         return f"{account['Id']}"
+    def _print(self, message):
+        LOGGER.info(message)
+        if self.print_on_fetch:
+            print(message)
+
+    def _print_instance(self):
+        if not self._instance_arn_printed:
+            self._print(f"Using SSO instance {self._instance_arn.split('/')[-1]}")
+            self._instance_arn_printed = True
+
+    def _print_identity_store(self):
+        if not self._identity_store_id_printed:
+            self._print(f"Using identity store {self._identity_store_id}")
+            self._identity_store_id_printed = True
+
+    def _do_lookup(self, lookup_for, identifier):
+        instances = self.sso_client.list_instances()["Instances"]
+        if len(instances) == 0:
+            raise LookupError(f"No {lookup_for} found, please specify {lookup_for} {identifier}")
+        if self._instance_arn_specified:
+            for instance in instances:
+                if self._instance_arn == instance["InstanceArn"]:
+                    break
+            else:
+                raise LookupError(f"No {lookup_for} found matching SSO instance {self._instance_arn}")
+        elif self._identity_store_id_specified:
+            found_instances = []
+            for instance in instances:
+                if self._identity_store_id == instance["IdentityStoreId"]:
+                    found_instances.append(instance)
+            if not found_instances:
+                raise LookupError(f"No {lookup_for} found matching identity store id {self._identity_store_id}")
+            elif len(found_instances) > 1:
+                arns = ", ".join(i["InstanceArn"] for i in found_instances)
+                raise LookupError(f"{len(found_instances)} SSO instances found matching identity store id {self._identity_store_id}, please specify SSO instance ARN: {arns}")
+            instance = found_instances[0]
+        elif len(instances) > 1:
+            arns = ", ".join(i["InstanceArn"] for i in instances)
+            raise LookupError(f"{len(instances)} SSO instances found, please specify SSO instance ARN: {arns}")
+        else:
+            instance = instances[0]
+
+        self._instance_arn = instance["InstanceArn"]
+        self._identity_store_id = instance["IdentityStoreId"]
+
+        self._store_to_cache()
+
+    def _store_to_cache(self):
+        if not self._cache:
+            return
+
+        if self.session.profile_name:
+            cache_key = f"{self.CACHE_KEY_PREFIX}{self.session.profile_name}"
+        else:
+            identity = self.session.client("sts").get_caller_identity()
+            cache_key = f"{self.CACHE_KEY_PREFIX}{identity['Account']}-{self.session.region_name}"
+
+        self._cache[cache_key] = {
+            "InstanceArn": self._instance_arn,
+            "IdentityStoreId": self._identity_store_id,
+        }
+
+    def _load_from_cache(self):
+        if not self._cache:
+            return False
+
+        if self.session.profile_name:
+            cache_key = f"{self.CACHE_KEY_PREFIX}{self.session.profile_name}"
+        else:
+            identity = self.session.client("sts").get_caller_identity()
+            cache_key = f"{self.CACHE_KEY_PREFIX}{identity['Account']}-{self.session.region_name}"
+
+        if cache_key not in self._cache:
+            return False
+
+        instance_arn = self._cache[cache_key].get("InstanceArn")
+        identity_store_id = self._cache[cache_key].get("IdentityStoreId")
+        if not (instance_arn and identity_store_id):
+            return False
+
+        self._instance_arn = instance_arn
+        self._identity_store_id = identity_store_id
+        return True
 
 _CACHE_KEY_PREFIX_GROUP_ID = "group#id#"
 _CACHE_KEY_PREFIX_GROUP_NAME = "group#name#"
@@ -376,6 +455,12 @@ def lookup_account_by_id(session, account_id, *, cache=None):
     cache[cache_key_name] = account
 
     return account
+
+def _acct_str(account):
+    if "Name" in account:
+        return f"{account['Id']}:{account['Name']}"
+    else:
+         return f"{account['Id']}"
 
 def lookup_account_by_name(session, account_name, *, cache=None):
     if cache is None:

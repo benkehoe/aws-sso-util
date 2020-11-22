@@ -13,10 +13,12 @@
 
 import argparse
 import sys
+import os
 from collections import namedtuple
 import logging
 
 import boto3
+from botocore.credentials import JSONFileCache
 
 import click
 
@@ -25,6 +27,10 @@ from .. import format as _format
 from .utils import configure_logging, Printer
 
 LOGGER = logging.getLogger(__name__)
+
+IDS_CACHE_DIR = os.path.expanduser(
+    os.path.join('~', '.aws', 'cli', 'cache')
+)
 
 @click.command('lookup')
 @click.argument('type', type=click.Choice(['instance', 'identity-store', 'group', 'user', 'permission-set']))
@@ -59,7 +65,9 @@ def lookup(
 
     session = boto3.Session(profile_name=profile)
 
-    ids = _lookup.Ids(session, instance_arn, identity_store_id)
+    cache = JSONFileCache(IDS_CACHE_DIR)
+
+    ids = _lookup.Ids(session, instance_arn, identity_store_id, cache=cache)
     ids.print_on_fetch = show_id
 
     HEADER_FIELDS = {
