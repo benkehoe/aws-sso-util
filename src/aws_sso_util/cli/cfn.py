@@ -24,6 +24,7 @@ import aws_error_utils
 import click
 
 from .. import lookup
+from .. import format as _format
 from ..assignments import Assignment
 from ..cfn.config import Config, ConfigError, validate_config, GenerationConfig
 from ..cfn import resources, templates, macro, utils
@@ -184,7 +185,7 @@ def generate_template(
     write_templates(templates_to_write)
 
     if assignments_csv:
-        write_csv(template_process_inputs, assignments_csv)
+        write_csv(template_process_inputs, assignments_csv, generation_config)
 
 def get_principal_name_fetcher(session, ids, cache):
     def fetcher(type, id):
@@ -206,7 +207,7 @@ def get_permission_set_name_fetcher(session, ids, cache):
         try:
             ps = lookup.lookup_permission_set_by_id(session, ids, arn, cache=cache)
             return ps["Name"]
-        except lookup.LookupError:
+        except (lookup.LookupError, _format.FormatError):
             return None
     return fetcher
 
@@ -389,7 +390,7 @@ def write_templates(templates_to_write):
             utils.dump_yaml(parent_data, fp)
 
 
-def write_csv(template_process_inputs, assignments_csv):
+def write_csv(template_process_inputs, assignments_csv, generation_config):
     LOGGER.info(f"Writing assignments CSV to {assignments_csv.name}")
     header_fields = Assignment._fields + ("source_ou", )
     assignments_csv.write(",".join(header_fields) + "\n")
@@ -397,7 +398,12 @@ def write_csv(template_process_inputs, assignments_csv):
         for template_process_input_item in template_process_input.items:
             for assignment in template_process_input_item.resource_collection.assignments:
                 source_ou = assignment.target.source_ou or ""
-                assignments_csv.write(",".join(assignment.get_assignment() + (source_ou,) ) + "\n")
+                assignment_tuple = assignment.get_assignment(
+                    principal_name_fetcher=generation_config.principal_name_fetcher,
+                    permission_set_name_fetcher=generation_config.permission_set_name_fetcher,
+                    target_name_fetcher=generation_config.target_name_fetcher
+                )
+                assignments_csv.write(",".join(assignment_tuple + (source_ou,) ) + "\n")
 
 
 if __name__ == "__main__":

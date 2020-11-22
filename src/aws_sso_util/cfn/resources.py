@@ -271,21 +271,25 @@ class Assignment:
             principal_name_fetcher=None,
             permission_set_name_fetcher=None,
             target_name_fetcher=None):
-        if not principal_name_fetcher:
-            principal_name = "UNKNOWN"
-        else:
+
+        principal_name = None
+        if principal_name_fetcher:
             principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
+        if not principal_name:
+            principal_name = "UNKNOWN"
 
-        permission_set_arn = self.permission_set.get_arn(mode="str")
-        if not permission_set_name_fetcher:
-            permission_set_name = "UNKNOWN"
-        else:
+        permission_set_name = None
+        permission_set_arn = self.permission_set.get_arn()
+        if permission_set_name_fetcher and isinstance(permission_set_arn, str):
             permission_set_name = permission_set_name_fetcher(permission_set_arn)
+        if not permission_set_name:
+            permission_set_name = "UNKNOWN"
 
-        if not target_name_fetcher:
-            target_name = "UNKNOWN"
-        else:
+        target_name = None
+        if target_name_fetcher:
             target_name = target_name_fetcher(self.target.type.value, self.target.id)
+        if not target_name:
+            target_name = "UNKNOWN"
 
         assignment = _Assignment(
             self.instance,

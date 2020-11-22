@@ -2,6 +2,9 @@ import numbers
 
 from .lookup import Ids
 
+class FormatError(Exception):
+    pass
+
 def format_account_id(account_id):
     if isinstance(account_id, numbers.Number):
         account_id = str(int(account_id))
@@ -18,8 +21,5 @@ def format_permission_set_arn(ids: Ids, permission_set_id, raise_on_unknown=Fals
         if permission_set_id.startswith('ps-'):
             return f"arn:aws:sso:::permissionSet/{ids.instance_id}/{permission_set_id}"
         if raise_on_unknown:
-            raise ValueError(f"Unrecognized PermissionSet ID format: {permission_set_id}")
+            raise FormatError(f"Unrecognized PermissionSet ID format: {permission_set_id}")
     return permission_set_id
-
-def format_assignment_for_csv():
-    raise NotImplementedError
