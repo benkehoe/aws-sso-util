@@ -11,13 +11,13 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
-import numbers
 import jsonschema
 import logging
 import math
 
 from . import utils, cfn_yaml_tags
-from .. import api_utils
+from .. import lookup
+from ..format import format_account_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +51,11 @@ class GenerationConfig:
     DEFAULT_MAX_CONCURRENT_ASSIGNMENTS = 20
     DEFAULT_NUM_CHILD_STACKS = None
 
-    def __init__(self, ids: api_utils.Ids):
+    def __init__(self,
+            ids: lookup.Ids,
+            principal_name_fetcher=None,
+            permission_set_name_fetcher=None,
+            target_name_fetcher=None):
         self.ids = ids
         self._max_resources_per_template = None
         self._max_concurrent_assignments = None
@@ -59,6 +63,10 @@ class GenerationConfig:
         self._num_child_stacks = None
 
         self._default_session_duration = None
+
+        self.principal_name_fetcher = principal_name_fetcher
+        self.permission_set_name_fetcher = permission_set_name_fetcher
+        self.target_name_fetcher = target_name_fetcher
 
     def __str__(self):
         return str({
@@ -76,7 +84,12 @@ class GenerationConfig:
         })
 
     def copy(self):
-        obj = self.__class__(self.ids)
+        obj = self.__class__(
+            self.ids,
+            principal_name_fetcher=self.principal_name_fetcher,
+            permission_set_name_fetcher=self.permission_set_name_fetcher,
+            target_name_fetcher=self.target_name_fetcher
+        )
         obj.set(
             max_resources_per_template=self._max_resources_per_template,
             max_concurrent_assignments=self._max_concurrent_assignments,
@@ -205,11 +218,7 @@ class Config:
         self.ous.extend(get(["OUs", "Ous", "OU", "Ou"]))
         self.recursive_ous.extend(get(["RecursiveOUs", "RecursiveOus", "RecursiveOU", "RecursiveOu"]))
         for account in get(["Accounts", "Account"]):
-            if isinstance(account, numbers.Number):
-                account = str(int(account))
-            if isinstance(account, str):
-                account = account.rjust(12, '0')
-            self.accounts.append(account)
+            self.accounts.append(format_account_id(account))
 
     def load_template_metadata(self, metadata):
         self.max_resources_per_template = _get_value(metadata, ["MaxResourcesPerTemplate"], type=int)
@@ -379,7 +388,7 @@ def validate_resource(resource):
         _check(target_entry, ["Type", "TargetType"], parent=name)
         _check(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], parent=name)
 
-def validate_config(config, ids: api_utils.Ids):
+def validate_config(config, ids: lookup.Ids):
     if not config.instance:
         config.instance = ids.instance_arn
     elif not ids.instance_arn_matches(config.instance):

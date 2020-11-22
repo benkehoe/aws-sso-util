@@ -81,7 +81,13 @@ def add_assignments_to_template(
 
         assignment_resources.append((
             assignment.get_resource_name(),
-            assignment.get_resource(child_stack=child_stack, depends_on=depends_on)))
+            assignment.get_resource(
+                child_stack=child_stack,
+                depends_on=depends_on,
+                principal_name_fetcher=generation_config.principal_name_fetcher,
+                permission_set_name_fetcher=generation_config.permission_set_name_fetcher,
+                target_name_fetcher=generation_config.target_name_fetcher
+                )))
 
     if "Resources" not in template:
         template["Resources"] = OrderedDict()
@@ -274,9 +280,8 @@ def resolve_templates(
     if num_child_stacks is None:
         if too_many_resources_for_parent:
             raise ValueError(f"Too many assignments ({len(assignments)}) to fit into template, specify a number of child stacks")
-        else:
-            parent_assignments = assignments
-            child_templates = []
+        parent_assignments = assignments
+        child_templates = []
     elif num_child_stacks == 0:
         if too_many_resources_for_parent:
             raise ValueError(f"Too many resources ({num_resources_to_add}) to fit into template")
@@ -288,7 +293,7 @@ def resolve_templates(
         parent_assignments = resources.AssignmentResources([])
         child_templates = [ChildTemplate(c) for c in assignments.allocate(num_child_stacks)]
 
-    if permission_sets.num_resources() + num_parent_resources > max_resources_per_template:
+    if permission_sets.num_resources() and permission_sets.num_resources() + num_parent_resources > max_resources_per_template:
         raise ValueError(f"Too many permission sets {permission_sets.num_resources()} to fit into template")
 
     parent_template = ParentTemplate(parent_assignments,
@@ -310,7 +315,8 @@ def process_permission_set_resource(resource, generation_config):
         properties["SessionDuration"] = str(generation_config.default_session_duration)
     # If it's a number, we don't know what units
     # elif "SessionDuration" in properties and isinstance(properties["SessionDuration"], numbers.Number):
-    #     properties["SessionDuration"] = str(properties["SessionDuration"])
+    #     unit = ???
+    #     properties["SessionDuration"] = f"P{properties["SessionDuration"]}{unit}"
 
     if "InlinePolicy" in properties and not isinstance(properties["InlinePolicy"], (str, cfn_yaml_tags.CloudFormationObject)):
         try:

@@ -7,7 +7,8 @@ import itertools
 
 import aws_error_utils
 
-from .api_utils import Ids, get_accounts_for_ou
+from .lookup import Ids, lookup_accounts_for_ou
+from .format import format_account_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -89,11 +90,10 @@ def _process_target(target):
     if not target:
         return None
     if isinstance(target, numbers.Number):
-        target = str(int(target))
+        return [("AWS_ACCOUNT", format_account_id(target))]
     if isinstance(target, str):
         if re.match(r"^\d+$", target):
-            target = target.rjust(12, '0')
-            return [("AWS_ACCOUNT", target)]
+            return [("AWS_ACCOUNT", format_account_id(target))]
         elif re.match(r"^r-[a-z0-9]{4,32}$", target) or re.match(r"^ou-[a-z0-9]{4,32}-[a-z0-9]{8,32}$", target):
             return [("AWS_OU", target)]
         else:
@@ -120,7 +120,7 @@ def _get_account_iterator(target, context: _Context):
 def _get_ou_iterator(target, context: _Context):
     def target_iterator():
         value = (*target, "UNKNOWN")
-        accounts = get_accounts_for_ou(context.session, value[1], recursive=context.ou_recursive)
+        accounts = lookup_accounts_for_ou(context.session, value[1], recursive=context.ou_recursive)
         for account in accounts:
             yield "AWS_ACCOUNT", account["Id"], account["Name"]
     return target_iterator
@@ -308,6 +308,7 @@ def _get_principal_iterator(context: _Context):
     return principal_iterator
 
 Assignment = collections.namedtuple("Assignment", [
+    "instance_arn",
     "principal_type",
     "principal_id",
     "principal_name",
@@ -338,7 +339,7 @@ def list_assignments(
 
     """
     ids = Ids(lambda: session, instance_arn, identity_store_id)
-    ids.suppress_print = True
+
     return _list_assignments(
         session,
         ids,
@@ -365,7 +366,6 @@ def _list_assignments(
         get_principal_names=True,
         get_permission_set_names=True,
         ou_recursive=False):
-    ids.suppress_print = True
 
     principal = _process_principal(principal)
     permission_set = _process_permission_set(ids, permission_set)
@@ -403,6 +403,7 @@ def _list_assignments(
                     permission_set_arn, permission_set_id, permission_set_name):
 
                 assignment = Assignment(
+                    ids.instance_arn,
                     principal_type,
                     principal_id,
                     principal_name,

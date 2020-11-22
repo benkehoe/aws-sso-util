@@ -72,3 +72,80 @@ def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_
         GetInstanceError(f"Found {len(instances)} SSO configs, please specify one: {SSOInstance.to_strs(instances)}")
 
     return instances[0]
+
+class Printer:
+    def __init__(self, *,
+            separator,
+            default_separator,
+            header_fields,
+            disable_header=False,
+            skip_repeated_values=False,
+            sort_key=None,
+            printer=None):
+        self.separator = separator
+        self.default_separator = default_separator
+        self._sep = separator if separator is not None else default_separator
+        self._header_sep = separator if separator is not None else " " * len(default_separator)
+
+        self.sort_key = sort_key
+
+        self.header_fields = header_fields
+        self.disable_header = disable_header
+
+        self.skip_repeated_values = skip_repeated_values
+
+        self.print_along = self.separator and not self.sort_key
+        self.rows = [] if not self.print_along else None
+
+        self.printer = printer or print
+
+    def print_header_before(self):
+        if self.print_along and not self.disable_header:
+            self.printer(self._header_sep.join(self.header_fields))
+
+    def add_row(self, row):
+        if self.print_along:
+            self.printer(self._sep.join(row))
+        else:
+            self.rows.append(row)
+
+    def _process_row_skip(self, row, prev_row):
+        if self.skip_repeated_values is True:
+            proc = lambda v, pv: "" if v == pv else v
+            return [proc(v, pv) for v, pv in zip(row, prev_row)]
+        else:
+            proc = lambda s, v, pv: "" if s and v == pv else v
+            return [proc(s, v, pv) for s, v, pv in zip(self.skip_repeated_values, row, prev_row)]
+
+    def print_after(self):
+        if self.print_along:
+            return
+        if self.sort_key:
+            self.rows.sort(key=self.sort_key)
+
+        if self.disable_header:
+            col_widths = [0 for _ in self.header_fields]
+        else:
+            col_widths = [len(h) for h in self.header_fields]
+
+        for row in self.rows:
+            col_widths = [max(cw, len(v)) for cw, v in zip(col_widths, row)]
+
+        def just(row):
+            return [v.ljust(cw) for cw, v in zip(col_widths, row)]
+
+        if not self.disable_header:
+            self.printer(self._header_sep.join(just(self.header_fields)))
+
+        first_loop = True
+        prev_row = None
+        for row in self.rows:
+            if not first_loop and self.skip_repeated_values:
+                row_to_print = self._process_row_skip(row, prev_row)
+            else:
+                row_to_print = row
+
+            self.printer(self._sep.join(just(row_to_print)))
+
+            prev_row = row
+            first_loop = False

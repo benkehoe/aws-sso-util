@@ -20,7 +20,7 @@ import aws_error_utils
 
 import click
 
-from ..api_utils import Ids
+from ..lookup import Ids
 from ..assignments import _list_assignments, Assignment
 from .utils import configure_logging
 
@@ -85,6 +85,7 @@ def get_target_filter(values):
 @click.option("--separator", "--sep", default=",")
 @click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="id")
 @click.option("--header/--no-header", default=True, help="Include a header row")
+# @click.option("--instance-column", type=click.Choice(["id", "arn"]))
 @click.option("--verbose", "-v", count=True)
 def assignments(
         instance_arn,
@@ -137,7 +138,7 @@ def assignments(
     session = boto3.Session()
 
     ids = Ids(lambda: session, instance_arn, identity_store_id)
-    ids.suppress_print = not show_id
+    ids.print_on_fetch = show_id
 
     assignments_iterator = _list_assignments(
         session,
@@ -153,7 +154,7 @@ def assignments(
         ou_recursive=ou_recursive)
 
     if header:
-        fields = list(Assignment._fields)
+        fields = list(Assignment._fields)[1:]
         if permission_set_style == "id":
             fields[fields.index("permission_set_arn")] = "permission_set_id"
         print(separator.join(fields))
@@ -161,7 +162,7 @@ def assignments(
     for assignment in assignments_iterator: #lookup_assignments(session, ids, principal_filter, permission_set_filter, target_filter):
         if permission_set_style == "id":
             assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/")[-1])
-        print(separator.join(assignment))
+        print(separator.join(assignment[1:]))
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

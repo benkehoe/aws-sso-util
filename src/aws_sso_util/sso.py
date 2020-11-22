@@ -27,6 +27,8 @@ import boto3
 import botocore
 from botocore.credentials import JSONFileCache
 
+from .format import format_account_id
+
 from .vendored_botocore.utils import SSOTokenFetcher
 from .vendored_botocore.credentials import SSOCredentialFetcher
 
@@ -42,13 +44,6 @@ CREDENTIALS_CACHE_DIR = os.path.expanduser(
 )
 
 LOGGER = logging.getLogger(__name__)
-
-def _fmt_acct(account_id):
-    if isinstance(account_id, numbers.Number):
-        account_id = str(int(account_id))
-    if len(account_id) < 12:
-        account_id = account_id.rjust(12, "0")
-    return account_id
 
 def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
                      on_pending_authorization=None, message=None, outfile=None):
@@ -160,7 +155,7 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, region, logi
         region (str): The AWS region for the boto3 session.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
     """
-    account_id = _fmt_acct(account_id)
+    account_id = format_account_id(account_id)
 
     if login:
         _login(start_url, sso_region)
@@ -231,9 +226,9 @@ def list_available_roles(start_url, sso_region, account_id=None, login=False):
     """
     if account_id:
         if isinstance(account_id, (str, numbers.Number)):
-            account_id_list = [_fmt_acct(account_id)]
+            account_id_list = [format_account_id(account_id)]
         else:
-            account_id_list = [_fmt_acct(v) for v in account_id]
+            account_id_list = [format_account_id(v) for v in account_id]
     else:
         account_id_list = None
 

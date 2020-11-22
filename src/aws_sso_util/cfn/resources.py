@@ -19,6 +19,7 @@ from collections import OrderedDict, namedtuple
 from .config import Config
 from . import utils
 from . import cfn_yaml_tags
+from ..assignments import Assignment as _Assignment
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,21 +28,21 @@ class Principal:
         GROUP = 'GROUP'
         USER = 'USER'
 
-    def __init__(self, type: 'Principal.Type', name):
+    def __init__(self, type: 'Principal.Type', id):
         self.type = type
-        self.name = name
+        self.id = id
 
-        self.references = utils.get_references(self.name)
+        self.references = utils.get_references(self.id)
 
     @property
     def hash_key(self):
-        return f"{self.type.value}:{utils.get_hash_key(self.name)}".encode('utf-8')
+        return f"{self.type.value}:{utils.get_hash_key(self.id)}".encode('utf-8')
 
     def __str__(self):
-        return f"{self.type.name}:{self.name}"
+        return f"{self.type.name}:{self.id}"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.type!r}, {self.name!r})"
+        return f"{self.__class__.__name__}({self.type!r}, {self.id!r})"
 
 class PermissionSet:
     RESOURCE_NAME_PREFIX = "PermSet"
@@ -84,19 +85,29 @@ class PermissionSet:
     def hash_key(self):
         return utils.get_hash_key(self.get_arn())
 
-    def get_arn(self, force_ref=False):
+    def get_arn(self, mode=None):
+        if mode and mode not in ["force_ref", "str", "default"]:
+            raise ValueError(f"Invalid mode {mode}")
         if self._type == self._Type.RESOURCE:
-            if force_ref:
+            if mode == "force_ref":
                 return utils.REF_TAG(self.get_resource_name())
+            elif mode == "str":
+                return self.get_resource_name()
             else:
                 return utils.GETATT_TAG(f"{self.get_resource_name()}.PermissionSetArn")
         if self._type == self._Type.REFERENCE:
-            if force_ref:
+            if mode == "force_ref":
                 references = utils.get_references(self._value)
                 if len(references) != 1:
                     raise ValueError(f"Cannot convert to ref: {self._value}")
                 return utils.REF_TAG(list(references)[0])
-            return self._value
+            elif mode == "str":
+                references = utils.get_references(self._value)
+                if len(references) != 1:
+                    raise ValueError(f"Cannot convert to string reference: {self._value}")
+                return list(references)[0]
+            else:
+                return self._value
         if self._type == self._Type.ARN:
             return self._value
         if self._type == self._Type.SHORT_ARN:
@@ -155,19 +166,19 @@ class Target:
         OU = 'AWS_OU'
         ACCOUNT = 'AWS_ACCOUNT'
 
-    def __init__(self, type: 'Target.Type', name: str, source_ou=None):
+    def __init__(self, type: 'Target.Type', id: str, source_ou=None):
         self.type = type
-        self.name = name
-        self.source_ou = None
+        self.id = id
+        self.source_ou = source_ou
 
-        self.references = utils.get_references(self.name)
+        self.references = utils.get_references(self.id)
 
     @property
     def hash_key(self):
-        return f"{self.type.value}:{utils.get_hash_key(self.name)}".encode('utf-8')
+        return f"{self.type.value}:{utils.get_hash_key(self.id)}".encode('utf-8')
 
     def __str__(self):
-        s = f"{self.type.name}:{self.name}"
+        s = f"{self.type.name}:{self.id}"
         if self.source_ou:
             s += f"[{self.source_ou}]"
         return s
@@ -177,7 +188,7 @@ class Target:
             ou_str = f", source_ou={self.source_ou!r}"
         else:
             ou_str = ""
-        return f"{self.__class__.__name__}({self.type!r}, {self.name!r}{ou_str})"
+        return f"{self.__class__.__name__}({self.type!r}, {self.id!r}{ou_str})"
 
 class Assignment:
     RESOURCE_NAME_PREFIX = "Assignment"
@@ -206,26 +217,95 @@ class Assignment:
         hash_value = hasher.hexdigest()[:6].upper()
         return f"{prefix}{self.RESOURCE_NAME_PREFIX}{hash_value}"
 
-    def get_resource(self, child_stack, depends_on=None):
+    def get_resource(self,
+            child_stack,
+            depends_on=None,
+            principal_name_fetcher=None,
+            permission_set_name_fetcher=None,
+            target_name_fetcher=None):
+        permission_set_arn_mode = "force_ref" if child_stack else None
+
         resource = OrderedDict({
             "Type": "AWS::SSO::Assignment"
         })
+
+        metadata = OrderedDict()
         if self.target.source_ou:
+            metadata["AccountSourceOU"] = self.target.source_ou
+
+        if principal_name_fetcher:
+            principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
+            if principal_name:
+                metadata["PrincipalName"] = principal_name
+
+        permission_set_arn = self.permission_set.get_arn(mode=permission_set_arn_mode)
+        if permission_set_name_fetcher and isinstance(permission_set_arn, str):
+            permission_set_name = permission_set_name_fetcher(permission_set_arn)
+            if permission_set_name:
+                metadata["PermissionSetName"] = permission_set_name
+
+        if target_name_fetcher:
+            target_name = target_name_fetcher(self.target.type.value, self.target.id)
+            if target_name:
+                metadata["TargetName"] = target_name
+
+        if metadata:
             resource["Metadata"] = OrderedDict({
-                "AccountSourceOU": self.target.source_ou
+                "SSO": metadata
             })
+
         if depends_on:
             resource["DependsOn"] = depends_on
         resource["Properties"] = OrderedDict({
             "InstanceArn": self.instance,
             "PrincipalType": self.principal.type.value,
-            "PrincipalId": self.principal.name,
-            "PermissionSetArn": self.permission_set.get_arn(force_ref=child_stack),
+            "PrincipalId": self.principal.id,
+            "PermissionSetArn": permission_set_arn,
             "TargetType": self.target.type.value,
-            "TargetId": self.target.name
+            "TargetId": self.target.id
         })
 
         return resource
+
+    def get_assignment(self,
+            principal_name_fetcher=None,
+            permission_set_name_fetcher=None,
+            target_name_fetcher=None):
+        if not principal_name_fetcher:
+            principal_name = "UNKNOWN"
+        else:
+            principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
+
+        permission_set_arn = self.permission_set.get_arn(mode="str")
+        if not permission_set_name_fetcher:
+            permission_set_name = "UNKNOWN"
+        else:
+            permission_set_name = permission_set_name_fetcher(permission_set_arn)
+
+        if not target_name_fetcher:
+            target_name = "UNKNOWN"
+        else:
+            target_name = target_name_fetcher(self.target.type.value, self.target.id)
+
+        assignment = _Assignment(
+            self.instance,
+            self.principal.type.value,
+            self.principal.id,
+            principal_name,
+            permission_set_arn,
+            permission_set_name,
+            self.target.type.value,
+            self.target.id,
+            target_name,
+        )
+        for i, field in enumerate(_Assignment._fields):
+            value = assignment[i]
+            if not isinstance(value, str):
+                references = utils.get_references(value)
+                if len(references) != 1:
+                    raise ValueError(f"Cannot convert assignment {self.get_resource_name()} field {field} to string reference: {value}")
+                assignment = assignment._replace(**{field: list(references)[0]})
+        return assignment
 
     def __str__(self):
         return f"<{self.principal!s}|{self.permission_set!s}|{self.target!s}>"

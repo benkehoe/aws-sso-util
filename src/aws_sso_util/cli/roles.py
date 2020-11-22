@@ -1,15 +1,20 @@
 import logging
 import re
 import sys
+from collections import namedtuple
 
 import click
 
-from .utils import configure_logging, get_instance, GetInstanceError
+from .utils import configure_logging, get_instance, GetInstanceError, Printer
 from ..sso import list_available_roles, login
 
 LOGGER = logging.getLogger(__name__)
 
-HEADER_FIELDS = ["Account ID", "Account name", "Role name"]
+HEADER_FIELDS = {
+    "id": "Account ID",
+    "name": "Account name",
+    "role": "Role name"
+}
 
 @click.command()
 @click.option("--sso-start-url", "-u")
@@ -17,7 +22,7 @@ HEADER_FIELDS = ["Account ID", "Account name", "Role name"]
 @click.option("--account", "-a", "account_values", multiple=True, default=[])
 @click.option("--role-name", "-r", "role_name_patterns", multiple=True, default=[])
 @click.option("--separator", "--sep")
-@click.option("--header/--no-header")
+@click.option("--header/--no-header", default=True)
 @click.option("--sort-by", type=click.Choice(["id,role", "name,role", "role,id", "role,name"]), default=None)
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
@@ -48,15 +53,22 @@ def roles(
                     return True
             return False
 
-    print_along = separator and not sort_by
-
-    sort_by_inds = {
-        "id": 0,
-        "name": 1,
-        "role": 2
-    }
     sort_by_keys = sort_by.split(",") if sort_by else ("name", "role")
-    sort_key = lambda v: tuple(v[sort_by_inds[key]] for key in sort_by_keys)
+
+    if sort_by_keys[0] == "id":
+        header_field_keys = ("id", "name", "role")
+    elif sort_by_keys[0] == "name":
+        header_field_keys = ("name", "id", "role")
+    elif sort_by_keys[1] == "id":
+        header_field_keys = ("role", "id", "name")
+    else:
+        header_field_keys = ("role", "name", "id")
+    header_fields = [HEADER_FIELDS[k] for k in header_field_keys]
+    Row = namedtuple("Row", header_field_keys)
+    if sort_by:
+        sort_key = lambda v: tuple(getattr(v, key) for key in sort_by_keys)
+    else:
+        sort_key = None
 
     try:
         instance = get_instance(
@@ -69,41 +81,15 @@ def roles(
 
     login(instance.start_url, instance.region, force_refresh=force_refresh)
 
-    rows = []
-    col_2_width = 0
-
-    if separator:
-        def print_header(col_2_width):
-            print(separator.join(HEADER_FIELDS))
-        def print_row(col_2_width, account_id, account_name, role_name):
-            print(separator.join([account_id, account_name, role_name]))
-    else:
-        def print_header(col_2_width):
-            fields = HEADER_FIELDS
-            col_2_width = max(col_2_width, len(fields[1]))
-            print(" ".join([
-                fields[0].ljust(12),
-                fields[1].ljust(col_2_width),
-                fields[2],
-            ]))
-        def print_row(col_2_width, account_id, account_name, role_name):
-            parts = []
-            if account_id != prev_account_id:
-                parts.extend([
-                    account_id,
-                    account_name.ljust(col_2_width)
-                ])
-            else:
-                parts.extend([
-                    " " * len(account_id),
-                    " " * len(col_2_width),
-                ])
-            parts.append(role_name)
-            print(" ".join(parts))
-
-
-    if header and print_along:
-        print_header(col_2_width)
+    printer = Printer(
+        separator=separator,
+        default_separator=" ",
+        sort_key=sort_key,
+        header_fields=header_fields,
+        disable_header=not header,
+        skip_repeated_values=False,
+    )
+    printer.print_header_before()
 
     for account_id, account_name, role_name in list_available_roles(instance.start_url, instance.region, account_id=account_ids):
         if not account_filter(account_id, account_name):
@@ -114,19 +100,9 @@ def roles(
                     break
             else:
                 continue
-        if print_along:
-            print_row(col_2_width, account_id, account_name, role_name)
-        else:
-            col_2_width = max(col_2_width, len(account_name))
-            rows.append((account_id, account_name, role_name))
+        printer.add_row(Row(id=account_id, name=account_name, role=role_name))
 
-    if not print_along:
-        rows.sort(key=sort_key)
-        if header:
-            print_header(col_2_width)
-        prev_account_id = None
-        for account_id, account_name, role_name in rows:
-            print_row(col_2_width, account_id, account_name, role_name)
+    printer.print_after()
 
 
 if __name__ == "__main__":

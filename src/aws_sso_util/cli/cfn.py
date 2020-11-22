@@ -19,10 +19,12 @@ import sys
 import os
 
 import boto3
+import aws_error_utils
 
 import click
 
-from .. import api_utils
+from .. import lookup
+from ..assignments import Assignment
 from ..cfn.config import Config, ConfigError, validate_config, GenerationConfig
 from ..cfn import resources, templates, macro, utils
 
@@ -70,11 +72,15 @@ def param_loader(ctx, param, value):
 @click.option("--base-template-file", type=click.File("r"), help="Base template to build from")
 @click.option("--template-parameters", callback=param_loader, help="String-type parameters on the template")
 
+@click.option("--lookup-names/--no-lookup-names", default=False)
+
 @click.option("--max-resources-per-template", type=int)
 @click.option("--max-concurrent-assignments", type=int)
 @click.option("--max-assignments-allocation", type=int)
 @click.option("--num-child-stacks", type=int)
 @click.option("--default-session-duration")
+
+@click.option("--assignments-csv", type=click.File("w"))
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(
@@ -86,11 +92,13 @@ def generate_template(
         output_dir,
         base_template_file,
         template_parameters,
+        lookup_names,
         max_resources_per_template,
         max_concurrent_assignments,
         max_assignments_allocation,
         num_child_stacks,
         default_session_duration,
+        assignments_csv,
         verbose):
     configure_logging(LOGGER, verbose)
 
@@ -101,9 +109,25 @@ def generate_template(
 
     session = boto3.Session(profile_name=profile)
 
-    ids = api_utils.Ids(lambda: session, sso_instance, identity_store_id=None)
+    ids = lookup.Ids(lambda: session, sso_instance, identity_store_id=None)
 
-    generation_config = GenerationConfig(ids)
+    cache = {}
+
+    if lookup_names:
+        principal_name_fetcher = get_principal_name_fetcher(session, ids, cache)
+        permission_set_name_fetcher = get_permission_set_name_fetcher(session, ids, cache)
+        target_name_fetcher = get_target_name_fetcher(session, ids, cache)
+    else:
+        principal_name_fetcher = None
+        permission_set_name_fetcher = None
+        target_name_fetcher = None
+
+    generation_config = GenerationConfig(
+        ids,
+        principal_name_fetcher=principal_name_fetcher,
+        permission_set_name_fetcher=permission_set_name_fetcher,
+        target_name_fetcher=target_name_fetcher
+    )
 
     generation_config.set(
         max_resources_per_template=max_resources_per_template,
@@ -113,7 +137,7 @@ def generate_template(
         default_session_duration=default_session_duration,
     )
 
-    ou_fetcher = lambda ou, recursive: [a["Id"] for a in api_utils.get_accounts_for_ou(session, ou, recursive)]
+    ou_fetcher = lambda ou, recursive: [a["Id"] for a in lookup.lookup_accounts_for_ou(session, ou, recursive=recursive, cache=cache)]
 
     if not template_file_suffix:
         template_file_suffix = ".yaml"
@@ -158,6 +182,42 @@ def generate_template(
     )
 
     write_templates(templates_to_write)
+
+    if assignments_csv:
+        write_csv(template_process_inputs, assignments_csv)
+
+def get_principal_name_fetcher(session, ids, cache):
+    def fetcher(type, id):
+        try:
+            if type == "GROUP":
+                group = lookup.lookup_group_by_id(session, ids, id, cache=cache)
+                return group["DisplayName"]
+            elif type == "USER":
+                user = lookup.lookup_user_by_id(session, ids, id, cache=cache)
+                return user["UserName"]
+            else:
+                raise ValueError(f"Unknown principal type {type}")
+        except lookup.LookupError:
+            return None
+    return fetcher
+
+def get_permission_set_name_fetcher(session, ids, cache):
+    def fetcher(arn):
+        try:
+            ps = lookup.lookup_permission_set_by_id(session, ids, arn, cache=cache)
+            return ps["Name"]
+        except lookup.LookupError:
+            return None
+    return fetcher
+
+def get_target_name_fetcher(session, ids, cache):
+    def fetcher(type, id):
+        try:
+            account = lookup.lookup_account_by_id(session, id, cache=cache)
+            return account["Name"]
+        except lookup.LookupError:
+            return None
+    return fetcher
 
 def process_config(
     config_file,
@@ -327,6 +387,17 @@ def write_templates(templates_to_write):
         Path(parent_path).parent.mkdir(parents=True, exist_ok=True)
         with open(parent_path, "w") as fp:
             utils.dump_yaml(parent_data, fp)
+
+
+def write_csv(template_process_inputs, assignments_csv):
+    LOGGER.info(f"Writing assignments CSV to {assignments_csv.name}")
+    header_fields = Assignment._fields + ("source_ou", )
+    assignments_csv.write(",".join(header_fields) + "\n")
+    for template_process_input in template_process_inputs.values():
+        for template_process_input_item in template_process_input.items:
+            for assignment in template_process_input_item.resource_collection.assignments:
+                source_ou = assignment.target.source_ou or ""
+                assignments_csv.write(",".join(assignment.get_assignment() + (source_ou,) ) + "\n")
 
 
 if __name__ == "__main__":

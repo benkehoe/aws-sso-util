@@ -17,12 +17,13 @@ import copy
 import json
 import math
 import datetime
+from collections import namedtuple
 
 import boto3
 
 from .config import Config, validate_resource, GenerationConfig
 from . import resources, templates, utils, cfn_yaml_tags
-from .. import api_utils
+from .. import lookup
 
 """
 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-macros.html
@@ -61,10 +62,10 @@ def is_macro_template(template):
 
 def process_template(template,
         session,
-        ids: api_utils.Ids,
+        ids: lookup.Ids,
         generation_config: GenerationConfig,
         generation_config_template_priority: bool,
-        ou_accounts_cache=None,):
+        ou_accounts_cache=None):
     base_template = copy.deepcopy(template)
 
     generation_config.load(base_template.get("Metadata", {}).get("SSO", {}), overwrite=generation_config_template_priority)
@@ -95,7 +96,7 @@ def process_template(template,
 
     resource_collection_dict = {}
     max_stack_resources = 0
-    ou_fetcher = lambda ou, recursive: [a["Id"] for a in api_utils.get_accounts_for_ou(session, ou, recursive, cache=ou_accounts_cache)]
+    ou_fetcher = lambda ou, recursive: [a["Id"] for a in lookup.lookup_accounts_for_ou(session, ou, recursive=recursive, cache=ou_accounts_cache)]
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
             config,
@@ -107,13 +108,45 @@ def process_template(template,
 
     return base_template, max_stack_resources, resource_collection_dict
 
+HANDLER_INITIALIZED = False
 
-def handler(event, context, put_object=None):
-    LOGGER.setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
+SESSION = None
+IDS = None
+
+CHILD_TEMPLATES_IN_YAML = None
+
+MAX_RESOURCES_PER_TEMPLATE = None
+MAX_CONCURRENT_ASSIGNMENTS = None
+MAX_ASSIGNMENTS_ALLOCATION = None
+NUM_CHILD_STACKS = None
+DEFAULT_SESSION_DURATION = None
+
+BUCKET_NAME = None
+KEY_PREFIX = None
+
+S3_PUT_OBJECT_ARGS = None
+
+def handler_init():
+    global HANDLER_INITIALIZED, \
+        SESSION, \
+        IDS, \
+        CHILD_TEMPLATES_IN_YAML, \
+        MAX_RESOURCES_PER_TEMPLATE, \
+        MAX_CONCURRENT_ASSIGNMENTS, \
+        MAX_ASSIGNMENTS_ALLOCATION, \
+        NUM_CHILD_STACKS, \
+        DEFAULT_SESSION_DURATION, \
+        BUCKET_NAME, \
+        KEY_PREFIX, \
+        S3_PUT_OBJECT_ARGS
+    if HANDLER_INITIALIZED:
+        return
+
+    logging.getLogger("aws_sso_util").setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
     logging.basicConfig()
 
     SESSION = boto3.Session()
-    IDS = api_utils.Ids(lambda: SESSION)
+    IDS = lookup.Ids(lambda: SESSION)
 
     CHILD_TEMPLATES_IN_YAML = os.environ.get("CHILD_TEMPLATES_IN_YAML", "false").lower() in ["true", "1"]
 
@@ -130,6 +163,11 @@ def handler(event, context, put_object=None):
         S3_PUT_OBJECT_ARGS = json.loads(os.environ["S3_PUT_OBJECT_ARGS"]) if os.environ.get("S3_PUT_OBJECT_ARGS") else {}
     except:
         LOGGER.exception("Error parsing S3_PUT_OBJECT_ARGS")
+
+    HANDLER_INITIALIZED = True
+
+def handler(event, context, put_object=None):
+    handler_init()
 
     request_id = event["requestId"]
     LOGGER.info(f"Request ID: {request_id}")

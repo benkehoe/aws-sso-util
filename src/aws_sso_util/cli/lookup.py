@@ -20,8 +20,9 @@ import boto3
 
 import click
 
-from ..api_utils import Ids
-from .utils import configure_logging
+from .. import lookup as _lookup
+from .. import format as _format
+from .utils import configure_logging, Printer
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,9 +36,13 @@ LOGGER = logging.getLogger(__name__)
 @click.option('--profile')
 
 @click.option('--error-if-not-found', '-e', is_flag=True)
+
+@click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="arn")
+
 @click.option('--show-id/--hide-id', default=False, help='Print SSO instance/identity store id being used')
-@click.option('--separator', '--sep', default=': ')
-@click.option('--verbose', count=True)
+@click.option('--separator', '--sep')
+@click.option("--header/--no-header")
+@click.option('--verbose', "-v", count=True)
 def lookup(
         type,
         value,
@@ -45,121 +50,132 @@ def lookup(
         identity_store_id,
         profile,
         error_if_not_found,
+        permission_set_style,
         show_id,
         separator,
+        header,
         verbose):
     configure_logging(LOGGER, verbose)
 
     session = boto3.Session(profile_name=profile)
 
-    ids = Ids(lambda: session, instance_arn, identity_store_id)
-    ids.suppress_print = not show_id
+    ids = _lookup.Ids(session, instance_arn, identity_store_id)
+    ids.print_on_fetch = show_id
+
+    HEADER_FIELDS = {
+    "group": ["Name", "Id"],
+    "user": ["Name", "Id"],
+    "permission-set": ["Name", permission_set_style.upper()],
+}
+
+    printer = Printer(
+        separator=separator,
+        default_separator=" ",
+        header_fields=HEADER_FIELDS.get(type),
+        disable_header=header,
+    )
 
     try:
         if type == 'instance':
-            ids.suppress_print = True
+            ids.print_on_fetch = False
             print(ids.instance_arn)
         elif type == 'identity-store':
-            ids.suppress_print = True
+            ids.print_on_fetch = False
             print(ids.identity_store_id)
         elif type in 'group':
             if not value:
                 raise click.UsageError("Group name is required")
-            lines = []
-            for name in value:
-                try:
-                    group_id = lookup_group_by_name(session, ids, name)
-                except LookupError as e:
-                    if error_if_not_found:
-                        print(format_lines(lines, separator))
-                        print("Group {} not found".format(name), file=sys.stderr)
-                        sys.exit(1)
-                    group_id = 'NOT_FOUND'
-                lines.append((name, group_id))
-            print(format_lines(lines, separator))
+            lookup_groups(session, ids, value, printer, error_if_not_found=error_if_not_found)
         elif type == 'user':
             if not value:
                 raise click.UsageError("User name is required")
-            lines = []
-            for name in value:
-                try:
-                    user_id = lookup_user_by_name(session, ids, name)
-                except LookupError as e:
-                    if error_if_not_found:
-                        print(format_lines(lines, separator))
-                        print("User {} not found".format(name), file=sys.stderr)
-                        sys.exit(1)
-                    user_id = 'NOT_FOUND'
-                lines.append((name, user_id))
-            print(format_lines(lines, separator))
+            lookup_users(session, ids, value, printer, error_if_not_found=error_if_not_found)
         elif type == 'permission-set':
             if not value:
                 raise click.UsageError("Permission set name is required")
-            lookup = PermissionSetArnLookup(session, ids)
-            lines = []
-            for name in value:
-                try:
-                    permission_set_arn = lookup.lookup_permission_set_arn(name)
-                except LookupError as e:
-                    if error_if_not_found:
-                        print(format_lines(lines, separator))
-                        print("Permission set {} not found".format(name), file=sys.stderr)
-                        sys.exit(1)
-                    permission_set_arn = 'NOT_FOUND'
-                lines.append((name, permission_set_arn))
-            print(format_lines(lines, separator))
+            if len(value) == 1 and value[0] == ":all":
+                lookup_all_permission_sets(session, ids, printer, permission_set_style=permission_set_style)
+            else:
+                lookup_permission_sets(session, ids, value, printer,
+                    permission_set_style=permission_set_style,
+                    error_if_not_found=error_if_not_found)
 
-    except LookupError as e:
+    except _lookup.LookupError as e:
         print(e, file=sys.stderr)
         sys.exit(1)
 
-def format_lines(lines, separator):
-    max_len = max(len(l[0]) for l in lines)
-    return '\n'.join("{}{}{}".format(l[0].ljust(max_len), separator, l[1]) for l in lines)
+def lookup_groups(session, ids, groups, printer: Printer, *, error_if_not_found):
+    printer.print_header_before()
+    for value in groups:
+        try:
+            group_name = value
+            group_id = _lookup.lookup_group_by_name(session, ids, group_name)["GroupId"]
+        except _lookup.LookupError as e:
+            if error_if_not_found:
+                printer.print_after()
+                print("Group {} not found".format(group_name), file=sys.stderr)
+                sys.exit(1)
+            group_id = 'NOT_FOUND'
+        printer.add_row((group_name, group_id))
+    printer.print_after()
 
-def lookup_group_by_name(session, ids, name):
-    identity_store_client = session.client('identitystore')
-    filters=[{'AttributePath': 'DisplayName', 'AttributeValue': name}]
-    try:
-        response = identity_store_client.list_groups(IdentityStoreId=ids.identity_store_id, Filters=filters)
-        if len(response['Groups']) == 0:
-            raise LookupError("No group named {} found".format(name))
-        elif len(response['Groups']) > 1:
-            raise LookupError("{} groups named {} found".format(len(response['Groups']), name))
-        return response['Groups'][0]['GroupId']
-    except:
-        raise
+def lookup_users(session, ids, users, printer: Printer, *, error_if_not_found):
+    printer.print_header_before()
+    for value in users:
+        try:
+            user_name = value
+            user_id = _lookup.lookup_user_by_name(session, ids, user_name)["UserId"]
+        except _lookup.LookupError as e:
+            if error_if_not_found:
+                printer.print_after()
+                print("User {} not found".format(user_name), file=sys.stderr)
+                sys.exit(1)
+            user_id = 'NOT_FOUND'
+        printer.add_row((user_name, user_id))
+    printer.print_after()
 
-def lookup_user_by_name(session, ids, name):
-    identity_store_client = session.client('identitystore')
-    filters=[{'AttributePath': 'UserName', 'AttributeValue': name}]
-    try:
-        response = identity_store_client.list_users(IdentityStoreId=ids.identity_store_id, Filters=filters)
-        if len(response['Users']) == 0:
-            raise LookupError("No user named {} found".format(name))
-        elif len(response['Users']) > 1:
-            raise LookupError("{} users named {} found".format(len(response['Users']), name))
-        return response['Users'][0]['UserId']
-    except:
-        raise
+def lookup_permission_sets(session, ids, permission_sets, printer: Printer, *, permission_set_style, error_if_not_found):
+    cache = {}
+    printer.print_header_before()
+    for value in permission_sets:
+        try:
+            if any(value.startswith(v) for v in ["arn", "ssoins-", "ins-", "ps-"]):
+                permission_set = _lookup.lookup_permission_set_by_id(session, ids, value, cache=cache)
+            else:
+                permission_set = _lookup.lookup_permission_set_by_name(session, ids, value, cache=cache)
+            permission_set_name = permission_set["Name"]
+            permission_set_arn = permission_set["PermissionSetArn"]
+        except _lookup.LookupError as e:
+            if error_if_not_found:
+                printer.print_after()
+                print("Permission set {} not found".format(value), file=sys.stderr)
+                sys.exit(1)
+            if any(value.startswith(v) for v in ["arn", "ssoins-", "ins-", "ps-"]):
+                permission_set_arn = _format.format_permission_set_arn(ids, value)
+                permission_set_name = "UNKNOWN"
+            else:
+                permission_set_arn = "UNKNOWN"
+                permission_set_name = value
+        if permission_set_style == "id":
+            permission_set_arn = permission_set_arn.rsplit("/", 1)[1]
+        printer.add_row((permission_set_name, permission_set_arn))
+    printer.print_after()
 
-class PermissionSetArnLookup:
-    def __init__(self, session, ids):
-        self.client = session.client('sso-admin')
-        self.paginator = self.client.get_paginator('list_permission_sets')
-        self.instance_arn = ids.instance_arn
-        self.cache = {}
-
-    def lookup_permission_set_arn(self, name):
-        if name in self.cache:
-            return self.cache[name]
-        for response in self.paginator.paginate(InstanceArn=self.instance_arn):
-            for permission_set_arn in response['PermissionSets']:
-                ps_description = self.client.describe_permission_set(InstanceArn=self.instance_arn, PermissionSetArn=permission_set_arn)
-                self.cache[ps_description['PermissionSet']['Name']] = permission_set_arn
-            if name in self.cache:
-                return self.cache[name]
-        raise LookupError("No permission set named {} found".format(name))
+def lookup_all_permission_sets(session, ids, printer: Printer, *, permission_set_style):
+    cache = {}
+    printer.print_header_before()
+    sso = session.client("sso-admin")
+    paginator = sso.get_paginator('list_permission_sets')
+    for ind, response in enumerate(paginator.paginate(InstanceArn=ids.instance_arn)):
+        LOGGER.debug(f"ListPermissionSets page {ind+1}: {', '.join(response['PermissionSets'])}")
+        for permission_set_arn in response['PermissionSets']:
+            permission_set = _lookup.lookup_permission_set_by_id(session, ids, permission_set_arn, cache=cache)
+            permission_set_name = permission_set["Name"]
+            permission_set_arn = permission_set["PermissionSetArn"]
+            if permission_set_style == "id":
+                permission_set_arn = permission_set_arn.rsplit("/", 1)[1]
+            printer.add_row((permission_set_name, permission_set_arn))
+    printer.print_after()
 
 if __name__ == '__main__':
     lookup(prog_name="python -m aws_sso_util.cli.lookup")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
