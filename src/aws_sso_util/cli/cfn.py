@@ -27,7 +27,8 @@ from .. import lookup
 from .. import format as _format
 from ..assignments import Assignment
 from ..cfn.config import Config, ConfigError, validate_config, GenerationConfig
-from ..cfn import resources, templates, macro, utils
+from ..cfn import resources, templates, macro
+from ..cfn import utils as cfn_utils
 
 from .utils import configure_logging
 
@@ -82,6 +83,7 @@ def param_loader(ctx, param, value):
 @click.option("--default-session-duration")
 
 @click.option("--assignments-csv", type=click.File("w"))
+@click.option("--assignments-csv-only", is_flag=True)
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(
@@ -100,6 +102,7 @@ def generate_template(
         num_child_stacks,
         default_session_duration,
         assignments_csv,
+        assignments_csv_only,
         verbose):
     configure_logging(LOGGER, verbose)
 
@@ -108,16 +111,19 @@ def generate_template(
     if macro and template_parameters:
         raise click.UsageError("--template-parameters not allowed with --macro")
 
+    if assignments_csv_only and not assignments_csv:
+        raise click.UsageError("Missing --assignments-csv")
+
     session = boto3.Session(profile_name=profile)
 
-    ids = lookup.Ids(lambda: session, sso_instance, identity_store_id=None)
+    ids = lookup.Ids(session, sso_instance, identity_store_id=None)
 
     cache = {}
 
     if lookup_names:
-        principal_name_fetcher = get_principal_name_fetcher(session, ids, cache)
-        permission_set_name_fetcher = get_permission_set_name_fetcher(session, ids, cache)
-        target_name_fetcher = get_target_name_fetcher(session, ids, cache)
+        principal_name_fetcher = cfn_utils.get_principal_name_fetcher(session, ids, cache)
+        permission_set_name_fetcher = cfn_utils.get_permission_set_name_fetcher(session, ids, cache)
+        target_name_fetcher = cfn_utils.get_target_name_fetcher(session, ids, cache)
     else:
         principal_name_fetcher = None
         permission_set_name_fetcher = None
@@ -146,7 +152,7 @@ def generate_template(
         template_file_suffix = template_file_suffix + ".yaml"
 
     if base_template_file:
-        base_template = utils.load_yaml(base_template_file)
+        base_template = cfn_utils.load_yaml(base_template_file)
         base_template_path = Path(base_template_file.name).resolve()
         prev_len = len(config_file)
         config_file = [c for c in config_file if Path(c.name).resolve() != base_template_path]
@@ -182,43 +188,11 @@ def generate_template(
         template_file_suffix=template_file_suffix,
     )
 
-    write_templates(templates_to_write)
+    if not assignments_csv_only:
+        write_templates(templates_to_write)
 
     if assignments_csv:
         write_csv(template_process_inputs, assignments_csv, generation_config)
-
-def get_principal_name_fetcher(session, ids, cache):
-    def fetcher(type, id):
-        try:
-            if type == "GROUP":
-                group = lookup.lookup_group_by_id(session, ids, id, cache=cache)
-                return group["DisplayName"]
-            elif type == "USER":
-                user = lookup.lookup_user_by_id(session, ids, id, cache=cache)
-                return user["UserName"]
-            else:
-                raise ValueError(f"Unknown principal type {type}")
-        except lookup.LookupError:
-            return None
-    return fetcher
-
-def get_permission_set_name_fetcher(session, ids, cache):
-    def fetcher(arn):
-        try:
-            ps = lookup.lookup_permission_set_by_id(session, ids, arn, cache=cache)
-            return ps["Name"]
-        except (lookup.LookupError, _format.FormatError):
-            return None
-    return fetcher
-
-def get_target_name_fetcher(session, ids, cache):
-    def fetcher(type, id):
-        try:
-            account = lookup.lookup_account_by_id(session, id, cache=cache)
-            return account["Name"]
-        except lookup.LookupError:
-            return None
-    return fetcher
 
 def process_config(
     config_file,
@@ -240,8 +214,8 @@ def process_config(
             base_path = config_file_path.parent / "templates"
         stem = config_file_path.stem
 
-        data = utils.load_yaml(config_file_fp)
-        LOGGER.debug(f"Config file contents:\n{utils.dump_yaml(data)}")
+        data = cfn_utils.load_yaml(config_file_fp)
+        LOGGER.debug(f"Config file contents:\n{cfn_utils.dump_yaml(data)}")
 
         config = Config()
         config.load(data)
@@ -298,8 +272,8 @@ def process_macro(
             base_path = config_file_path.parent / "templates"
         stem = config_file_path.stem
 
-        input_template = utils.load_yaml(config_file_fp)
-        LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
+        input_template = cfn_utils.load_yaml(config_file_fp)
+        LOGGER.debug(f"Input template:\n{cfn_utils.dump_yaml(input_template)}")
 
         generation_config = base_generation_config.copy()
 
@@ -358,7 +332,7 @@ def process_templates(
 
             )
             parent_template_to_write = template_collection.parent.template
-            LOGGER.debug(f"Intermediate parent template\n{utils.dump_yaml(parent_template_to_write)}")
+            LOGGER.debug(f"Intermediate parent template\n{cfn_utils.dump_yaml(parent_template_to_write)}")
 
             all_children.extend(template_collection.children)
 
@@ -382,12 +356,12 @@ def write_templates(templates_to_write):
             LOGGER.info(f"Writing child template at path {child_path}")
             Path(child_path).parent.mkdir(parents=True, exist_ok=True)
             with open(child_path, "w") as fp:
-                utils.dump_yaml(child_data, fp)
+                cfn_utils.dump_yaml(child_data, fp)
 
         LOGGER.info(f"Writing template for {name} at path {parent_path}")
         Path(parent_path).parent.mkdir(parents=True, exist_ok=True)
         with open(parent_path, "w") as fp:
-            utils.dump_yaml(parent_data, fp)
+            cfn_utils.dump_yaml(parent_data, fp)
 
 
 def write_csv(template_process_inputs, assignments_csv, generation_config):

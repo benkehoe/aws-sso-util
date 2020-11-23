@@ -90,7 +90,7 @@ class Ids:
             success = self._load_from_cache()
             self._cache_load_attempted = True
             if success:
-                self._print_instance()
+                self._print_instance(cached=True)
                 return self._instance_arn
 
         self._do_lookup("SSO instance", "ARN")
@@ -111,7 +111,7 @@ class Ids:
             success = self._load_from_cache()
             self._cache_load_attempted = True
             if success:
-                self._print_instance()
+                self._print_instance(cached=True)
                 return self._identity_store_id
 
         self._do_lookup("identity store", "ID")
@@ -123,14 +123,16 @@ class Ids:
         if self.print_on_fetch:
             print(message)
 
-    def _print_instance(self):
+    def _print_instance(self, cached=False):
         if not self._instance_arn_printed:
-            self._print(f"Using SSO instance {self._instance_arn.split('/')[-1]}")
+            cached_str = "cached " if cached else ""
+            self._print(f"Using {cached_str}SSO instance {self._instance_arn.split('/')[-1]}")
             self._instance_arn_printed = True
 
-    def _print_identity_store(self):
+    def _print_identity_store(self, cached=False):
         if not self._identity_store_id_printed:
-            self._print(f"Using identity store {self._identity_store_id}")
+            cached_str = "cached " if cached else ""
+            self._print(f"Using {cached_str}identity store {self._identity_store_id}")
             self._identity_store_id_printed = True
 
     def _do_lookup(self, lookup_for, identifier):

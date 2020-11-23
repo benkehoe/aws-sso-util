@@ -17,8 +17,12 @@ import hashlib
 from collections import OrderedDict
 
 import yaml
+
 from . import cfn_yaml_tags
 cfn_yaml_tags.mark_safe()
+
+from .. import lookup
+from .. import format as _format
 
 def to_ordered_dict(obj):
     if isinstance(obj, dict):
@@ -100,3 +104,36 @@ def hash_obj(obj):
     hasher = hashlib.md5()
     hasher.update(json.dumps(obj, sort_keys=True))
     return hasher.hexdigest()
+
+def get_principal_name_fetcher(session, ids, cache):
+    def fetcher(type, id):
+        try:
+            if type == "GROUP":
+                group = lookup.lookup_group_by_id(session, ids, id, cache=cache)
+                return group["DisplayName"]
+            elif type == "USER":
+                user = lookup.lookup_user_by_id(session, ids, id, cache=cache)
+                return user["UserName"]
+            else:
+                raise ValueError(f"Unknown principal type {type}")
+        except lookup.LookupError:
+            return None
+    return fetcher
+
+def get_permission_set_name_fetcher(session, ids, cache):
+    def fetcher(arn):
+        try:
+            ps = lookup.lookup_permission_set_by_id(session, ids, arn, cache=cache)
+            return ps["Name"]
+        except (lookup.LookupError, _format.FormatError):
+            return None
+    return fetcher
+
+def get_target_name_fetcher(session, ids, cache):
+    def fetcher(type, id):
+        try:
+            account = lookup.lookup_account_by_id(session, id, cache=cache)
+            return account["Name"]
+        except lookup.LookupError:
+            return None
+    return fetcher

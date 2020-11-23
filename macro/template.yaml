@@ -10,6 +10,12 @@ Parameters:
   S3PutObjectArgs:
     Type: String
     Default: ""
+  LookupNames:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
   MaxResourcesPerTemplate:
     Type: Number
     Default: -1
@@ -98,6 +104,7 @@ Resources:
           BUCKET_NAME: !Ref MacroArtifactBucket
           KEY_PREFIX: !Ref ArtifactS3KeyPrefix
           S3_PUT_OBJECT_ARGS: !Ref S3PutObjectArgs
+          LOOKUP_NAMES: !Ref LookupNames
           MAX_RESOURCES_PER_TEMPLATE: !Ref MaxResourcesPerTemplate
           MAX_CONCURRENT_ASSIGNMENTS: !Ref MaxConcurrentAssignments
           MAX_ASSIGNMENTS_ALLOCATION: !Ref MaxAssignmentsAllocation

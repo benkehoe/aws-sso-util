@@ -113,6 +113,7 @@ HANDLER_INITIALIZED = False
 SESSION = None
 IDS = None
 
+LOOKUP_NAMES = None
 CHILD_TEMPLATES_IN_YAML = None
 
 MAX_RESOURCES_PER_TEMPLATE = None
@@ -130,6 +131,7 @@ def handler_init():
     global HANDLER_INITIALIZED, \
         SESSION, \
         IDS, \
+        LOOKUP_NAMES, \
         CHILD_TEMPLATES_IN_YAML, \
         MAX_RESOURCES_PER_TEMPLATE, \
         MAX_CONCURRENT_ASSIGNMENTS, \
@@ -145,9 +147,12 @@ def handler_init():
     logging.getLogger("aws_sso_util").setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
     logging.basicConfig()
 
+    LOGGER.info("Initializing handler")
+
     SESSION = boto3.Session()
     IDS = lookup.Ids(lambda: SESSION)
 
+    LOOKUP_NAMES = os.environ.get("LOOKUP_NAMES", "false").lower() in ["true", "1"]
     CHILD_TEMPLATES_IN_YAML = os.environ.get("CHILD_TEMPLATES_IN_YAML", "false").lower() in ["true", "1"]
 
     MAX_RESOURCES_PER_TEMPLATE = int(os.environ["MAX_RESOURCES_PER_TEMPLATE"]) if os.environ.get("MAX_RESOURCES_PER_TEMPLATE") else None
@@ -179,7 +184,23 @@ def handler(event, context, put_object=None):
     if "Resources" not in input_template:
         raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
 
-    generation_config = GenerationConfig(IDS)
+    lookup_cache = {}
+
+    if LOOKUP_NAMES:
+        principal_name_fetcher = utils.get_principal_name_fetcher(SESSION, IDS, lookup_cache)
+        permission_set_name_fetcher = utils.get_permission_set_name_fetcher(SESSION, IDS, lookup_cache)
+        target_name_fetcher = utils.get_target_name_fetcher(SESSION, IDS, lookup_cache)
+    else:
+        principal_name_fetcher = None
+        permission_set_name_fetcher = None
+        target_name_fetcher = None
+
+    generation_config = GenerationConfig(
+        IDS,
+        principal_name_fetcher=principal_name_fetcher,
+        permission_set_name_fetcher=permission_set_name_fetcher,
+        target_name_fetcher=target_name_fetcher
+    )
     generation_config.set(
         max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
         max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
