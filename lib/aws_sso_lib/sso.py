@@ -146,7 +146,7 @@ def get_botocore_session(start_url, sso_region, account_id, role_name):
 
     return botocore_session
 
-def get_boto3_session(start_url, sso_region, account_id, role_name, region, login=False):
+def get_boto3_session(start_url, sso_region, account_id, role_name, *, region, login=False):
     """Get a boto3 session with the input configuration.
 
     Args:
@@ -171,7 +171,7 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, region, logi
 
     return session
 
-def login(start_url, sso_region, force_refresh=False, disable_browser=None, message=None, outfile=None):
+def login(start_url, sso_region, *, force_refresh=False, disable_browser=None, message=None, outfile=None):
     """Interactively log in the user if their AWS SSO credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
@@ -218,7 +218,7 @@ def login(start_url, sso_region, force_refresh=False, disable_browser=None, mess
 
 _login = login
 
-def list_available_accounts(start_url, sso_region, login=False):
+def list_available_accounts(start_url, sso_region, *, login=False):
     """Iterate over the available accounts the user has access to through AWS SSO.
 
     Args:
@@ -254,7 +254,7 @@ def list_available_accounts(start_url, sso_region, login=False):
         else:
             list_accounts_args["nextToken"] = response["nextToken"]
 
-def list_available_roles(start_url, sso_region, account_id=None, login=False):
+def list_available_roles(start_url, sso_region, account_id=None, *, login=False):
     """Iterate over the available accounts and roles the user has access to through AWS SSO.
 
     Args:
