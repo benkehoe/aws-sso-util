@@ -15,8 +15,27 @@ Obviously, this gets verbose, and even an organization of moderate size is likel
 2. An `AWS::SSO::AssignmentGroup` resource that allows specifications of multiple principals, permission sets, and targets, and performs the combinatorics directly.
 
 ## Output
-With either method, the result is a template that either includes the assignments directly, or, if there are too many assignments to contain in a single stack, [nested stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html) that contain the assignments.
-References on assignment resources are automatically wired through to the nested stacks.
+With either method, the result is a template that either includes the assignments directly, or, if there are too many assignments to contain in a single stack, [nested stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html) that contain the assignments (references are automatically wired through into the child stacks).
+
+However, this is not done automatically.
+The goal is to prevent any given assignment from being moved around between the parent and nested stack, or between nested stacks.
+If an assignment is moved between stacks, there is the potential that one stack could attempt to create it before the other stack has deleted, creating a conflict that prevents the whole update from completing.
+
+By default, no nested stacks will be created, and you'll be limited to creating as many assignments will fit in a single template.
+If your configuration generates more assignments than that, the generator (either client-side or the Macro) will raise an error.
+
+To allow for more assignments, you need to specify a number of child stacks.
+You can either specify the number of child stacks explicitly, or provide the maximum number of assignment resources you want to support (which will calculate the number of child stacks automatically).
+See below for how to configure this.
+
+The assignment resources can contain metadata, in the `Metadata` section of the resource under the `SSO` key.
+* If you specified an OU as a target
+  * The metadata for every assignment for an account from that OU will have the OU in the metadata in the `SourceOU` field.
+  * The account name will be present under the `TargetName` field.
+* If you enable name lookups, the principal and permission set names will be looked up and put in the `PrincipalName` and `PermissionSetName` fields, as will the account name (in `TargetName`) if it wasn't generated from an OU.
+See below for how to enable this.
+
+If you use the Macro or the `--macro` option for client-side generation, you
 
 # CloudFormation Macro
 `aws-sso-util` defines a resource format for an AssignmentGroup that is a combination of multiple principals, permission sets, and targets, and provides a CloudFormation Macro you can deploy that lets you use this resource in your templates.
@@ -31,6 +50,17 @@ cd aws-sso-util/macro
 sam build --use-container
 sam deploy --guided
 ```
+
+The macro template has the following parameters:
+* `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks (can be overridden by setting metadata in the template, see below).
+* `LookupNames`: if set to `true`, lookup the names for identifiers on assignments and include them in the resource metadata
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `ChildTemplatesInYaml`: if set to `true`, store nested stack templates in YAML format, otherwise default to JSON.
+* `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
+* `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
+* `LogLevel`: set the logging level for the Macro
+* `ArtifactS3KeyPrefix`: control the prefix for the artifacts put in the S3 bucket
+* `S3PutObjectArgs`: set this to a JSON object to have more control over the child stack template objects that are put in S3.
 
 ## Use macro
 
@@ -78,6 +108,12 @@ PermissionSets can be provided as ARNs, the id including the instance, or just t
 OUs can optionally be recursive with the `Recursive` property set to true, in which case all accounts in all child OUs are included.
 If the accounts in an OU change, and you need the macro to regenerate the assignments based on the change, the resource properties won't have changed, so you can optionally add a string-valued property to the resource called `UpdateNonce` to force CloudFormation to re-run the macro.
 Note this will cause all `AWSSOUtil::SSO::AssignmentGroup` resources in the template to be re-processed, as the macro does not interpret or store this value.
+
+The template can control some of its generation by including the following keys in the `Metadata` section of the template under the `SSO` section:
+* `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks.
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
+* `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
 
 # Client-side generation
 
@@ -134,7 +170,8 @@ PermissionSets:
   ManagedPolicies:
   - "ViewOnlyAccess"
 
-OUs: ou-7w1i-suzvrczk
+OUs:
+- ou-7w1i-suzvrczk
 RecursiveOUs:
 - ou-qlmf-1j9r4iq9
 
@@ -145,6 +182,12 @@ Accounts:
 ```
 
 All fields (except `Instance`) can either be a single value or a list of values.
+
+The config file can control some of its generation by including the following fields:
+* `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks.
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
+* `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
 
 The `Instance` field can be omitted, in which case the macro retrieves it from [`sso-admin:ListInstances`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html).
 The instance can be provided as a full ARN or just the id.

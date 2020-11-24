@@ -1,33 +1,18 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Parameters:
-  LogLevel:
-    Type: String
-    Default: INFO
-  ArtifactS3KeyPrefix:
-    Type: String
-    Default: ""
-  S3PutObjectArgs:
-    Type: String
-    Default: ""
+  NumChildStacks:
+    Type: Number
+    Default: -1
+  MaxAssignmentsAllocation:
+    Type: Number
+    Default: -1
   LookupNames:
     Type: String
     AllowedValues:
       - "true"
       - "false"
     Default: "false"
-  MaxResourcesPerTemplate:
-    Type: Number
-    Default: -1
-  MaxConcurrentAssignments:
-    Type: Number
-    Default: -1
-  MaxAssignmentsAllocation:
-    Type: Number
-    Default: -1
-  NumChildStacks:
-    Type: Number
-    Default: -1
   DefaultSessionDuration:
     Type: String
     Default: ""
@@ -37,6 +22,21 @@ Parameters:
       - "true"
       - "false"
     Default: "false"
+  MaxConcurrentAssignments:
+    Type: Number
+    Default: -1
+  MaxResourcesPerTemplate:
+    Type: Number
+    Default: -1
+  LogLevel:
+    Type: String
+    Default: INFO
+  ArtifactS3KeyPrefix:
+    Type: String
+    Default: ""
+  S3PutObjectArgs:
+    Type: String
+    Default: ""
 Outputs:
   MacroName:
     Value: !Ref Macro
@@ -96,7 +96,7 @@ Resources:
       Runtime: python3.8
       MemorySize: 1024
       Timeout: 900
-      CodeUri: ../src
+      CodeUri: ../cli/src
       Handler: cfn_macro_handler.handler
       Environment:
         Variables:

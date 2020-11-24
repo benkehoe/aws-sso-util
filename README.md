@@ -9,14 +9,14 @@
 * AWS SDK support
 * Looking up identifiers
 * CloudFormation
-* Python library for AWS SSO authentication
+* Python library for AWS SSO authentication (as `aws-sso-lib`)
 
 `aws-sso-util` supersedes `aws-sso-credential-process`, which is still available in its original form [here](https://github.com/benkehoe/aws-sso-credential-process).
 Read the updated docs for `aws-sso-util credential-process` [here](docs/credential-process.md).
 
 ## Quickstart
 
-0. Make sure you've [installed the AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) (which has AWS SSO support).
+0. It's a good idea to [install the AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) (which has AWS SSO support).
 
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 

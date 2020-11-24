@@ -29,7 +29,7 @@ Otherwise, see below for the full resolution algorithm.
 * `--separator`/`--sep`: the field separator
   * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end.
 * `--header`: print a header row
-* `--sort-by`: sort the output according to the specification. The input must be two comma-separated values:
+* `--sort-by`: sort the output (and order the columns) according to the specification. The input must be two comma-separated values:
   * `id` is the account ID
   * `name` is the account name
   * `role` is the role name
