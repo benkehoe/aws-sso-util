@@ -86,6 +86,7 @@ class Printer:
         self.default_separator = default_separator
         self._sep = separator if separator is not None else default_separator
         self._header_sep = separator if separator is not None else " " * len(default_separator)
+        self._justify = separator is None
 
         self.sort_key = sort_key
 
@@ -132,7 +133,10 @@ class Printer:
             col_widths = [max(cw, len(v)) for cw, v in zip(col_widths, row)]
 
         def just(row):
-            return [v.ljust(cw) for cw, v in zip(col_widths, row)]
+            if not self._justify:
+                return row
+            else:
+                return [v.ljust(cw) for cw, v in zip(col_widths, row)]
 
         if not self.disable_header:
             self.printer(self._header_sep.join(just(self.header_fields)))

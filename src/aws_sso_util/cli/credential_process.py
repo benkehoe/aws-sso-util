@@ -74,7 +74,7 @@ def get_config(arg_config, profile_config):
 @click.option("--role-name")
 
 @click.option("--force-refresh", is_flag=True, help="Do not reuse cached AWS SSO token")
-@click.option( "--verbose", "--debug", count=True, help="Write to the debugging log file")
+@click.option( "--verbose", "-v", "--debug", count=True, help="Write to the debugging log file")
 def credential_process(
         profile,
         start_url,

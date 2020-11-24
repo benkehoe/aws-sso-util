@@ -25,7 +25,7 @@ from botocore.exceptions import ProfileNotFound
 import click
 
 from ..config import find_instances, SSOInstance
-from ..vendored_botocore.config_file_writer import write_values
+from ..config_file_writer import write_values
 from .utils import configure_logging, get_instance, GetInstanceError
 
 LOGGER = logging.getLogger(__name__)
@@ -157,7 +157,8 @@ def configure_profile(
     else:
         LOGGER.debug(f"Missing keys: {', '.join(missing_keys)}")
 
-    write_values(session, profile, config_values)
+    # discard because we're already loading the existing values
+    write_values(session, profile, config_values, existing_config_action="discard")
 
     if not missing_keys:
         return

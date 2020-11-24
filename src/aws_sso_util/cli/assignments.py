@@ -81,11 +81,13 @@ def get_target_filter(values):
 @click.option("--ou", "ou_values", multiple=True, default=[])
 @click.option("--ou-recursive/--ou-not-recursive")
 
+@click.option("--lookup-names/--no-lookup-names", default=True)
+
 @click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
 @click.option("--separator", "--sep", default=",")
 @click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="id")
+@click.option("--instance-style", type=click.Choice(["id", "arn"]), default="id")
 @click.option("--header/--no-header", default=True, help="Include a header row")
-# @click.option("--instance-column", type=click.Choice(["id", "arn"]))
 @click.option("--verbose", "-v", count=True)
 def assignments(
         instance_arn,
@@ -96,9 +98,11 @@ def assignments(
         account_values,
         ou_values,
         ou_recursive,
+        lookup_names,
         show_id,
         separator,
         permission_set_style,
+        instance_style,
         header,
         verbose):
 
@@ -149,20 +153,24 @@ def assignments(
         permission_set_filter=permission_set_filter,
         target=target,
         target_filter=target_filter,
-        get_principal_names=True,
-        get_permission_set_names=True,
+        get_principal_names=lookup_names,
+        get_permission_set_names=lookup_names,
         ou_recursive=ou_recursive)
 
     if header:
-        fields = list(Assignment._fields)[1:]
+        fields = list(Assignment._fields)
+        if instance_style == "id":
+            fields[fields.index("instance_arn")] = "instance_id"
         if permission_set_style == "id":
             fields[fields.index("permission_set_arn")] = "permission_set_id"
         print(separator.join(fields))
 
     for assignment in assignments_iterator: #lookup_assignments(session, ids, principal_filter, permission_set_filter, target_filter):
+        if instance_style == "id":
+            assignment = assignment._replace(instance_arn=assignment.instance_arn.split("/", 1)[-1])
         if permission_set_style == "id":
-            assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/")[-1])
-        print(separator.join(assignment[1:]))
+            assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/", 2)[-1])
+        print(separator.join(assignment))
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

@@ -29,7 +29,7 @@ import click
 
 from ..sso import get_token_fetcher
 from ..config import find_instances, SSOInstance
-from ..vendored_botocore.config_file_writer import ConfigFileWriter, write_values, get_config_filename
+from ..config_file_writer import ConfigFileWriter, write_values, get_config_filename
 from .utils import configure_logging, get_instance, GetInstanceError
 
 from .configure_profile import (
@@ -309,7 +309,8 @@ def populate_profiles(
 
         config_writer = ConfigFileWriter()
         def write_config(profile_name, config_values):
-            write_values(session, config.profile_name, config_values, config_file_writer=config_writer)
+            # discard because we're already loading the existing values
+            write_values(session, config.profile_name, config_values, config_file_writer=config_writer, existing_config_action="discard")
     else:
         LOGGER.info("Dry run for {} profiles".format(len(configs)))
         def write_config(profile_name, config_values):

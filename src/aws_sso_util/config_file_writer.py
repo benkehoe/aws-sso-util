@@ -22,7 +22,7 @@ class SectionNotFoundError(Exception):
 def get_config_filename(session):
     return os.path.expanduser(session.get_config_variable('config_file'))
 
-def write_values(session, profile_name, values, config_file_writer=None):
+def write_values(session, profile_name, values, config_file_writer=None, existing_config_action=None):
     if not config_file_writer:
         config_file_writer = ConfigFileWriter()
 
@@ -53,7 +53,7 @@ def write_values(session, profile_name, values, config_file_writer=None):
 
     section = 'profile {}'.format(profile_name)
     new_values['__section__'] = section
-    config_file_writer.update_config(new_values, config_filename)
+    config_file_writer.update_config(new_values, config_filename, existing_config_action)
 
 
 class ConfigFileWriter(object):
@@ -64,7 +64,7 @@ class ConfigFileWriter(object):
         r'(?P<value>.*)$'
     )
 
-    def update_config(self, new_values, config_filename):
+    def update_config(self, new_values, config_filename, existing_config_action=None):
         """Update config file with new values.
 
         This method will update a section in a config file with
@@ -76,9 +76,7 @@ class ConfigFileWriter(object):
           be created.  Any parent directories will also be created
           if necessary.
         * If the section to update does not exist, it will be created.
-        * Any existing lines that are specified by ``new_values``
-          **will not be touched**.  This ensures that commented out
-          values are left unaltered.
+
 
         :type new_values: dict
         :param new_values: The values to update.  There is a special
@@ -90,7 +88,14 @@ class ConfigFileWriter(object):
         :param config_filename: The config filename where values will be
             written.
 
+        :type existing_config_action: str
+        :param existing_config_action: One of "overwrite" (the default),
+            "keep", or "discard". The latter will discard all existing
+            config for the section.
+
         """
+        if existing_config_action is None:
+            existing_config_action = "overwrite"
         section_name = new_values.pop('__section__', 'default')
         if not os.path.isfile(config_filename):
             self._create_file(config_filename)
@@ -101,7 +106,7 @@ class ConfigFileWriter(object):
         # We can only update a single section at a time so we first need
         # to find the section in question
         try:
-            self._update_section_contents(contents, section_name, new_values)
+            self._update_section_contents(contents, section_name, new_values, existing_config_action)
             with open(config_filename, 'w') as f:
                 f.write(''.join(contents))
         except SectionNotFoundError:
@@ -118,7 +123,7 @@ class ConfigFileWriter(object):
 
     def _write_new_section(self, section_name, new_values, config_filename):
         with open(config_filename, 'a') as f:
-            f.write('[%s]\n' % section_name)
+            f.write('\n[%s]\n' % section_name)
             contents = []
             self._insert_new_values(line_number=0,
                                     contents=contents,
@@ -137,7 +142,7 @@ class ConfigFileWriter(object):
                 return i
         raise SectionNotFoundError(section_name)
 
-    def _update_section_contents(self, contents, section_name, new_values):
+    def _update_section_contents(self, contents, section_name, new_values, existing_config_action):
         # First, find the line where the section_name is defined.
         # This will be the value of i.
         new_values = new_values.copy()
@@ -167,16 +172,14 @@ class ConfigFileWriter(object):
                     # We've found the line that defines the option name.
                     # if the value is not a dict, then we can write the line
                     # out now.
-                    if not isinstance(new_values[key_name], dict):
+                    if existing_config_action != "keep":
                         option_value = new_values[key_name]
                         new_line = '%s = %s\n' % (key_name, option_value)
                         contents[j] = new_line
-                        del new_values[key_name]
-                    else:
-                        j = self._update_subattributes(
-                            j, contents, new_values[key_name],
-                            len(match.group(1)) - len(match.group(1).lstrip()))
-                        return
+                    del new_values[key_name]
+                elif existing_config_action == "discard":
+                    del contents[j]
+                    j -= 1
             j += 1
 
         if new_values:
@@ -185,33 +188,6 @@ class ConfigFileWriter(object):
             self._insert_new_values(line_number=last_matching_line + 1,
                                     contents=contents,
                                     new_values=new_values)
-
-    def _update_subattributes(self, index, contents, values, starting_indent):
-        index += 1
-        for i in range(index, len(contents)):
-            line = contents[i]
-            match = self.OPTION_REGEX.search(line)
-            if match is not None:
-                current_indent = len(
-                    match.group(1)) - len(match.group(1).lstrip())
-                key_name = match.group(1).strip()
-                if key_name in values:
-                    option_value = values[key_name]
-                    new_line = '%s%s = %s\n' % (' ' * current_indent,
-                                                key_name, option_value)
-                    contents[i] = new_line
-                    del values[key_name]
-            if starting_indent == current_indent or \
-                    self.SECTION_REGEX.search(line) is not None:
-                # We've arrived at the starting indent level so we can just
-                # write out all the values now.
-                self._insert_new_values(i - 1, contents, values, '    ')
-                break
-        else:
-            if starting_indent != current_indent:
-                # The option is the last option in the file
-                self._insert_new_values(i, contents, values, '    ')
-        return i
 
     def _insert_new_values(self, line_number, contents, new_values, indent=''):
         new_contents = []
@@ -235,3 +211,13 @@ class ConfigFileWriter(object):
                 parts[0], ' '.join(parts[1:]))
             return unquoted_match or quoted_match
         return unquoted_match
+
+if __name__ == "__main__":
+    import sys
+    import json
+    file_name = sys.argv[1]
+    section_name = sys.argv[2]
+    data = json.loads(sys.argv[3])
+    data["__section__"] = section_name
+    cfw = ConfigFileWriter()
+    cfw.update_config(data, file_name, existing_config_action=sys.argv[4])
