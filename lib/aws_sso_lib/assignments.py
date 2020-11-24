@@ -23,6 +23,7 @@ _Context = collections.namedtuple("_Context", [
     "target_filter",
     "get_principal_names",
     "get_permission_set_names",
+    "get_target_names",
     "ou_recursive",
     "cache",
     "filter_cache"
@@ -53,7 +54,7 @@ def _process_principal(principal):
     if not principal:
         return None
     if isinstance(principal, str):
-        return [("UNKNOWN", principal)]
+        return [(None, principal)]
     if _is_principal_tuple(principal):
         return [tuple(principal)]
     else:
@@ -109,7 +110,13 @@ def _process_target(target):
 
 def _get_account_iterator(target, context: _Context):
     def target_iterator():
-        value = (*target, "UNKNOWN")
+        target_name = None
+        if context.get_target_names:
+            organizations_client = context.session.client("organizations")
+            account = organizations_client.describe_account(AccountId=target[1])["Account"]
+            if account.get("Name"):
+                target_name = account["Name"]
+        value = (*target, target_name)
         if not _filter(context.filter_cache, value[1], context.target_filter, value):
             LOGGER.debug(f"Account is filtered: {value}")
         else:
@@ -119,7 +126,13 @@ def _get_account_iterator(target, context: _Context):
 
 def _get_ou_iterator(target, context: _Context):
     def target_iterator():
-        value = (*target, "UNKNOWN")
+        target_name = None
+        # if context.get_target_names:
+        #     organizations_client = context.session.client("organizations")
+        #     ou = organizations_client.describe_organizational_unit(OrganizationalUnitId=target[1])["OrganizationalUnit"]
+        #     if ou.get("Name"):
+        #         target_name = ou("Name")
+        value = (*target, target_name)
         accounts = lookup_accounts_for_ou(context.session, value[1], recursive=context.ou_recursive)
         for account in accounts:
             yield "AWS_ACCOUNT", account["Id"], account["Name"]
@@ -170,7 +183,7 @@ def _get_single_permission_set_iterator(permission_set, context: _Context):
 
     def permission_set_iterator(target_type, target_id, target_name):
         if not context.get_permission_set_names:
-            permission_set_name = "UNKNOWN"
+            permission_set_name = None
         else:
             sso_admin_client = context.session.client("sso-admin")
             response = sso_admin_client.describe_permission_set(
@@ -203,7 +216,7 @@ def _get_all_permission_sets_iterator(context: _Context):
             for permission_set_arn in response["PermissionSets"]:
                 permission_set_id = permission_set_arn.split("/", 2)[-1]
                 if not context.get_permission_set_names:
-                    permission_set_name = "UNKNOWN"
+                    permission_set_name = None
                 else:
                     if permission_set_arn not in context.cache:
                         response = sso_admin_client.describe_permission_set(
@@ -259,7 +272,7 @@ def _get_principal_iterator(context: _Context):
 
                 if context.principal:
                     for principal in context.principal:
-                        type_matches = (principal[0] == "UNKNOWN" or principal[0] != principal_type)
+                        type_matches = (principal[0] is None or principal[0] != principal_type)
                         if type_matches and principal[1] == principal_id:
                             LOGGER.debug(f"Found principal {principal_type}:{principal_id}")
                             break
@@ -269,7 +282,7 @@ def _get_principal_iterator(context: _Context):
 
                 principal_key = (principal_type, principal_id)
                 if not context.get_principal_names:
-                    principal_name = "UNKNOWN"
+                    principal_name = None
                 else:
                     if principal_key not in context.cache:
                         if principal_type == "GROUP":
@@ -281,7 +294,7 @@ def _get_principal_iterator(context: _Context):
                                 LOGGER.debug(f"DescribeGroup response: {response}")
                                 context.cache[principal_key] = response["DisplayName"]
                             except aws_error_utils.catch_aws_error("ResourceNotFoundException"):
-                                context.cache[principal_key] = "UNKNOWN"
+                                context.cache[principal_key] = None
                         elif principal_type == "USER":
                             try:
                                 response = identity_store_client.describe_user(
@@ -291,7 +304,7 @@ def _get_principal_iterator(context: _Context):
                                 LOGGER.debug(f"DescribeUser response: {response}")
                                 context.cache[principal_key] = response["UserName"]
                             except aws_error_utils.catch_aws_error("ResourceNotFoundException"):
-                                context.cache[principal_key] = "UNKNOWN"
+                                context.cache[principal_key] = None
                         else:
                             raise ValueError(f"Unknown principal type {principal_type}")
                     principal_name = context.cache[principal_key]
@@ -329,14 +342,37 @@ def list_assignments(
         permission_set_filter=None,
         target=None,
         target_filter=None,
-        get_principal_names=True,
-        get_permission_set_names=True,
+        get_principal_names=False,
+        get_permission_set_names=False,
+        get_target_names=False,
         ou_recursive=False):
     """Iterate over AWS SSO assignments.
 
     Args:
-        session:
+        session (boto3.Session): boto3 session to use
+        instance_arn (str): The SSO instance to use, or it will be looked up using ListInstances
+        identity_store_id (str): The identity store to use if principal names are being retrieved
+            or it will be looked up using ListInstances
+        principal: A principal specification or list of principal specifications.
+            A principal specification is a principal id or a 2-tuple of principal type and id.
+        principal_filter: A callable taking principal type, principal id, and principal name
+            (which may be None), and returning True if the principal should be included.
+        permission_set: A permission set arn or id, or a list of the same.
+        permission_set_filter: A callable taking permission set arn and name (name may be None),
+            returning True if the permission set should be included.
+        target: A target specification or list of target specifications.
+            A target specification is an account or OU id, or a 2-tuple of target type, which
+            is either AWS_ACCOUNT or AWS_OU, and target id.
+        target_filter: A callable taking target type, target id, and target name
+            (which may be None), and returning True if the target should be included.
+        get_principal_names (bool): Retrieve names for principals in assignments.
+        get_permission_set_names (bool): Retrieve names for permission sets in assignments.
+        get_target_names (bool): Retrieve names for targets in assignments.
+        ou_recursive (bool): Set to True if an OU is provided as a target to get all accounts
+            including those in child OUs.
 
+    Returns:
+        An iterator over Assignment namedtuples
     """
     ids = Ids(lambda: session, instance_arn, identity_store_id)
 
@@ -351,6 +387,7 @@ def list_assignments(
         target_filter=target_filter,
         get_principal_names=get_principal_names,
         get_permission_set_names=get_permission_set_names,
+        get_target_names=get_target_names,
         ou_recursive=ou_recursive,
     )
 
@@ -363,8 +400,9 @@ def _list_assignments(
         permission_set_filter=None,
         target=None,
         target_filter=None,
-        get_principal_names=True,
-        get_permission_set_names=True,
+        get_principal_names=False,
+        get_permission_set_names=False,
+        get_target_names=False,
         ou_recursive=False):
 
     principal = _process_principal(principal)
@@ -385,6 +423,7 @@ def _list_assignments(
         target_filter=target_filter,
         get_principal_names=get_principal_names,
         get_permission_set_names=get_permission_set_names,
+        get_target_names=get_target_names,
         ou_recursive=ou_recursive,
         cache=cache,
         filter_cache=filter_cache,
@@ -428,11 +467,18 @@ if __name__ == "__main__":
         if hasattr(logging, v):
             LOGGER.setLevel(getattr(logging, v))
         else:
-            kwargs = json.loads(sys.argv[1])
+            kwargs = json.loads(v)
+
+    def fil(*args):
+        print(args)
+        return True
+
+    kwargs["target_filter"] = fil
 
     try:
         session = boto3.Session()
+        print(",".join(Assignment._fields))
         for value in list_assignments(session, **kwargs):
-            print(",".join(value))
+            print(",".join(v or "" for v in value))
     except KeyboardInterrupt:
         pass

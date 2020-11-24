@@ -18,7 +18,7 @@ If you've got multiple SSO instances configured, you've got to tell `aws-sso-uti
 `aws-sso-util login` uses the following algorithm to determine these values:
 1. Except for `aws-sso-util configure profile`, if you provide a profile name with `--profile`, this profile will be checked for the fields `sso_start_url` and `sso_region`. It fails if they are not found.
 2. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
-  1. The arguments from `aws-sso-util login \[\[sso_start_url\] sso_region\]`
+  1. The arguments from `aws-sso-util login [[sso_start_url] sso_region]`
   2. `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
   3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 3. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
@@ -43,3 +43,6 @@ If you're finding that it's not correctly selecting the right instance, you can 
 ## Other options
 
 Use `--force` to ignore any cached tokens.
+
+On headless systems, the attempt to pop up the browser will silently fail and the always-printed fallback message with the URL and code can be used.
+If you are on a system with a browser but you do not want the automatic pop up, use `--headless` or set the environment variable `AWS_SSO_DISABLE_BROWSER` to `1` or `true`.

@@ -156,6 +156,9 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, region, logi
         role_name (str): The AWS SSO role (aka PermissionSet) name to use.
         region (str): The AWS region for the boto3 session.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
+
+    Returns:
+        A boto3 Session object configured for the account and role.
     """
     account_id = format_account_id(account_id)
 
@@ -168,23 +171,26 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, region, logi
 
     return session
 
-def login(start_url, sso_region, force_refresh=False, message=None, outfile=None):
+def login(start_url, sso_region, force_refresh=False, disable_browser=None, message=None, outfile=None):
     """Interactively log in the user if their AWS SSO credentials have expired.
 
-    If the user is not logged in or force_refresh is True, it will attempt
-    to open a browser window to log in, as well as print a message to stderr
-    with a URL and code to enter as a fallback.
-
+    If the user is not logged in or force_refresh is True, it will attempt to log in.
     If the user is logged in and force_refresh is False, no action is taken.
+
+    If disable_browser is True, a message will be printed to stderr
+    with a URL and code for the user to log in with.
+    Otherwise, it will attempt to automatically open the user's browser
+    to log in, as well as printing the URL and code to stderr as a fallback.
 
     A custom message can be printed by setting message to a template string
     using {url} and {code} as placeholders.
-    The message can be suppressed by setting outfile to False.
+    The message can be suppressed by setting message to False.
 
     Args:
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
         force_refresh (bool): Always go through the authentication process.
+        disable_browser (bool): Skip the browser popup and only print a message with the URL and code.
         message (str): A message template to print with the fallback URL and code.
         outfile (file): The file-like object to print the message to,
             or False to suppress the message.
@@ -200,7 +206,8 @@ def login(start_url, sso_region, force_refresh=False, message=None, outfile=None
         sso_region=sso_region,
         interactive=True,
         message=message,
-        outfile=outfile)
+        outfile=outfile,
+        disable_browser=disable_browser)
 
     token = token_fetcher.fetch_token(
         start_url=start_url,

@@ -276,21 +276,15 @@ class Assignment:
         principal_name = None
         if principal_name_fetcher:
             principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
-        if not principal_name:
-            principal_name = "UNKNOWN"
 
         permission_set_name = None
         permission_set_arn = self.permission_set.get_arn()
         if permission_set_name_fetcher and isinstance(permission_set_arn, str):
             permission_set_name = permission_set_name_fetcher(permission_set_arn)
-        if not permission_set_name:
-            permission_set_name = "UNKNOWN"
 
         target_name = None
         if target_name_fetcher:
             target_name = target_name_fetcher(self.target.type.value, self.target.id)
-        if not target_name:
-            target_name = "UNKNOWN"
 
         assignment = _Assignment(
             self.instance,
@@ -305,7 +299,7 @@ class Assignment:
         )
         for i, field in enumerate(_Assignment._fields):
             value = assignment[i]
-            if not isinstance(value, str):
+            if not isinstance(value, str) and value is not None:
                 references = utils.get_references(value)
                 if len(references) != 1:
                     raise ValueError(f"Cannot convert assignment {self.get_resource_name()} field {field} to string reference: {value}")

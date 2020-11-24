@@ -379,7 +379,7 @@ def write_csv(template_process_inputs, assignments_csv, generation_config):
                     permission_set_name_fetcher=generation_config.permission_set_name_fetcher,
                     target_name_fetcher=generation_config.target_name_fetcher
                 )
-                assignments_csv.write(",".join(assignment_tuple + (source_ou,) ) + "\n")
+                assignments_csv.write(",".join(v or "" for v in (assignment_tuple + (source_ou,)) ) + "\n")
 
 
 if __name__ == "__main__":

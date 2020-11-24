@@ -86,8 +86,7 @@ def get_target_filter(values):
 
 @click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
 @click.option("--separator", "--sep", default=",")
-@click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="id")
-@click.option("--instance-style", type=click.Choice(["id", "arn"]), default="id")
+@click.option("--arn-style", type=click.Choice(["id", "arn"]), default="arn", envvar="AWS_SSO_UTIL_ASSIGNMENTS_ARN_STYLE")
 @click.option("--header/--no-header", default=True, help="Include a header row")
 @click.option("--verbose", "-v", count=True)
 def assignments(
@@ -102,8 +101,7 @@ def assignments(
         lookup_names,
         show_id,
         separator,
-        permission_set_style,
-        instance_style,
+        arn_style,
         header,
         verbose):
 
@@ -156,22 +154,21 @@ def assignments(
         target_filter=target_filter,
         get_principal_names=lookup_names,
         get_permission_set_names=lookup_names,
+        get_target_names=lookup_names,
         ou_recursive=ou_recursive)
 
     if header:
         fields = list(Assignment._fields)
-        if instance_style == "id":
+        if arn_style == "id":
             fields[fields.index("instance_arn")] = "instance_id"
-        if permission_set_style == "id":
             fields[fields.index("permission_set_arn")] = "permission_set_id"
         print(separator.join(fields))
 
     for assignment in assignments_iterator: #lookup_assignments(session, ids, principal_filter, permission_set_filter, target_filter):
-        if instance_style == "id":
+        if arn_style == "id":
             assignment = assignment._replace(instance_arn=assignment.instance_arn.split("/", 1)[-1])
-        if permission_set_style == "id":
             assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/", 2)[-1])
-        print(separator.join(assignment))
+        print(separator.join(v or "" for v in assignment))
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

@@ -56,7 +56,7 @@ class OpenBrowserHandler(object):
             disable_browser = os.environ.get('AWS_SSO_DISABLE_BROWSER', '').lower() in ['1', 'true']
         self._disable_browser = disable_browser
 
-        if not message:
+        if message is None:
             if self._disable_browser:
                 message = DEFAULT_NO_BROWSER_MESSAGE
             else:
@@ -65,14 +65,15 @@ class OpenBrowserHandler(object):
 
     def __call__(self, userCode, verificationUri,
                  verificationUriComplete, **kwargs):
-        message = self._message.format(
-            url=verificationUri,
-            code=userCode,
-            verificationUri=verificationUri,
-            userCode=userCode
-        )
 
-        if self._outfile:
+        if self._message and self._outfile:
+            message = self._message.format(
+                url=verificationUri,
+                code=userCode,
+                verificationUri=verificationUri,
+                userCode=userCode
+            )
+
             print(message, file=self._outfile)
 
         if self._open_browser and not self._disable_browser:

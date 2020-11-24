@@ -65,10 +65,11 @@ For group/user/permission set lookups, the instance/identity store will be autom
 By default, the ids will not be printed when they are looked up; you can display them `--show-id`.
 
 The output is a CSV-formatted list of the assignments with the following columns:
+* Instance ARN
 * Principal type (`GROUP` or `USER`)
 * Principal id
 * Principal name, if it can be found, or `UNKNOWN` otherwise
-* PermissionSet id (the part of the ARN after the first slash, to get the ARN prepend the id with `arn:aws:sso:::permissionSet/`)
+* PermissionSet ARN
 * PermissionSet name
 * Target type (`AWS_ACCOUNT`)
 * Target id (account number)
@@ -82,3 +83,8 @@ For a given parameter, providing multiple values is an OR operation; combining m
 `--permission-set` can be the ARN, or the full id (everything after the first slash in the ARN) or the short id (after the last slash), or a regex to match against the permission set name.
 
 `--account`/`-a` can be a string that matches either the beginning or the end of the AWS account number, or a regex to match against the account name.
+
+You can control the field separator
+
+By default, the names for every principal, permission set, and target are looked up.
+To eliminate this step from the process, use `--no-lookup-names`.
