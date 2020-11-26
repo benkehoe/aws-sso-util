@@ -62,9 +62,16 @@ def roles(
                     return True
             return False
 
-    sort_by_keys = sort_by.split(",") if sort_by else ("name", "role")
+    if sort_by:
+        sort_by_keys = sort_by.split(",")
+    elif not separator:
+        sort_by_keys = ("name", "role")
+    else:
+        sort_by_keys = None
 
-    if sort_by_keys[0] == "id":
+    if not sort_by_keys:
+        header_field_keys = ("name", "id", "role")
+    elif sort_by_keys[0] == "id":
         header_field_keys = ("id", "name", "role")
     elif sort_by_keys[0] == "name":
         header_field_keys = ("name", "id", "role")
@@ -74,7 +81,8 @@ def roles(
         header_field_keys = ("role", "name", "id")
     header_fields = [HEADER_FIELDS[k] for k in header_field_keys]
     Row = namedtuple("Row", header_field_keys)
-    if sort_by:
+
+    if sort_by_keys:
         sort_key = lambda v: tuple(getattr(v, key) for key in sort_by_keys)
     else:
         sort_key = None

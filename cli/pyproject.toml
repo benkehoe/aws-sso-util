@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-sso-util"
-version = "2.14.0"
+version = "2.15.0"
 description = "Utilities to make AWS SSO easier"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"
@@ -19,7 +19,7 @@ pyyaml = "^5.3.1"
 jsonschema = "^3.2.0"
 aws-error-utils = "^1.0.4"
 python-dateutil = "^2.8.1"
-aws-sso-lib = {path = "../lib/dist/aws_sso_lib-1.0.0-py3-none-any.whl"}
+aws-sso-lib = "^1.1.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.2"
