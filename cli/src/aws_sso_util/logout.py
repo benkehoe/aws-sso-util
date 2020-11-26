@@ -31,9 +31,10 @@ import click
 LOGGER = logging.getLogger(__name__)
 
 @click.command()
-@click.option("--debug", is_flag=True)
-def logout(debug):
-    configure_logging(LOGGER, debug)
+@click.option("--verbose", "-v", "--debug", count=True)
+def logout(verbose):
+    """Log out of all AWS SSO sessions"""
+    configure_logging(LOGGER, verbose)
     session = botocore.session.Session()
 
     LOGGER.debug("Removing tokens")

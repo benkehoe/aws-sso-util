@@ -198,6 +198,8 @@ class Config:
         self.recursive_ous = []
         self.accounts = []
 
+        self.assignment_group_name = None
+
         self.resource_name_prefix = resource_name_prefix
 
         if data:
@@ -206,6 +208,8 @@ class Config:
             self.load_resource_properties(resource_properties)
 
     def load(self, data):
+        self.assignment_group_name = _get_value(data, ["AssignmentGroupName"])[1]
+
         self.instance = _get_value(data, ["Instance", "InstanceArn", "InstanceARN"])[1]
 
         def get(names):
@@ -221,22 +225,21 @@ class Config:
         for account in get(["Accounts", "Account"]):
             self.accounts.append(format_account_id(account))
 
-    def load_template_metadata(self, metadata):
-        self.max_resources_per_template = _get_value(metadata, ["MaxResourcesPerTemplate"], type=int)
-        self.max_concurrent_assignments = _get_value(metadata, ["MaxConcurrentAssignments"], type=int)
-        self.max_assignments_allocation = _get_value(metadata, ["MaxAssignmentsAllocation"], type=int)
-        self.num_child_stacks = _get_value(metadata, ["NumChildStacks", "NumChildTemplates"], type=int)
-
     def load_resource_properties(self, resource_properties):
         data = {}
-        _, instance = _get_value(resource_properties, ["Instance", "InstanceArn", "InstanceARN"])
+
+        name = _get_value(resource_properties, ["Name"])[1]
+        if name is not None and isinstance(name, str):
+            data["AssignmentGroupName"] = resource_properties["Name"]
+
+        instance = _get_value(resource_properties, ["Instance", "InstanceArn", "InstanceARN"])[1]
         if instance is not None:
             data["Instance"] = instance
 
-        _, principals = _get_value(resource_properties, ["Principal", "Principals"], ensure_list=True)
+        principals = _get_value(resource_properties, ["Principal", "Principals"], ensure_list=True)[1]
         for principal_entry in principals:
-            _, principal_type = _get_value(principal_entry, ["Type", "PrincipalType"])
-            _, principal_ids = _get_value(principal_entry, ["Id", "PrincipalId", "Ids", "PrincipalIds"], ensure_list=True)
+            principal_type = _get_value(principal_entry, ["Type", "PrincipalType"])[1]
+            principal_ids = _get_value(principal_entry, ["Id", "PrincipalId", "Ids", "PrincipalIds"], ensure_list=True)[1]
             if principal_type.upper() == "GROUP":
                 config_key = "Groups"
             elif principal_type.upper() == "USER":
@@ -247,13 +250,13 @@ class Config:
                 data[config_key] = []
             data[config_key].extend(principal_ids)
 
-        _, permission_sets = _get_value(resource_properties, ["PermissionSet", "PermissionSetArn", "PermissionSets", "PermissionSetArns"], ensure_list=True)
+        permission_sets = _get_value(resource_properties, ["PermissionSet", "PermissionSetArn", "PermissionSets", "PermissionSetArns"], ensure_list=True)[1]
         data["PermissionSets"] = permission_sets
 
-        _, targets = _get_value(resource_properties, ["Target", "Targets"], ensure_list=True)
+        targets = _get_value(resource_properties, ["Target", "Targets"], ensure_list=True)[1]
         for target_entry in targets:
-            _, target_type = _get_value(target_entry, ["Type", "TargetType"])
-            _, target_ids = _get_value(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], ensure_list=True)
+            target_type = _get_value(target_entry, ["Type", "TargetType"])[1]
+            target_ids = _get_value(target_entry, ["Id", "TargetId", "Ids", "TargetIds"], ensure_list=True)[1]
             if target_type.upper() == "AWS_OU":
                 if target_entry.get("Recursive", False):
                     config_key = "RecursiveOus"

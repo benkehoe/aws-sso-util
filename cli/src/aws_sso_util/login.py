@@ -42,10 +42,10 @@ LOCAL_TIME_FORMAT = "%Y-%m-%d %H:%M %Z"
 @click.command()
 @click.argument("sso_start_url", required=False)
 @click.argument("sso_region", required=False)
-@click.option("--profile")
-@click.option("--all", "login_all", is_flag=True, default=None)
-@click.option("--force", is_flag=True)
-@click.option("--headless", is_flag=True, help="Never open a browser window", default=None)
+@click.option("--profile", metavar="PROFILE_NAME", help="Use a profile to specify AWS SSO instance")
+@click.option("--all", "login_all", is_flag=True, default=None, help="Log in to all AWS SSO instances if multiple are found")
+@click.option("--force", is_flag=True, help="Force re-authentication")
+@click.option("--headless", is_flag=True, default=None, help="Never open a browser window")
 @click.option("--verbose", "-v", count=True)
 def login(
         sso_start_url,
@@ -55,6 +55,20 @@ def login(
         force,
         headless,
         verbose):
+    """Log in to an AWS SSO instance
+
+    Note this only needs to be done once for a given SSO instance (i.e., start URL),
+    as all profiles sharing the same start URL will share the same login.
+
+    If only one SSO instance/start URL exists in your AWS config file,
+    or you've set the environment variables AWS_DEFAULT_SSO_START_URL and AWS_DEFAULT_SSO_REGION,
+    you don't need to provide a start URL or region.
+
+    Otherwise, you can provide a full start URL, or a regex for the start URL (usually a substring will work),
+    and if this uniquely identifies a start URL in your config, that will suffice.
+
+    You can also provide a profile name with --profile to use the SSO instance from a specific profile.
+    """
 
     if login_all is None:
         login_all = os.environ.get(LOGIN_ALL_VAR, "").lower() in ["true", "1"]

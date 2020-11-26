@@ -72,26 +72,29 @@ def get_target_filter(values):
     return filter
 
 @click.command()
-@click.option("--instance-arn", "--ins")
-@click.option("--identity-store-id", "--ids")
+@click.option("--instance-arn", "--ins", metavar="ARN")
+@click.option("--identity-store-id", "--id-store", metavar="ID")
 
-@click.option("--group", "-g", "group_values", multiple=True, default=[])
-@click.option("--user", "-u", "user_values", multiple=True, default=[])
-@click.option("--permission-set", "-p", "permission_set_values", multiple=True, default=[])
-@click.option("--account", "-a", "account_values", multiple=True, default=[])
-@click.option("--ou", "ou_values", multiple=True, default=[])
-@click.option("--ou-recursive/--ou-not-recursive")
+@click.option("--profile", metavar="PROFILE_NAME", help="Use a specific AWS profile")
 
-@click.option("--lookup-names/--no-lookup-names", default=True)
+@click.option("--group", "-g", "group_values", multiple=True, default=[], metavar="GROUP", help="Group ID or display name")
+@click.option("--user", "-u", "user_values", multiple=True, default=[], metavar="USER", help="User ID or user name")
+@click.option("--permission-set", "-p", "permission_set_values", multiple=True, default=[], metavar="PERM_SET", help="Permission set ARN, ID, or name")
+@click.option("--account", "-a", "account_values", multiple=True, default=[], metavar="ACCOUNT", help="Account ID or name")
+@click.option("--ou", "ou_values", multiple=True, default=[], metavar="ID", help="Organizations OU or root ID")
+@click.option("--ou-recursive/--ou-not-recursive", help="Include accounts of child OUs when using --ou")
+
+@click.option("--lookup-names/--no-lookup-names", default=True, help="Look up names for principals, permission sets, and accounts")
 
 @click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
-@click.option("--separator", "--sep", default=",")
-@click.option("--arn-style", type=click.Choice(["id", "arn"]), default="arn", envvar="AWS_SSO_UTIL_ASSIGNMENTS_ARN_STYLE")
-@click.option("--header/--no-header", default=True, help="Include a header row")
+@click.option("--separator", "--sep", default=",", metavar="SEP", help="Field separator for output")
+@click.option("--header/--no-header", default=True, help="Include or supress the header row")
+@click.option("--arn-style", type=click.Choice(["arn", "id"]), default="arn", envvar="AWS_SSO_UTIL_ASSIGNMENTS_ARN_STYLE", help="Full ARN or only ID")
 @click.option("--verbose", "-v", count=True)
 def assignments(
         instance_arn,
         identity_store_id,
+        profile,
         group_values,
         user_values,
         permission_set_values,
@@ -101,9 +104,12 @@ def assignments(
         lookup_names,
         show_id,
         separator,
-        arn_style,
         header,
+        arn_style,
         verbose):
+    """Retrieve assignments from AWS SSO
+
+    You can filter by principal, permission set, and target."""
 
     configure_logging(LOGGER, verbose)
 
@@ -138,7 +144,7 @@ def assignments(
         target = None
         target_filter = get_target_filter(account_values)
 
-    session = boto3.Session()
+    session = boto3.Session(profile_name=profile)
 
     ids = Ids(lambda: session, instance_arn, identity_store_id)
     ids.print_on_fetch = show_id

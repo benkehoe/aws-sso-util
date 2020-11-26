@@ -18,13 +18,13 @@ HEADER_FIELDS = {
 }
 
 @click.command()
-@click.option("--sso-start-url", "-u")
-@click.option("--sso-region")
-@click.option("--account", "-a", "account_values", multiple=True, default=[])
-@click.option("--role-name", "-r", "role_name_patterns", multiple=True, default=[])
-@click.option("--separator", "--sep")
-@click.option("--header/--no-header", default=True)
-@click.option("--sort-by", type=click.Choice(["id,role", "name,role", "role,id", "role,name"]), default=None)
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--account", "-a", "account_values", multiple=True, default=[], metavar="ACCOUNT", help="List roles for a specific account ID, can be specified multiple times")
+@click.option("--role-name", "-r", "role_name_patterns", multiple=True, default=[], metavar="NAME_REGEX", help="Filter roles by a regular expression, can be specified multiple times")
+@click.option("--separator", "--sep", metavar="SEP", help="Field separator for output")
+@click.option("--header/--no-header", default=True, help="Include or supress the header row")
+@click.option("--sort-by", type=click.Choice(["id,role", "name,role", "role,id", "role,name"]), default=None, help="Specify how the output is sorted")
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
 def roles(
@@ -37,6 +37,14 @@ def roles(
         sort_by,
         force_refresh,
         verbose):
+    """List your available accounts and roles.
+
+    --sso-start-url and --sso-region are not needed if a single value can be found for them in your ~/.aws/config
+    or in the environment variables AWS_DEFAULT_SSO_START_URL and AWS_DEFAULT_SSO_REGION.
+
+    You can filter the list by providing account IDs and role name patterns.
+
+    """
 
     configure_logging(LOGGER, verbose)
 

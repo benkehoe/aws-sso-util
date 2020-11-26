@@ -14,6 +14,8 @@ Obviously, this gets verbose, and even an organization of moderate size is likel
 1. OUs as targets for assignments
 2. An `AWS::SSO::AssignmentGroup` resource that allows specifications of multiple principals, permission sets, and targets, and performs the combinatorics directly.
 
+You can, however, use the client-side version to generate a CSV of the assignments that the template will generate, which can use useful for auditing the actual assignments (which you can get from `aws-sso-util assignments`, see the docs for that [here](lookup.md)).
+
 ## Output
 With either method, the result is a template that either includes the assignments directly, or, if there are too many assignments to contain in a single stack, [nested stacks](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-nested-stacks.html) that contain the assignments (references are automatically wired through into the child stacks).
 
@@ -29,13 +31,12 @@ You can either specify the number of child stacks explicitly, or provide the max
 See below for how to configure this.
 
 The assignment resources can contain metadata, in the `Metadata` section of the resource under the `SSO` key.
+* If you are using the macro: The resource name of the `AssignmentGroup` resource, as well as the value of the `Name` property of the resource, if it exists and is a string.
 * If you specified an OU as a target
   * The metadata for every assignment for an account from that OU will have the OU in the metadata in the `SourceOU` field.
   * The account name will be present under the `TargetName` field.
 * If you enable name lookups, the principal and permission set names will be looked up and put in the `PrincipalName` and `PermissionSetName` fields, as will the account name (in `TargetName`) if it wasn't generated from an OU.
 See below for how to enable this.
-
-If you use the Macro or the `--macro` option for client-side generation, you
 
 # CloudFormation Macro
 `aws-sso-util` defines a resource format for an AssignmentGroup that is a combination of multiple principals, permission sets, and targets, and provides a CloudFormation Macro you can deploy that lets you use this resource in your templates.
@@ -51,10 +52,10 @@ sam build --use-container
 sam deploy --guided
 ```
 
-The macro template has the following parameters:
+The macro template has the following parameters (note that for the values that can be set in the `Metadata` section of the template, as noted below, the template values take precedence for that template's generation):
 * `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks (can be overridden by setting metadata in the template, see below).
 * `LookupNames`: if set to `true`, lookup the names for identifiers on assignments and include them in the resource metadata
-* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `PT8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
 * `ChildTemplatesInYaml`: if set to `true`, store nested stack templates in YAML format, otherwise default to JSON.
 * `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
 * `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
@@ -111,7 +112,7 @@ Note this will cause all `AWSSOUtil::SSO::AssignmentGroup` resources in the temp
 
 The template can control some of its generation by including the following keys in the `Metadata` section of the template under the `SSO` section:
 * `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks.
-* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `PT8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
 * `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
 * `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
 
@@ -125,6 +126,10 @@ These templates can then be packaged and uploaded using [`aws cloudformation pac
 The input files can either be templates using the Macro (using the `--macro` flag), or somewhat simpler configuration files using a different syntax.
 These configuration files can define permission sets inline, have references that turn into template parameters, and you can provide a base template that the resulting resources are layered on top of.
 
+Additionally, you can generate a CSV of the assignments that the template will generate, which can use useful for auditing the actual assignments (which you can get from `aws-sso-util assignments`, see the docs for that [here](lookup.md)).
+Use the `--assignments-csv` parameter to provide an output file name; the output has the same format as `aws-sso-util assignments`.
+Add the `--assignments-csv-only` flag to suppress creation of the templates and only output the CSV.
+
 ## Options for both template and config files
 
 The AWS SSO instance can be provided using `--sso-instance`/`--ins`, either as the ARN or the id.
@@ -136,10 +141,12 @@ Nested stack templates will be placed in a subdirectory named for the input file
 You can change the output directory with `--output-dir`.
 You can change the output file names to include a suffix (before `.yaml`) with `--template-file-suffix`, e.g. providing `-template` to get `example-template.yaml`.
 
-`--max-resources-per-template` defines how many assignments will be put in a given template, forcing the assignments into nested stacks and determining the number of nested stacks.
-
-`--max-concurrent-assignments` produces dependencies between the assignments to slow the creation of assignments to prevent throttling.
-The default is 20.
+You can control generation parameters, which override any values set in the config file or template, using the following:
+* `--lookup-names`: when set, lookup the names for identifiers on assignments and include them in the resource metadata
+* `--num-child-stacks` and `--max-assignments-allocation`: set one of these (not both) to fix a default number of child stacks.
+* `--default-session-duratoin`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `PT8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `--max-concurrent-assignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
+* `--max-resources-per-template`: just what it sounds like, defaults to the CloudFormation limit.
 
 `--verbose`/`-v` prints more information, up to `-vvv`.
 
@@ -183,9 +190,9 @@ Accounts:
 
 All fields (except `Instance`) can either be a single value or a list of values.
 
-The config file can control some of its generation by including the following fields:
+The config file can control some of its generation (if these are not set on the command line) by including the following fields:
 * `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks.
-* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `P8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
+* `DefaultSessionDuration`: an [ISO8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) like `PT8H` to set on `AWS::SSO::PermissionSet` resources that don't already have it set.
 * `MaxConcurrentAssignments`: to keep assignment creation from being throttled, this is set to 20 as a default. You can change it with this parameter.
 * `MaxResourcesPerTemplate`: just what it sounds like, defaults to the CloudFormation limit.
 

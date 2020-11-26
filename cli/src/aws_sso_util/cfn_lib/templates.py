@@ -245,7 +245,7 @@ class ParentTemplate:
             if child_templates_in_subdir:
                 child_path_for_writing = path_joiner(child_path_for_writing, stem)
                 child_path_for_resource = path_joiner(child_path_for_resource, stem)
-            child_stem = f"{stem}{i:03d}"
+            child_stem = f"{stem}-{i:03d}"
             child_path_for_writing = path_joiner(child_path_for_writing, f"{child_stem}{template_file_suffix}")
             child_path_for_resource = path_joiner(child_path_for_resource, f"{child_stem}{template_file_suffix}")
             child_templates.append(_ChildData(

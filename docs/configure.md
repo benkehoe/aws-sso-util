@@ -4,7 +4,7 @@ You can view the roles you have available to you with `aws-sso-util roles`, whic
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 
-You probably want to set the environment variables `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION`, which will inform these commands of your start url and SSO region (that is, the region that you've configured AWS SSO in), so that you don't have to pass them in as parameters every time.
+You probably want to set the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`, which will inform these commands of your start url and SSO region (that is, the region that you've configured AWS SSO in), so that you don't have to pass them in as parameters every time.
 
 `aws-sso-util configure profile` takes a profile name and prompts you with the accounts and roles you have access to, to configure that profile.
 
@@ -26,14 +26,15 @@ Otherwise, see below for the full resolution algorithm.
   * This option can be provided multiple times.
   * If explicit account IDs are provided, the account name will always be `UNKNOWN`.
 * `--role-name`/`-r`: a regex to match against the role name
-* `--separator`/`--sep`: the field separator
-  * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end.
-* `--header`: print a header row
+* `--separator`/`--sep`: the field separator.
+  * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end. This can be useful if you have access to a large number of accounts and roles.
+* `--header`/`--no-header`: print a header row (default) or suppress it.
 * `--sort-by`: sort the output (and order the columns) according to the specification. The input must be two comma-separated values:
-  * `id` is the account ID
-  * `name` is the account name
-  * `role` is the role name
+  * `id` is the account ID.
+  * `name` is the account name.
+  * `role` is the role name.
   * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
+* `--force-refresh`: log in again
 
 # Common options
 
@@ -188,7 +189,7 @@ A useful piece of syntax for this is lookahead/lookbehind assertions.
 * `(?<!My)Role` would turn `"AdminRole"` into `"Admin"` and `"UserRole"` into `"User"` but leave `"MyRole"` as is.
 * `RoleFor(?=Admin)` and `RoleFor(?!My)` work similarly for suffixes.
 
-### Profile name
+### Profile name process
 
 Finally, if you want total control over the generated profile names, you can provide a shell command with `--profile-name-process` and it will be executed with the following positional arguments:
 * Account name
@@ -199,3 +200,18 @@ Finally, if you want total control over the generated profile names, you can pro
 * Region index (zero-based index of what position the region is in the provided list of regions)
 
 This must output a profile name to stdout and return an exit code of 0.
+
+The default formatting is roughly equivalent to the following code:
+```python
+import sys
+sep = "."
+(
+    account_name, account_id,
+    role_name,
+    region_name, short_region_name
+) = sys.argv[1:6]
+region_index = int(sys.argv[6])
+region_str = "" if region_index == 0 else sep + short_region_name
+print(account_name + sep + role_name + region_str)
+```
+If this was stored as `profile_formatter.py`, it could be used as `--profile-name-process "python profile_formatter.py"`

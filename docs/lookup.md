@@ -43,7 +43,7 @@ sso-store() {
 sso-ps() {
     _PS=$1
     shift
-    _INS=$(sso-ins-id "$@")
+    _INS=$(aws-sso-util lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g")
     echo arn:aws:sso:::permission-set/arn:aws:sso:::permissionSet/$_INS/$_PS
 }
 ```
@@ -52,8 +52,6 @@ You can then use it like:
 ```
 $ aws sso-admin describe-permission-set --instance-arn $(sso-ins) --permission-set-arn $(sso-ps ps-fd6a454dd00d9c28)
 ```
-
-Then you can
 
 # `aws-sso-util assignments`
 There is no simple API for retrieving all assignments or even a decent subset.
@@ -84,7 +82,10 @@ For a given parameter, providing multiple values is an OR operation; combining m
 
 `--account`/`-a` can be a string that matches either the beginning or the end of the AWS account number, or a regex to match against the account name.
 
+`--ou` can be an Organizations OU id or root id, which will use all the accounts directly in the OU, or recursively in child OUs as well if the `--ou-recursive` flag is added.
+
 You can control the field separator
 
 By default, the names for every principal, permission set, and target are looked up.
 To eliminate this step from the process, use `--no-lookup-names`.
+Names for accounts will still appear if you have not specified specific accounts, because the names are available when enumerating accounts in Organizations anyway.

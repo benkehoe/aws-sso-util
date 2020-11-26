@@ -2,3 +2,4 @@ jsonschema
 pyyaml
 boto3
 aws_error_utils
+aws_sso_lib

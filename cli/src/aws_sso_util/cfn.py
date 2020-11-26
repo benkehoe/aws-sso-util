@@ -66,26 +66,26 @@ def param_loader(ctx, param, value):
 
 @click.option("--macro", is_flag=True, help="Process templates with macro")
 
-@click.option("--profile", help="AWS profile to use to retrieve SSO instance and/or accounts from OUs")
-@click.option("--sso-instance", "--ins", help="If not provided, will be retrieved from your account")
+@click.option("--profile", metavar="NAME", help="AWS profile to use to retrieve SSO instance and/or accounts from OUs")
+@click.option("--sso-instance", "--ins", metavar="ARN", help="If not provided, will be retrieved from your account")
 
-@click.option("--template-file-suffix")
-@click.option("--output-dir")
+@click.option("--template-file-suffix", metavar="SUFFIX", help="Output template suffix")
+@click.option("--output-dir", metavar="DIR", help="Directory for templates")
 
 @click.option("--base-template-file", type=click.File("r"), help="Base template to build from")
-@click.option("--template-parameters", callback=param_loader, help="String-type parameters on the template")
+@click.option("--template-parameters", callback=param_loader, metavar="PARAMS", help="String-type parameters on the template")
 
-@click.option("--lookup-names/--no-lookup-names", default=False)
+@click.option("--lookup-names/--no-lookup-names", default=False, help="Look up names for principals, permission sets, and accounts")
 
-@click.option("--num-child-stacks", type=int)
-@click.option("--max-assignments-allocation", type=int)
-@click.option("--default-session-duration")
+@click.option("--num-child-stacks", type=int, metavar="NUM", help="Fix the number of child stacks (0 or positive integer)")
+@click.option("--max-assignments-allocation", type=int, metavar="NUM", help="Fix a nonzero number of child stacks based on expected max number of assignments")
+@click.option("--default-session-duration", metavar="DUR", help="ISO8601 duration for PermissionSets without session duration set")
 
-@click.option("--max-resources-per-template", type=int)
-@click.option("--max-concurrent-assignments", type=int)
+@click.option("--max-resources-per-template", type=int, metavar="NUM")
+@click.option("--max-concurrent-assignments", type=int, metavar="NUM")
 
-@click.option("--assignments-csv", type=click.File("w"))
-@click.option("--assignments-csv-only", is_flag=True)
+@click.option("--assignments-csv", type=click.File("w"), help="Output file name to store CSV of generated assignments")
+@click.option("--assignments-csv-only", is_flag=True, help="With --assignments-csv, skip template generation")
 
 @click.option("--verbose", "-v", count=True)
 def generate_template(
@@ -106,6 +106,8 @@ def generate_template(
         assignments_csv,
         assignments_csv_only,
         verbose):
+    """Generate CloudFormation templates with AWS SSO assignments."""
+
     configure_logging(LOGGER, verbose)
 
     if macro and base_template_file:

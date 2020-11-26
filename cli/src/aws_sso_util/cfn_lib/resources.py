@@ -194,11 +194,13 @@ class Target:
 class Assignment:
     RESOURCE_NAME_PREFIX = "Assignment"
 
-    def __init__(self, instance, principal, permission_set, target, resource_name_prefix=None):
+    def __init__(self, instance, principal, permission_set, target, resource_name_prefix=None, metadata=None):
         self.instance = instance
         self.principal = principal
         self.permission_set = permission_set
         self.target = target
+
+        self.metadata = metadata
 
         self._resource_name_prefix = resource_name_prefix
 
@@ -231,6 +233,9 @@ class Assignment:
         })
 
         metadata = OrderedDict()
+        if self.metadata:
+            metadata.update(self.metadata)
+
         if self.target.source_ou:
             metadata["AccountSourceOU"] = self.target.source_ou
 
@@ -369,9 +374,14 @@ class PermissionSetResources(ResourceList):
 
 ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignments", "permission_sets"])
 
-def get_resources_from_config(config: Config, ou_fetcher=None) -> ResourceCollection:
+def get_resources_from_config(config: Config, assignment_metadata=None, ou_fetcher=None) -> ResourceCollection:
     if config.instance is None:
         raise ValueError("SSO instance is not set on config")
+
+    if config.assignment_group_name:
+        if assignment_metadata is None:
+            assignment_metadata = {}
+        assignment_metadata["AssignmentGroupName"] = config.assignment_group_name
 
     num_resources = 0
 
@@ -418,6 +428,7 @@ def get_resources_from_config(config: Config, ou_fetcher=None) -> ResourceCollec
                     principal,
                     permission_set,
                     target,
+                    metadata=assignment_metadata,
                     resource_name_prefix=config.resource_name_prefix,
                 ))
     LOGGER.debug(f"Got assignments: [{', '.join(str(v) for v in assignments)}]")

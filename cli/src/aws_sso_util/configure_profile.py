@@ -41,17 +41,17 @@ CREDENTIAL_PROCESS_NAME_VAR= "AWS_SSO_CREDENTIAL_PROCESS_NAME"
 SET_CREDENTIAL_PROCESS_DEFAULT = True
 
 @click.command("configure-profile")
-@click.argument("profile")
-@click.option("--sso-start-url", "-u")
-@click.option("--sso-region")
-@click.option("--account-id", "-a", "account")
-@click.option("--role-name", "-r", "role")
-@click.option("--region")
-@click.option("--output", "-o")
-@click.option("--config-default", "-c", multiple=True)
-@click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep")
-@click.option("--interactive/--non-interactive", default=True)
-@click.option("--credential-process/--no-credential-process", default=None)
+@click.argument("profile", metavar="PROFILE_NAME")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--account-id", "-a", "account", metavar="ACCOUNT", help="The AWS account for the profile")
+@click.option("--role-name", "-r", "role", metavar="ROLE", help="The SSO role (also the Permission Set name) to assume in account")
+@click.option("--region", metavar="REGION", help="The AWS region the profile will use")
+@click.option("--output", "-o", metavar="CLI_OUTPUT_FORMAT", help="Set the CLI output format for the profile")
+@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE", help="Additional config field to set, can provide multiple times")
+@click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep", help="Action when config defaults conflict with existing settings")
+@click.option("--interactive/--non-interactive", default=True, help="If not all required settings are provided, use an interactive prompt")
+@click.option("--credential-process/--no-credential-process", default=None, help="Force enable/disable setting the credential process SDK helper")
 @click.option("--verbose", "-v", count=True)
 def configure_profile(
         profile,
@@ -66,6 +66,21 @@ def configure_profile(
         interactive,
         credential_process,
         verbose):
+    """Configure a single profile.
+
+    You can set all the options for a profile, or let it prompt you interactively to select from available accounts and roles.
+
+    \b
+    The values required for a complete profile are:
+    --sso-start-url
+    --sso-region
+    --account-id
+    --role-name
+    --region
+
+    --sso-start-url and --sso-region are not needed if a single value can be found for them in your ~/.aws/config
+    or in the environment variables AWS_DEFAULT_SSO_START_URL and AWS_DEFAULT_SSO_REGION.
+    """
     configure_logging(LOGGER, verbose)
 
     try:

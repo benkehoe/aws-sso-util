@@ -120,13 +120,23 @@ Resources:
           Resource: !Sub "arn:aws:s3:::${MacroArtifactBucket}/*"
         - Sid: AWSSSO
           Effect: Allow
-          Action: sso:ListInstances
+          Action:
+          - sso:ListInstances
+          - sso:DescribePermissionSet
           Resource: "*"
         - Sid: Organizations
           Effect: Allow
           Action:
           - organizations:ListAccountsForParent
           - organizations:ListOrganizationalUnitsForParent
+          - organizations:DescribeAccount
+          - organizations:DescribeOrganizationalUnit
+          Resource: "*"
+        - Sid: IdentityStore
+          Effect: Allow
+          Action:
+          - identitystore:DescribeUser
+          - identitystore:DescribeGroup
           Resource: "*"
 
   MacroLogsRoleForCfn:

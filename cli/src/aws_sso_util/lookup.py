@@ -30,26 +30,26 @@ from .utils import configure_logging, Printer
 LOGGER = logging.getLogger(__name__)
 
 IDS_CACHE_DIR = os.path.expanduser(
-    os.path.join('~', '.aws', 'cli', 'cache')
+    os.path.join("~", ".aws", "cli", "cache")
 )
 
-@click.command('lookup')
-@click.argument('type', type=click.Choice(['instance', 'identity-store', 'group', 'user', 'permission-set']))
-@click.argument('value', nargs=-1)
+@click.command("lookup")
+@click.argument("type", type=click.Choice(["instance", "identity-store", "group", "user", "permission-set"]))
+@click.argument("value", nargs=-1)
 
-@click.option('--instance-arn', '--ins')
-@click.option('--identity-store-id', '--ids')
+@click.option("--instance-arn", "--ins", metavar="ARN")
+@click.option("--identity-store-id", "--id-store", metavar="ID")
 
-@click.option('--profile')
+@click.option("--profile", metavar="PROFILE_NAME", help="Use a specific AWS profile")
 
-@click.option('--error-if-not-found', '-e', is_flag=True)
+@click.option("--error-if-not-found", "-e", is_flag=True, help="Do not continue if an entity is not found")
 
-@click.option("--permission-set-style", type=click.Choice(["id", "arn"]), default="arn")
+@click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
+@click.option("--separator", "--sep", metavar="SEP", help="Field separator for output")
+@click.option("--header/--no-header", help="Include or supress the header row")
 
-@click.option('--show-id/--hide-id', default=False, help='Print SSO instance/identity store id being used')
-@click.option('--separator', '--sep')
-@click.option("--header/--no-header")
-@click.option('--verbose', "-v", count=True)
+@click.option("--permission-set-style", type=click.Choice(["arn", "id"]), default="arn", help="Full ARN or only ID")
+@click.option("--verbose", "-v", count=True)
 def lookup(
         type,
         value,
@@ -57,11 +57,12 @@ def lookup(
         identity_store_id,
         profile,
         error_if_not_found,
-        permission_set_style,
         show_id,
         separator,
         header,
+        permission_set_style,
         verbose):
+    """Look up names and ids in AWS SSO"""
     configure_logging(LOGGER, verbose)
 
     session = boto3.Session(profile_name=profile)
@@ -85,21 +86,21 @@ def lookup(
     )
 
     try:
-        if type == 'instance':
+        if type == "instance":
             ids.print_on_fetch = False
             print(ids.instance_arn)
-        elif type == 'identity-store':
+        elif type == "identity-store":
             ids.print_on_fetch = False
             print(ids.identity_store_id)
-        elif type in 'group':
+        elif type in "group":
             if not value:
                 raise click.UsageError("Group name is required")
             lookup_groups(session, ids, value, printer, error_if_not_found=error_if_not_found)
-        elif type == 'user':
+        elif type == "user":
             if not value:
                 raise click.UsageError("User name is required")
             lookup_users(session, ids, value, printer, error_if_not_found=error_if_not_found)
-        elif type == 'permission-set':
+        elif type == "permission-set":
             if not value:
                 raise click.UsageError("Permission set name is required")
             if len(value) == 1 and value[0] == ":all":
@@ -124,7 +125,7 @@ def lookup_groups(session, ids, groups, printer: Printer, *, error_if_not_found)
                 printer.print_after()
                 print("Group {} not found".format(group_name), file=sys.stderr)
                 sys.exit(1)
-            group_id = 'NOT_FOUND'
+            group_id = "NOT_FOUND"
         printer.add_row((group_name, group_id))
     printer.print_after()
 
@@ -139,7 +140,7 @@ def lookup_users(session, ids, users, printer: Printer, *, error_if_not_found):
                 printer.print_after()
                 print("User {} not found".format(user_name), file=sys.stderr)
                 sys.exit(1)
-            user_id = 'NOT_FOUND'
+            user_id = "NOT_FOUND"
         printer.add_row((user_name, user_id))
     printer.print_after()
 
@@ -174,10 +175,10 @@ def lookup_all_permission_sets(session, ids, printer: Printer, *, permission_set
     cache = {}
     printer.print_header_before()
     sso = session.client("sso-admin")
-    paginator = sso.get_paginator('list_permission_sets')
+    paginator = sso.get_paginator("list_permission_sets")
     for ind, response in enumerate(paginator.paginate(InstanceArn=ids.instance_arn)):
         LOGGER.debug(f"ListPermissionSets page {ind+1}: {', '.join(response['PermissionSets'])}")
-        for permission_set_arn in response['PermissionSets']:
+        for permission_set_arn in response["PermissionSets"]:
             permission_set = _lookup.lookup_permission_set_by_id(session, ids, permission_set_arn, cache=cache)
             permission_set_name = permission_set["Name"]
             permission_set_arn = permission_set["PermissionSetArn"]
@@ -186,5 +187,5 @@ def lookup_all_permission_sets(session, ids, printer: Printer, *, permission_set
             printer.add_row((permission_set_name, permission_set_arn))
     printer.print_after()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     lookup(prog_name="python -m aws_sso_util.cli.lookup")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

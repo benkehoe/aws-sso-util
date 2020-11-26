@@ -101,6 +101,7 @@ def process_template(template,
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
             config,
+            assignment_metadata={"AssignmentGroupResourceName": resource_name},
             ou_fetcher=ou_fetcher)
 
         max_stack_resources += generation_config.get_max_number_of_child_stacks(resource_collection.num_resources)
@@ -173,129 +174,138 @@ def handler_init():
     HANDLER_INITIALIZED = True
 
 def handler(event, context, put_object=None):
-    handler_init()
-
     request_id = event["requestId"]
     LOGGER.info(f"Request ID: {request_id}")
 
-    input_template = event["fragment"]
+    try:
+        handler_init()
 
-    LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
+        input_template = event["fragment"]
 
-    if "Resources" not in input_template:
-        raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
+        LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
 
-    lookup_cache = {}
+        if "Resources" not in input_template:
+            raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
 
-    if LOOKUP_NAMES:
-        principal_name_fetcher = utils.get_principal_name_fetcher(SESSION, IDS, lookup_cache)
-        permission_set_name_fetcher = utils.get_permission_set_name_fetcher(SESSION, IDS, lookup_cache)
-        target_name_fetcher = utils.get_target_name_fetcher(SESSION, IDS, lookup_cache)
-    else:
-        principal_name_fetcher = None
-        permission_set_name_fetcher = None
-        target_name_fetcher = None
+        lookup_cache = {}
 
-    generation_config = GenerationConfig(
-        IDS,
-        principal_name_fetcher=principal_name_fetcher,
-        permission_set_name_fetcher=permission_set_name_fetcher,
-        target_name_fetcher=target_name_fetcher
-    )
-    generation_config.set(
-        max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
-        max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
-        max_assignments_allocation=MAX_ASSIGNMENTS_ALLOCATION,
-        num_child_stacks=NUM_CHILD_STACKS,
-        default_session_duration=DEFAULT_SESSION_DURATION,
-    )
+        if LOOKUP_NAMES:
+            principal_name_fetcher = utils.get_principal_name_fetcher(SESSION, IDS, lookup_cache)
+            permission_set_name_fetcher = utils.get_permission_set_name_fetcher(SESSION, IDS, lookup_cache)
+            target_name_fetcher = utils.get_target_name_fetcher(SESSION, IDS, lookup_cache)
+        else:
+            principal_name_fetcher = None
+            permission_set_name_fetcher = None
+            target_name_fetcher = None
 
-    ou_accounts_cache = {}
-
-    LOGGER.info("Extracting resources from template")
-    output_template, max_stack_resources, resource_collection_dict = process_template(input_template,
-            session=SESSION,
-            ids=IDS,
-            generation_config=generation_config,
-            generation_config_template_priority=True,
-            ou_accounts_cache=ou_accounts_cache)
-
-    num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
-    LOGGER.info(f"Generated {num_assignments} assignments from {len(resource_collection_dict)} resources")
-
-    all_child_templates_to_write = []
-
-    s3_base_path_parts = [
-        "templates",
-        f"{datetime.datetime.utcnow().isoformat()[:16]}_{request_id}",
-    ]
-    if KEY_PREFIX:
-        s3_base_path_parts.insert(1, KEY_PREFIX)
-    s3_base_path = "/".join(s3_base_path_parts)
-
-    for resource_name, resource_collection in resource_collection_dict.items():
-        num_parent_resources = len(output_template["Resources"]) + max_stack_resources
-
-        parent_template = templates.resolve_templates(
-            resource_collection.assignments,
-            resource_collection.permission_sets,
-            generation_config=generation_config,
-            num_parent_resources=num_parent_resources,
+        generation_config = GenerationConfig(
+            IDS,
+            principal_name_fetcher=principal_name_fetcher,
+            permission_set_name_fetcher=permission_set_name_fetcher,
+            target_name_fetcher=target_name_fetcher
+        )
+        generation_config.set(
+            max_resources_per_template=MAX_RESOURCES_PER_TEMPLATE,
+            max_concurrent_assignments=MAX_CONCURRENT_ASSIGNMENTS,
+            max_assignments_allocation=MAX_ASSIGNMENTS_ALLOCATION,
+            num_child_stacks=NUM_CHILD_STACKS,
+            default_session_duration=DEFAULT_SESSION_DURATION,
         )
 
-        suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
+        ou_accounts_cache = {}
 
-        template_collection = parent_template.get_templates(
-            s3_base_path,
-            f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
-            resource_name,
-            suffix,
-            generation_config=generation_config,
-            base_template=output_template,
-            path_joiner=lambda *args: "/".join(args)
+        LOGGER.info("Extracting resources from template")
+        output_template, max_stack_resources, resource_collection_dict = process_template(input_template,
+                session=SESSION,
+                ids=IDS,
+                generation_config=generation_config,
+                generation_config_template_priority=True,
+                ou_accounts_cache=ou_accounts_cache)
 
-        )
-        output_template = template_collection.parent.template
-        LOGGER.debug(f"Intermediate output template:\n{utils.dump_yaml(output_template)}")
+        num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
+        LOGGER.info(f"Generated {num_assignments} assignments from {len(resource_collection_dict)} resources")
 
-        all_child_templates_to_write.extend(template_collection.children)
+        all_child_templates_to_write = []
 
-    LOGGER.info(f"Writing {len(all_child_templates_to_write)} child templates")
+        s3_base_path_parts = [
+            "templates",
+            f"{datetime.datetime.utcnow().isoformat()[:16]}_{request_id}",
+        ]
+        if KEY_PREFIX:
+            s3_base_path_parts.insert(1, KEY_PREFIX)
+        s3_base_path = "/".join(s3_base_path_parts)
 
-    bucket = boto3.resource("s3").Bucket(BUCKET_NAME)
+        for resource_name, resource_collection in resource_collection_dict.items():
+            num_parent_resources = len(output_template["Resources"]) + max_stack_resources
 
-    for child_template_key, child_template in all_child_templates_to_write:
-        LOGGER.debug(f"Writing child template {child_template_key}")
-        if CHILD_TEMPLATES_IN_YAML:
-            content = utils.dump_yaml(child_template)
-        else:
-            child_template = cfn_yaml_tags.to_json(child_template)
-            content = json.dumps(child_template, indent=2)
+            parent_template = templates.resolve_templates(
+                resource_collection.assignments,
+                resource_collection.permission_sets,
+                generation_config=generation_config,
+                num_parent_resources=num_parent_resources,
+            )
 
-        put_object_args = copy.deepcopy(S3_PUT_OBJECT_ARGS)
+            suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
 
-        put_object_args.update({
-            "Key": child_template_key,
-            "Body": content,
-        })
-        if "ContentType" not in put_object_args:
-            content_type = "text/plain" if CHILD_TEMPLATES_IN_YAML else "application/json"
-            put_object_args["ContentType"] = content_type
+            template_collection = parent_template.get_templates(
+                s3_base_path,
+                f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
+                resource_name,
+                suffix,
+                generation_config=generation_config,
+                base_template=output_template,
+                path_joiner=lambda *args: "/".join(args)
 
-        if put_object:
-            put_object(**put_object_args)
-        else:
-            bucket.put_object(**put_object_args)
+            )
+            output_template = template_collection.parent.template
+            LOGGER.debug(f"Intermediate output template:\n{utils.dump_yaml(output_template)}")
 
-    output_template = cfn_yaml_tags.to_json(output_template)
+            all_child_templates_to_write.extend(template_collection.children)
 
-    LOGGER.debug(f"Final output template:\n{utils.dump_yaml(output_template)}")
+        LOGGER.info(f"Writing {len(all_child_templates_to_write)} child templates")
 
-    output = {
-        "requestId" : request_id,
-        "status" : "success",
-        "fragment" : output_template,
-    }
+        bucket = boto3.resource("s3").Bucket(BUCKET_NAME)
 
-    return output
+        for child_template_key, child_template in all_child_templates_to_write:
+            LOGGER.debug(f"Writing child template {child_template_key}")
+            if CHILD_TEMPLATES_IN_YAML:
+                content = utils.dump_yaml(child_template)
+            else:
+                child_template = cfn_yaml_tags.to_json(child_template)
+                content = json.dumps(child_template, indent=2)
+
+            put_object_args = copy.deepcopy(S3_PUT_OBJECT_ARGS)
+
+            put_object_args.update({
+                "Key": child_template_key,
+                "Body": content,
+            })
+            if "ContentType" not in put_object_args:
+                content_type = "text/plain" if CHILD_TEMPLATES_IN_YAML else "application/json"
+                put_object_args["ContentType"] = content_type
+
+            if put_object:
+                put_object(**put_object_args)
+            else:
+                bucket.put_object(**put_object_args)
+
+        output_template = cfn_yaml_tags.to_json(output_template)
+
+        LOGGER.debug(f"Final output template:\n{utils.dump_yaml(output_template)}")
+
+        output = {
+            "requestId" : request_id,
+            "status" : "success",
+            "fragment" : output_template,
+        }
+
+        return output
+    except Exception as e:
+        LOGGER.exception(f"An error occurred: {e}")
+        output = {
+            "requestId" : request_id,
+            "status" : "failure",
+            "fragment" : {},
+            "errorMessage": str(e),
+        }
 

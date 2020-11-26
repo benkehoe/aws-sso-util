@@ -147,25 +147,25 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
     return trim_formatter
 
 @click.command()
-@click.option("--sso-start-url", "-u")
-@click.option("--sso-region")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
+@click.option("--sso-region", help="The AWS region your AWS SSO instance is deployed in")
 
-@click.option("--region", "-r", "regions", multiple=True)
+@click.option("--region", "-r", "regions", multiple=True, metavar="REGION", help="AWS region for the profiles, can provide multiple times")
 
-@click.option("--dry-run", is_flag=True, help="Print the config to stdout")
+@click.option("--dry-run", is_flag=True, help="Print the config to stdout instead of writing to your config file")
 
-@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE")
-@click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep")
+@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE", help="Additional config field to set, can provide multiple times")
+@click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep", help="Action when config defaults conflict with existing settings")
 
-@click.option("--components", "profile_name_components", default="account_name,role_name,default_style_region")
-@click.option("--separator", "--sep", "profile_name_separator", help=f"Default is '{DEFAULT_SEPARATOR}'")
-@click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default")
-@click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short")
-@click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names")
-@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names")
+@click.option("--components", "profile_name_components", metavar="VALUE,VALUE,...", default="account_name,role_name,default_style_region", help="Profile name components to join (comma-separated)")
+@click.option("--separator", "--sep", "profile_name_separator", metavar="SEP", help=f"Separator for profile name components, default is '{DEFAULT_SEPARATOR}'")
+@click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default", help="By default, the first region is left off the profile name")
+@click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
+@click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
+@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
 @click.option("--profile-name-process")
 
-@click.option("--credential-process/--no-credential-process", default=None)
+@click.option("--credential-process/--no-credential-process", default=None, help="Force enable/disable setting the credential process SDK helper")
 
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
@@ -186,6 +186,11 @@ def populate_profiles(
         credential_process,
         force_refresh,
         verbose):
+    """Configure profiles for all accounts and roles.
+
+    Writes a profile to your AWS config file (~/.aws/config) for every account and role you have access to,
+    for the regions you specify.
+    """
 
     configure_logging(LOGGER, verbose)
 
@@ -364,6 +369,8 @@ def populate_profiles(
             config_values["credential_process"] = f"{credential_process_name} --profile {config.profile_name}"
         elif set_credential_process is False:
             config_values.pop("credential_process", None)
+
+        config_values["sso_util_populate"] = "true"
 
         LOGGER.debug("Config values for profile {}: {}".format(config.profile_name, config_values))
 
