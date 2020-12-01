@@ -177,4 +177,4 @@ def assignments(
         print(separator.join(v or "" for v in assignment))
 
 if __name__ == "__main__":
-    assignments(prog_name="python -m aws_sso_util.cli.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    assignments(prog_name="python -m aws_sso_util.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

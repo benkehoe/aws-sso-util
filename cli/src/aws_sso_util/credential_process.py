@@ -194,4 +194,4 @@ def credential_process(
         sys.exit(5)
 
 if __name__ == "__main__":
-    credential_process(prog_name="python -m aws_sso_util.cli.credential_process")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    credential_process(prog_name="python -m aws_sso_util.credential_process")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

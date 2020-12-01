@@ -106,4 +106,4 @@ class SSOCredentialSweeper(BaseCredentialSweeper):
 
 
 if __name__ == "__main__":
-    logout(prog_name="python -m aws_sso_util.cli.logout")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    logout(prog_name="python -m aws_sso_util.logout")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

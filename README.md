@@ -21,7 +21,7 @@ Read the updated docs for `aws-sso-util credential-process` [here](docs/credenti
 
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
-Mac:
+Mac [and Linux](https://docs.brew.sh/Homebrew-on-Linux):
 ```bash
 brew install pipx
 pipx ensurepath
@@ -46,17 +46,17 @@ aws-sso-util --help
 4. Autocomplete
 
 `aws-sso-util` uses [click](https://click.palletsprojects.com/en/7.x/), which supports autocompletion.
-The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example that updates the completion in the background.
+The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example for bash that updates the completion in the background.
 
 ```bash
-AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR=~/.local/share/aws-sso-util
-AWS_SSO_UTIL_COMPLETE_SCRIPT=$AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR/complete.sh
+_AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR=~/.local/share/aws-sso-util
+_AWS_SSO_UTIL_COMPLETE_SCRIPT=$_AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR/complete.sh
 if which aws-sso-util > /dev/null; then
-  mkdir -p $AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR
-  (_AWS_SSO_UTIL_COMPLETE=source_bash aws-sso-util > $AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp ;
-    mv $AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp $AWS_SSO_UTIL_COMPLETE_SCRIPT &)
-  if [ -f $AWS_SSO_UTIL_COMPLETE_SCRIPT ]; then
-    source $AWS_SSO_UTIL_COMPLETE_SCRIPT
+  mkdir -p $_AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR
+  ({ _AWS_SSO_UTIL_COMPLETE=source_bash aws-sso-util > $_AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp ;
+    mv $_AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp $_AWS_SSO_UTIL_COMPLETE_SCRIPT; } &)
+  if [ -f $_AWS_SSO_UTIL_COMPLETE_SCRIPT ]; then
+    source $_AWS_SSO_UTIL_COMPLETE_SCRIPT
   fi
 fi
 ```
@@ -65,7 +65,7 @@ fi
 
 Read the full docs for `aws-sso-util configure` and `aws-sso-util roles` [here](docs/configure.md).
 
-You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles, but `aws-sso-util` also provides functionality to directly configure profiles for you.
+You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles in [`~/.aws/config`](https://ben11kehoe.medium.com/aws-configuration-files-explained-9a7ea7a5b42e), but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 

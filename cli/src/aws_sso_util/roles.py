@@ -123,4 +123,4 @@ def roles(
 
 
 if __name__ == "__main__":
-    roles(prog_name="python -m aws_sso_util.cli.roles")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    roles(prog_name="python -m aws_sso_util.roles")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

@@ -1,6 +1,6 @@
 # `aws-sso-util configure` and `aws-sso-util roles`
 
-You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles, but `aws-sso-util` also provides functionality to directly configure profiles for you.
+You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles in [`~/.aws/config`](https://ben11kehoe.medium.com/aws-configuration-files-explained-9a7ea7a5b42e), but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 
@@ -34,7 +34,7 @@ Otherwise, see below for the full resolution algorithm.
   * `name` is the account name.
   * `role` is the role name.
   * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
-* `--force-refresh`: log in again
+* `--force-refresh`: log in again.
 
 # Common options
 
@@ -206,9 +206,11 @@ The default formatting is roughly equivalent to the following code:
 import sys
 sep = "."
 (
-    account_name, account_id,
+    account_name,
+    account_id,
     role_name,
-    region_name, short_region_name
+    region_name,
+    short_region_name
 ) = sys.argv[1:6]
 region_index = int(sys.argv[6])
 region_str = "" if region_index == 0 else sep + short_region_name

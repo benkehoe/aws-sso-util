@@ -17,7 +17,7 @@ Read the updated docs for `aws-sso-util credential-process` [here](docs/credenti
 
 1. I recommend you install [`pipx`](https://pipxproject.github.io/pipx/), which installs the tool in an isolated virtualenv while linking the script you need.
 
-Mac:
+Mac [and Linux](https://docs.brew.sh/Homebrew-on-Linux):
 ```bash
 brew install pipx
 pipx ensurepath

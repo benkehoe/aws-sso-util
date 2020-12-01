@@ -188,4 +188,4 @@ def lookup_all_permission_sets(session, ids, printer: Printer, *, permission_set
     printer.print_after()
 
 if __name__ == "__main__":
-    lookup(prog_name="python -m aws_sso_util.cli.lookup")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    lookup(prog_name="python -m aws_sso_util.lookup")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

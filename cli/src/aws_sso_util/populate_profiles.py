@@ -370,7 +370,7 @@ def populate_profiles(
         elif set_credential_process is False:
             config_values.pop("credential_process", None)
 
-        config_values["sso_util_populate"] = "true"
+        config_values["sso_auto_populated"] = "true"
 
         LOGGER.debug("Config values for profile {}: {}".format(config.profile_name, config_values))
 
@@ -378,4 +378,4 @@ def populate_profiles(
 
 
 if __name__ == "__main__":
-    populate_profiles(prog_name="python -m aws_sso_util.cli.populate_profiles")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    populate_profiles(prog_name="python -m aws_sso_util.populate_profiles")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

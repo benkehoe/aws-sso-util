@@ -144,4 +144,4 @@ def login(
 
 
 if __name__ == "__main__":
-    login(prog_name="python -m aws_sso_util.cli.login")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    login(prog_name="python -m aws_sso_util.login")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

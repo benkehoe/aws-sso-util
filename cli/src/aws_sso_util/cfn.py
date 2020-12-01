@@ -385,4 +385,4 @@ def write_csv(template_process_inputs, assignments_csv, generation_config):
 
 
 if __name__ == "__main__":
-    generate_template(prog_name="python -m aws_sso_util.cli.cfn")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    generate_template(prog_name="python -m aws_sso_util.cfn")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

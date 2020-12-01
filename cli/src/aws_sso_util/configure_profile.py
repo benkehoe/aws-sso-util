@@ -212,4 +212,4 @@ def parse_cli_version(output):
     return d.get("aws-cli", "UNKNOWN")
 
 if __name__ == "__main__":
-    configure_profile(prog_name="python -m aws_sso_util.cli.configure_profile")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+    configure_profile(prog_name="python -m aws_sso_util.configure_profile")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
