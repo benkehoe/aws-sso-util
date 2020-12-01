@@ -10,7 +10,7 @@
 * Looking up identifiers
 * CloudFormation
 
-The underlying Python library for AWS SSO authentication is `aws-sso-lib`, which has useful functions like interactive login, creating a boto3 session for specific a account and role, and the programmatic versions of the `lookup` functions in `aws-sso-util`. See the documentation [here](lib/README.md).
+The underlying Python library for AWS SSO authentication is [`aws-sso-lib`](lib/README.md), which has useful functions like interactive login, creating a boto3 session for specific a account and role, and the programmatic versions of the `lookup` functions in `aws-sso-util`. See the documentation [here](lib/README.md).
 
 `aws-sso-util` supersedes `aws-sso-credential-process`, which is still available in its original form [here](https://github.com/benkehoe/aws-sso-credential-process).
 Read the updated docs for `aws-sso-util credential-process` [here](docs/credential-process.md).

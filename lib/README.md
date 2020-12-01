@@ -8,6 +8,8 @@ The primary functions that will be of interest are available at the package leve
 * `list_available_accounts` and `list_available_roles`: discover the access the user has.
 * `list_assignments`: for admin purposes, iterate over all assignments in AWS SSO, which is currently hard to do through the API.
 
+`aws-sso-util` is a command-line utility built on `aws-sso-lib` for interacting with AWS SSO; see the details of that project [here](https://github.com/benkehoe/aws-sso-util).
+
 ## Install
 
 ```
@@ -31,7 +33,7 @@ get_boto3_session(start_url, sso_region, account_id, role_name, region, login=Fa
 * `role_name`: [REQUIRED] The AWS SSO role (aka PermissionSet) name to use.
 * `region`: [REQUIRED] The AWS region for the boto3 session.
 * `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
-* Returns boto3 Session object configured for the account and role.
+* Returns a [boto3 Session object](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html) configured for the account and role.
 
 For more control over the login process, use the `login` function separately.
 
@@ -42,11 +44,10 @@ While the functions that require the user to be logged in let you specify `login
 If the user is not logged in or `force_refresh` is `True`, it will attempt to log in.
 If the user is logged in and `force_refresh` is `False`, no action is taken.
 
-If `disable_browser` is `True`, or if `disable_browser` is `None` (the default) and the environment variable `AWS_SSO_DISABLE_BROWSER` is set to `1` or `true`, a message will be printed to stderr with a URL and code for the user to log in with.
-Otherwise, it will attempt to automatically open the user's browser to log in, as well as printing the URL and code to stderr as a fallback.
+Normally, it will attempt to automatically open the user's browser to log in, as well as printing the URL and code to stderr as a fallback. However, if `disable_browser` is `True`, or if `disable_browser` is `None` (the default) and the environment variable `AWS_SSO_DISABLE_BROWSER` is set to `1` or `true`, only the message with the URL and code will be printed.
 
 A custom message can be printed by setting `message` to a template string using `{url}` and `{code}` as placeholders.
-The message can be suppressed by setting `message` to False.
+The message can be suppressed by setting `message` to `False`.
 
 ```python
 login(start_url, sso_region, force_refresh=False, disable_browser=None, message=None, outfile=None)
@@ -152,4 +153,4 @@ list_assignments(
 * ` get_permission_set_names`: Set to `True` to retrieve names for permission sets in assignments.
 * `get_target_names`: Set to `True` to retrieve names for targets in assignments, when they are explicitly provided as targets. For OUs as targets or if no targets are specified, the account names will be retrieved automatically during the enumeration process.
 * `ou_recursive`: Set to `True` if an OU is provided as a target to get all accounts including those in child OUs.
-* Returns an iterator over Assignment namedtuples
+* Returns an iterator over `Assignment` tuples
