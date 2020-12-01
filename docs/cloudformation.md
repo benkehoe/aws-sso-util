@@ -67,11 +67,16 @@ The macro template has the following parameters (note that for the values that c
 
 The template must include `AWS-SSO-Util-2020-11-08` in its [`Transform` section](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html).
 
+`AWS::SSO::PermissionSet` resources get the following features:
+* Leave the `InstanceArn` property off and it will get looked up using [`sso-admin:ListInstances`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html).
+* Specify the `InlinePolicy` as JSON/YAML, and it will get converted to string-containing-json. Note this only works if the policy does not contain references.
+* Specify a default session duration in the template metadata or the Macro template parameters, and it will get put on the permission sets if they don't have a value set already.
+
 The syntax for the `AWSSSOUtil::SSO::AssignmentGroup` resource is:
 
 ```yaml
 MyAssignmentGroup:
-  Type: AWSSOUtil::SSO::AssignmentGroup
+  Type: AWSSSOUtil::SSO::AssignmentGroup
   Properties:
     InstanceArn: arn:aws:sso:::instance/ssoins-d9e7477013d8e62a
     Principal:
