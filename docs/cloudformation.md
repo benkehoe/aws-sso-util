@@ -91,7 +91,7 @@ MyAssignmentGroup:
     - arn:aws:sso:::permissionSet/ssoins-69e2ecd0b249f0cd/ps-45b2cb9e8a6aee12
     - ssoins-69e2ecd0b249f0cd/ps-04a493b762a3fef9
     - ps-b5b9375180ceaaac
-    - !Ref SomePermissionSetResource
+    - !GetAtt SomePermissionSetResource.PermissionSetArn
 
     Target:
     - Type: AWS_OU
