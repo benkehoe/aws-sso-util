@@ -503,9 +503,17 @@ def lookup_account_by_name(session, account_name, *, cache=None):
 
     return found_account
 
-def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None):
+def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None, exclude_org_mgmt_acct=False):
     if cache is None:
         cache = {}
+
+    org_mgmt_acct = False
+    if exclude_org_mgmt_acct is True:
+        client = session.client("organizations")
+        response = client.describe_organization()
+        org_mgmt_acct = response["Organization"]["MasterAccountId"]
+    elif exclude_org_mgmt_acct:
+        org_mgmt_acct = _format.format_account_id(exclude_org_mgmt_acct)
 
     ou_type = "root" if ou.startswith("r-") else "OU"
 
@@ -528,6 +536,8 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None)
             LOGGER.debug(f"ListAccountsPage page {ind+1} for {ou}: {', '.join(acct_strs)}")
             for account in response["Accounts"]:
                 cache[ou_accounts_key].append(account)
+                if org_mgmt_acct and account["Id"] == org_mgmt_acct:
+                    continue
                 yield account
     else:
         acct_strs = [_acct_str(a) for a in cache[ou_accounts_key]]
@@ -536,6 +546,8 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None)
         else:
             LOGGER.debug(f"Loaded cached accounts for {ou_type} {ou}: (empty list)")
         for account in cache[ou_accounts_key]:
+            if org_mgmt_acct and account["Id"] == org_mgmt_acct:
+                continue
             yield account
 
     if recursive:
@@ -558,7 +570,11 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None)
                 LOGGER.debug(f"ListOrganizationalUnitsForParent page {ind+1} for {ou}: {', '.join(sub_ous)}")
                 for sub_ou_id in sub_ous:
                     cache[ou_children_key].append(sub_ou_id)
-                    for account in lookup_accounts_for_ou(session, sub_ou_id, recursive=child_recursive, refresh=refresh, cache=cache):
+                    for account in lookup_accounts_for_ou(session, sub_ou_id,
+                            recursive=child_recursive,
+                            refresh=refresh,
+                            cache=cache,
+                            exclude_org_mgmt_acct=org_mgmt_acct):
                         yield account
         else:
             sub_ous = cache[ou_children_key]
@@ -567,7 +583,11 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None)
             else:
                 LOGGER.debug(f"Loaded cached child OUs for {ou_type} {ou}: (empty list)")
             for sub_ou_id in sub_ous:
-                for account in lookup_accounts_for_ou(session, sub_ou_id, recursive=child_recursive, refresh=refresh, cache=cache):
+                for account in lookup_accounts_for_ou(session, sub_ou_id,
+                        recursive=child_recursive,
+                        refresh=refresh,
+                        cache=cache,
+                        exclude_org_mgmt_acct=org_mgmt_acct):
                     yield account
 
     return accounts

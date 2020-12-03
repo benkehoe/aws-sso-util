@@ -148,8 +148,6 @@ def generate_template(
         default_session_duration=default_session_duration,
     )
 
-    ou_fetcher = lambda ou, recursive: [a["Id"] for a in lookup.lookup_accounts_for_ou(session, ou, recursive=recursive, cache=cache)]
-
     if not template_file_suffix:
         template_file_suffix = ".yaml"
     elif not template_file_suffix.endswith(".yaml"):
@@ -170,7 +168,6 @@ def generate_template(
             config_file=config_file,
             session=session,
             ids=ids,
-            ou_fetcher=ou_fetcher,
             template_file_suffix=template_file_suffix,
             output_dir=output_dir,
             base_generation_config=generation_config,
@@ -180,7 +177,6 @@ def generate_template(
             config_file=config_file,
             session=session,
             ids=ids,
-            ou_fetcher=ou_fetcher,
             template_file_suffix=template_file_suffix,
             output_dir=output_dir,
             base_template=base_template,
@@ -202,7 +198,6 @@ def process_config(
     config_file,
     session,
     ids,
-    ou_fetcher,
     template_file_suffix,
     output_dir,
     base_template,
@@ -235,6 +230,12 @@ def process_config(
             LOGGER.fatal(f"{e!s} in {config_file_path}")
             sys.exit(1)
 
+        cache = {}
+        ou_fetcher = lambda ou, recursive: [a["Id"] for a in lookup.lookup_accounts_for_ou(session, ou,
+            recursive=recursive,
+            cache=cache,
+            exclude_org_mgmt_acct=True)]
+
         resource_collection = resources.get_resources_from_config(
             config,
             ou_fetcher=ou_fetcher)
@@ -260,7 +261,6 @@ def process_macro(
         config_file,
         session,
         ids,
-        ou_fetcher,
         template_file_suffix,
         output_dir,
         base_generation_config):
