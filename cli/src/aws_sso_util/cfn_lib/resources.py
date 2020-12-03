@@ -167,9 +167,10 @@ class Target:
         OU = 'AWS_OU'
         ACCOUNT = 'AWS_ACCOUNT'
 
-    def __init__(self, type: 'Target.Type', id: str, source_ou=None):
+    def __init__(self, type: 'Target.Type', id: str, name: str=None, source_ou=None):
         self.type = type
         self.id = id
+        self.name = name
         self.source_ou = source_ou
 
         self.references = utils.get_references(self.id)
@@ -250,7 +251,9 @@ class Assignment:
             if permission_set_name:
                 metadata["PermissionSetName"] = permission_set_name
 
-        if target_name_fetcher:
+        if self.target.name:
+            metadata["TargetName"] = self.target.name
+        elif target_name_fetcher:
             target_name = target_name_fetcher(self.target.type.value, self.target.id)
             if target_name:
                 metadata["TargetName"] = target_name
@@ -408,12 +411,14 @@ def get_resources_from_config(config: Config, assignment_metadata=None, ou_fetch
     for ou in config.ous:
         LOGGER.debug(f"Translating OU {ou} to accounts")
         for account in ou_fetcher(ou, recursive=False):
-            targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
+            name = account.get("Name") or None
+            targets.append(Target(Target.Type.ACCOUNT, account["Id"], name=name, source_ou=ou))
 
     for ou in config.recursive_ous:
         LOGGER.debug(f"Translating OU {ou} recursively to accounts")
         for account in ou_fetcher(ou, recursive=True):
-            targets.append(Target(Target.Type.ACCOUNT, account, source_ou=ou))
+            name = account.get("Name") or None
+            targets.append(Target(Target.Type.ACCOUNT, account["Id"], name=name, source_ou=ou))
 
     for account in config.accounts:
         targets.append(Target(Target.Type.ACCOUNT, account))

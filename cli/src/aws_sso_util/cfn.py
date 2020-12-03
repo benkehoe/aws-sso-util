@@ -231,10 +231,10 @@ def process_config(
             sys.exit(1)
 
         cache = {}
-        ou_fetcher = lambda ou, recursive: [a["Id"] for a in lookup.lookup_accounts_for_ou(session, ou,
+        ou_fetcher = lambda ou, recursive: lookup.lookup_accounts_for_ou(session, ou,
             recursive=recursive,
             cache=cache,
-            exclude_org_mgmt_acct=True)]
+            exclude_org_mgmt_acct=True)
 
         resource_collection = resources.get_resources_from_config(
             config,
