@@ -30,6 +30,9 @@ To allow for more assignments, you need to specify a number of child stacks.
 You can either specify the number of child stacks explicitly, or provide the maximum number of assignment resources you want to support (which will calculate the number of child stacks automatically).
 See below for how to configure this.
 
+Note that no assignments for the Organizations management account will be generated unless it is explicitly listed as an account target.
+If an OU that contains the management account is given as a target, the generated assignments for that OU will not include the management account.
+
 The assignment resources can contain metadata, in the `Metadata` section of the resource under the `SSO` key.
 * If you are using the macro: The resource name of the `AssignmentGroup` resource, as well as the value of the `Name` property of the resource, if it exists and is a string.
 * If you specified an OU as a target
