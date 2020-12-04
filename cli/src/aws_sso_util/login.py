@@ -116,10 +116,13 @@ def login(
         try:
             token = token_fetcher.fetch_token(instance.start_url, force_refresh=force)
             LOGGER.debug(f"Token: {token}")
-            expiration = parse(token['expiresAt']).astimezone(tzutc())
-            expiration_str = expiration.strftime(UTC_TIME_FORMAT)
+            expiration = token['expiresAt']
+            if isinstance(expiration, str):
+                expiration = parse(expiration)
+            expiration_utc = expiration.astimezone(tzutc())
+            expiration_str = expiration_utc.strftime(UTC_TIME_FORMAT)
             try:
-                local_expiration = expiration.astimezone(tzlocal())
+                local_expiration = expiration_utc.astimezone(tzlocal())
                 expiration_str = local_expiration.strftime(LOCAL_TIME_FORMAT)
                 # TODO: locale-friendly string
             except:
@@ -129,18 +132,21 @@ def login(
             print(f"Login window expired", file=sys.stderr)
             sys.exit(2)
         except aws_error_utils.catch_aws_error("InvalidGrantException") as e:
+            LOGGER.debug("Login failed; the login window may have expired", exc_info=True)
             err_info = aws_error_utils.get_aws_error_info(e)
             msg_str = f" ({err_info.message})" if err_info.message else ""
             print(f"Login failed; the login window may have expired: {err_info.code}{msg_str}", file=sys.stderr)
-            sys.exit(2)
+            sys.exit(3)
         except botocore.exceptions.ClientError as e:
+            LOGGER.debug("Login failed", exc_info=True)
             err_info = aws_error_utils.get_aws_error_info(e)
             msg_str = f" ({err_info.message})" if err_info.message else ""
             print(f"Login failed: {err_info.code}{msg_str}", file=sys.stderr)
-            sys.exit(2)
+            sys.exit(4)
         except Exception as e:
+            LOGGER.debug("Login failed", exc_info=True)
             print(f"Login failed: {e}", file=sys.stderr)
-            sys.exit(2)
+            sys.exit(4)
 
 
 if __name__ == "__main__":

@@ -15,12 +15,19 @@
 
 import os
 import re
+import shlex
 
 class SectionNotFoundError(Exception):
     pass
 
 def get_config_filename(session):
     return os.path.expanduser(session.get_config_variable('config_file'))
+
+_WHITESPACE = ' \t'
+def process_profile_name(profile_name):
+    if any(c in _WHITESPACE for c in profile_name):
+        profile_name = shlex.quote(profile_name)
+    return profile_name
 
 def write_values(session, profile_name, values, config_file_writer=None, existing_config_action=None):
     if not config_file_writer:
@@ -51,7 +58,7 @@ def write_values(session, profile_name, values, config_file_writer=None, existin
     config_filename = os.path.expanduser(
         session.get_config_variable('config_file'))
 
-    section = 'profile {}'.format(profile_name)
+    section = 'profile {}'.format(process_profile_name(profile_name))
     new_values['__section__'] = section
     config_file_writer.update_config(new_values, config_filename, existing_config_action)
 

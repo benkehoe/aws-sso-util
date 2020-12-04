@@ -29,7 +29,7 @@ import click
 
 from aws_sso_lib.sso import get_token_fetcher
 from aws_sso_lib.config import find_instances, SSOInstance
-from aws_sso_lib.config_file_writer import ConfigFileWriter, write_values, get_config_filename
+from aws_sso_lib.config_file_writer import ConfigFileWriter, write_values, get_config_filename, process_profile_name
 
 from .utils import configure_logging, get_instance, GetInstanceError
 
@@ -316,12 +316,12 @@ def populate_profiles(
         config_writer = ConfigFileWriter()
         def write_config(profile_name, config_values):
             # discard because we're already loading the existing values
-            write_values(session, config.profile_name, config_values, config_file_writer=config_writer, existing_config_action="discard")
+            write_values(session, profile_name, config_values, config_file_writer=config_writer, existing_config_action="discard")
     else:
         LOGGER.info("Dry run for {} profiles".format(len(configs)))
         def write_config(profile_name, config_values):
             lines = [
-                "[profile {}]".format(profile_name)
+                "[profile {}]".format(process_profile_name(profile_name))
             ]
             for key, value in config_values.items():
                 lines.append("{} = {}".format(key, value))
