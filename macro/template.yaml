@@ -130,6 +130,7 @@ Resources:
           - organizations:ListAccountsForParent
           - organizations:ListOrganizationalUnitsForParent
           - organizations:DescribeAccount
+          - organizations:DescribeOrganization
           - organizations:DescribeOrganizationalUnit
           Resource: "*"
         - Sid: IdentityStore
