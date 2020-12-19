@@ -1,18 +1,18 @@
-# `aws-sso-util lookup` and `aws-sso-util assignments`
+# `aws-sso-util admin lookup` and `aws-sso-util admin assignments`
 The AWS SSO APIs leave a lot to be desired when it comes to searching and listing items.
 These two utilities help deal with that.
 
-# `aws-sso-util lookup`
+# `aws-sso-util admin lookup`
 The AWS SSO APIs and CloudFormation resources require the use of identifiers that are not displayed in the console, and that the APIs do not make easy to look up by name.
-`aws-sso-util lookup` is provided to make this a little easier.
+`aws-sso-util admin lookup` is provided to make this a little easier.
 
 | Item                    | Syntax                                                  |
 | ----------------------- | ------------------------------------------------------- |
-| AWS SSO instance        | `aws-sso-util lookup instance`                          |
-| AWS SSO identity store  | `aws-sso-util lookup identity-store`                    |
-| Groups                  | `aws-sso-util lookup groups GROUP_NAME [GROUP_NAME...]` |
-| Users                   | `aws-sso-util lookup users USER_NAME [USER_NAME...]`    |
-| Permission sets         | `aws-sso-util lookup permission-sets NAME [NAME...]`    |
+| AWS SSO instance        | `aws-sso-util admin lookup instance`                          |
+| AWS SSO identity store  | `aws-sso-util admin lookup identity-store`                    |
+| Groups                  | `aws-sso-util admin lookup groups GROUP_NAME [GROUP_NAME...]` |
+| Users                   | `aws-sso-util admin lookup users USER_NAME [USER_NAME...]`    |
+| Permission sets         | `aws-sso-util admin lookup permission-sets NAME [NAME...]`    |
 
 For instance and identity store, it just prints out the id.
 For the others, it displays the instance/identity store id being used, and then a list of the names with their identifiers.
@@ -29,21 +29,21 @@ By default, the ids will not be printed when they are looked up; you can display
 Because AWS SSO APIs require the instance ARN, I find these shell functions handy to put in your `.bashrc`/`.profile`:
 ```bash
 sso-ins() {
-    aws-sso-util lookup instance "$@"
+    aws-sso-util admin lookup instance "$@"
 }
 
 sso-ins-id() {
-    aws-sso-util lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g"
+    aws-sso-util admin lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g"
 }
 
 sso-store() {
-    aws-sso-util lookup identity-store "$@"
+    aws-sso-util admin lookup identity-store "$@"
 }
 
 sso-ps() {
     _PS=$1
     shift
-    _INS=$(aws-sso-util lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g")
+    _INS=$(aws-sso-util admin lookup instance "$@" | sed "s/arn:aws:sso:::instance\///g")
     echo arn:aws:sso:::permission-set/arn:aws:sso:::permissionSet/$_INS/$_PS
 }
 ```
@@ -53,7 +53,7 @@ You can then use it like:
 $ aws sso-admin describe-permission-set --instance-arn $(sso-ins) --permission-set-arn $(sso-ps ps-fd6a454dd00d9c28)
 ```
 
-# `aws-sso-util assignments`
+# `aws-sso-util admin assignments`
 There is no simple API for retrieving all assignments or even a decent subset.
 The current best you can do is [list all the users with a particular PermissionSet on a particular account](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
 

@@ -61,7 +61,7 @@ def param_loader(ctx, param, value):
             d.append((p, None))
     return dict(d)
 
-@click.command()
+@click.command("cfn")
 @click.argument("config_file", required=True, nargs=-1, type=click.File("r"))
 
 @click.option("--macro", is_flag=True, help="Process templates with macro")

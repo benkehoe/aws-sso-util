@@ -82,6 +82,17 @@ def credential_process(
         role_name,
         force_refresh,
         verbose):
+    """Helper for AWS SDKs that don't yet support AWS SSO.
+
+    This is not a command you use directly.
+    In a ~/.aws/config profile set up for AWS SSO, you can add the line
+
+    credential_process = aws-sso-util credential-process --profile NAME
+
+    with the profile name set to the profile the line is in.
+
+    This line is automatically added by aws-sso-util configure commands.
+    """
 
     if verbose or os.environ.get("AWS_SSO_CREDENTIAL_PROCESS_DEBUG", "").lower() in ["1", "true"]:
         logging.basicConfig(level=logging.DEBUG, filename=LOG_FILE, filemode="w")

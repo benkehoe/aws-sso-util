@@ -55,7 +55,7 @@ def login(
         force,
         headless,
         verbose):
-    """Log in to an AWS SSO instance
+    """Log in to an AWS SSO instance.
 
     Note this only needs to be done once for a given SSO instance (i.e., start URL),
     as all profiles sharing the same start URL will share the same login.

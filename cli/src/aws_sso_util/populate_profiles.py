@@ -146,7 +146,7 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, **kwargs)
     return trim_formatter
 
-@click.command()
+@click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
 @click.option("--sso-region", help="The AWS region your AWS SSO instance is deployed in")
 

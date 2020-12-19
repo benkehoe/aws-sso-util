@@ -3,6 +3,8 @@
 
 [AWS SSO](https://aws.amazon.com/single-sign-on/) has some rough edges, and `aws-sso-util` is here to smooth them out, hopefully temporarily until AWS makes it better.
 
+You can read a primer on AWS SSO [here](docs/primer.md).
+
 `aws-sso-util` contains utilities for the following:
 * Configuring `.aws/config`
 * Logging in/out
@@ -94,21 +96,19 @@ However, they all have support for `credential_process`, which allows an externa
 `aws-sso-util credential-process` uses this to allow these SDKs to get credentials from AWS SSO.
 It's added automatically (by default) by the `aws-sso-util configure` commands.
 
-## Looking up identifiers and assignments
+## Administrators: Looking up identifiers and assignments
 
-Read the full docs for `aws-sso-util lookup` and `aws-sso-util assignments` [here](docs/lookup.md).
+Read the full docs for `aws-sso-util admin lookup` and `aws-sso-util admin assignments` [here](docs/lookup.md).
 
 When you're creating assignments through the API or CloudFormation, you're required to use identifiers like the instance ARN, the principal ID, etc.
 These identifiers aren't readily available through the console, and the principal IDs are not the IDs you're familiar with.
-`aws-sso-util lookup` allows you to get these identifers, even en masse.
+`aws-sso-util admin lookup` allows you to get these identifers, even en masse.
 
 There is no simple API for retrieving all assignments or even a decent subset.
 The current best you can do is [list all the users with a particular PermissionSet on a particular account](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
 `aws-sso-util assigments` takes the effort out of looping over the necessary APIs.
 
-## CloudFormation support
-
-> :warning: The CloudFormation functionality is experimental. I have found the `AWS::SSO::Assignment` resources to be a little brittle and I am not yet confident they will work well if a particular assignment gets moved between nested stacks. This warning will be removed once I have confidence in the functionality.
+## Administrators: CloudFormation support
 
 You'll want to read the full docs [here](docs/cloudformation.md).
 
@@ -116,7 +116,7 @@ AWS SSO's CloudFormation support currently only includes [`AWS::SSO::Assignment`
 Additionally, AWS SSO does not support OUs as targets, so you need to specify every account separately.
 
 Obviously, this gets verbose, and even an organization of moderate size is likely to have tens of thousands of assignments.
-`aws-sso-util cfn` provides two mechanisms to make this concise.
+`aws-sso-util admin cfn` provides two mechanisms to make this concise.
 
 I look forward to discarding this part of the tool once there are two prerequisites:
 1. OUs as targets for assignments
@@ -129,7 +129,7 @@ I look forward to discarding this part of the tool once there are two prerequisi
 
 I am against client-side generation of CloudFormation templates, but if you don't want to trust this 3rd party macro, you can generate the CloudFormation templates directly.
 
-`aws-sso-util cfn` takes one or more input files, and for each input file, generates a CloudFormation template and potentially one or more child templates.
+`aws-sso-util admin cfn` takes one or more input files, and for each input file, generates a CloudFormation template and potentially one or more child templates.
 These templates can then be packaged and uploaded using [`aws cloudformation package`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudformation/package.html) or [the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html), for example.
 
 The input files can either be templates using the Macro (using the `--macro` flag), or somewhat simpler configuration files using a different syntax.

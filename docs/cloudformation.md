@@ -1,14 +1,12 @@
 # aws-sso-util CloudFormation support
 
-> :warning: The CloudFormation functionality is experimental. I have found the `AWS::SSO::Assignment` resources to be a little brittle and I am not yet confident they will work well if a particular assignment gets moved between nested stacks. This warning will be removed once I have confidence in the functionality.
-
 `aws-sso-util` helps patch over the lack of support in AWS SSO, and therefore in AWS SSO's CloudFormation resources, for managing assignments as groups.
 
 AWS SSO's CloudFormation support currently only includes [`AWS::SSO::Assignment`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sso-assignment.html), which means for every combination of principal (group or user), permission set, and target (AWS account), you need a separate CloudFormation resource.
 Additionally, AWS SSO does not support OUs as targets, so you need to specify every account separately.
 
 Obviously, this gets verbose, and even an organization of moderate size is likely to have tens of thousands of assignments.
-`aws-sso-util` provides two mechanisms to make this concise, a [CloudFormation Macro](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-macros.html) for cloud-side processing, or client-side generation using `aws-sso-util cfn`.
+`aws-sso-util` provides two mechanisms to make this concise, a [CloudFormation Macro](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-macros.html) for cloud-side processing, or client-side generation using `aws-sso-util admin cfn`.
 
 [I look forward to discarding](https://faasandfurious.com/122) this part of the tool once there are two prerequisites:
 1. OUs as targets for assignments
@@ -128,7 +126,7 @@ The template can control some of its generation by including the following keys 
 
 I am against client-side generation of CloudFormation templates, but if you don't want to trust this 3rd party macro, you can generate the CloudFormation templates directly.
 
-`aws-sso-util cfn` takes one or more input files, and for each input file, generates a CloudFormation template and potentially one or more child templates.
+`aws-sso-util admin cfn` takes one or more input files, and for each input file, generates a CloudFormation template and potentially one or more child templates.
 These templates can then be packaged and uploaded using [`aws cloudformation package`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/cloudformation/package.html), for example.
 
 The input files can either be templates using the Macro (using the `--macro` flag), or somewhat simpler configuration files using a different syntax.

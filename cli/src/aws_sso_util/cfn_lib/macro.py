@@ -48,6 +48,7 @@ Output:
 """
 TRANSFORM_NAME = "AWS-SSO-Util-2020-11-08"
 RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
+PERMISSION_SET_RESOURCE_TYPE = "SSOUtil::SSO::PermissionSet"
 
 LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +78,10 @@ def process_template(template,
             del base_template["Transform"]
         else:
             base_template["Transform"] = [t for t in base_template["Transform"] if t != TRANSFORM_NAME]
+
+    for resource_name, resource in base_template["Resources"].items():
+        if resource["Type"] == PERMISSION_SET_RESOURCE_TYPE:
+            resource["Type"] = "AWS::SSO::PermissionSet"
 
     resource_keys = [k for k, v in base_template["Resources"].items() if v["Type"] == RESOURCE_TYPE]
     resource_dict = {k: base_template["Resources"].pop(k) for k in resource_keys}

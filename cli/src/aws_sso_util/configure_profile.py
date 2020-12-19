@@ -40,7 +40,7 @@ CREDENTIAL_PROCESS_NAME_VAR= "AWS_SSO_CREDENTIAL_PROCESS_NAME"
 
 SET_CREDENTIAL_PROCESS_DEFAULT = True
 
-@click.command("configure-profile")
+@click.command("profile")
 @click.argument("profile", metavar="PROFILE_NAME")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
 @click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")

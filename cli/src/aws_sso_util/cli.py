@@ -33,6 +33,7 @@ def cli():
 
 @cli.group()
 def configure():
+    """Commands to set up ~/.aws/config."""
     pass
 
 configure.add_command(configure_profile, "profile")
@@ -42,11 +43,22 @@ cli.add_command(login)
 cli.add_command(logout)
 cli.add_command(roles)
 
-cli.add_command(lookup)
-cli.add_command(assignments)
+@cli.group()
+def admin():
+    """Commands for AWS SSO administration."""
+    pass
 
-# cli.add_command(deploy_macro)
-cli.add_command(generate_template, "cfn")
+admin.add_command(lookup)
+admin.add_command(assignments)
+
+# admin.add_command(deploy_macro)
+admin.add_command(generate_template, "cfn")
 
 cli.add_command(credential_process)
+
+_list_commands = cli.list_commands
+def list_commands(ctx):
+    return [c for c in _list_commands(ctx) if c != "credential-process"]
+
+cli.list_commands = list_commands
 
