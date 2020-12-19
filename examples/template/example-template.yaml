@@ -26,8 +26,8 @@ Resources:
       Targets:
       - Type: AWS_ACCOUNT
         TargetIds:
-        - 123456789012
-        - 174652129131
+        - "123456789012"
+        - "112233445566"
 
   ComplexAssignmentGroup:
     Type: SSOUtil::SSO::AssignmentGroup
@@ -51,5 +51,5 @@ Resources:
         Id: {"Ref": "AccountParameter"}
       - Type: AWS_ACCOUNT
         TargetIds:
-        - 123456789012
-        - 174652129131
+        - "123456789012"
+        - "112233445566"
