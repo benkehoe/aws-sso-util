@@ -89,12 +89,12 @@ You could have a particular account and role set up in your default profile, but
 
 ## Adding AWS SSO support to AWS SDKs
 
+The credential process is added automatically (by default) by the `aws-sso-util configure` commands; you only need to read this section if you're not using that or want to understand it more fully.
 Read the full docs for `aws-sso-util credential-process` [here](docs/credential-process.md).
 
 Not all AWS SDKs have support for AWS SSO (which will change eventually).
 However, they all have support for `credential_process`, which allows an external process to provide credentials.
 `aws-sso-util credential-process` uses this to allow these SDKs to get credentials from AWS SSO.
-It's added automatically (by default) by the `aws-sso-util configure` commands.
 
 ## Administrators: Looking up identifiers and assignments
 
@@ -106,7 +106,7 @@ These identifiers aren't readily available through the console, and the principa
 
 There is no simple API for retrieving all assignments or even a decent subset.
 The current best you can do is [list all the users with a particular PermissionSet on a particular account](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
-`aws-sso-util assigments` takes the effort out of looping over the necessary APIs.
+`aws-sso-util admin assignments` takes the effort out of looping over the necessary APIs.
 
 ## Administrators: CloudFormation support
 
