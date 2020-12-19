@@ -208,3 +208,16 @@ class SSOTokenFetcher(object):
 
     def fetch_token(self, start_url, force_refresh=False):
         return self._token(start_url, force_refresh)
+
+    def pop_token_from_cache(self, start_url):
+        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        # Only obey the token cache if we are not forcing a refresh.
+        if cache_key in self._cache:
+            token = self._cache[cache_key]
+            try:
+                del self._cache[cache_key]
+            except AttributeError:
+                pass
+            return token
+        else:
+            return None

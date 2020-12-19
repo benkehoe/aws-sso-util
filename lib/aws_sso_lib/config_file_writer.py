@@ -40,12 +40,13 @@ def write_values(session, profile_name, values, config_file_writer=None, existin
     # post-conditions: ~/.aws/credentials will have the updated credential
     # file values and new_values will have the cred vars removed.
     credential_file_values = {}
-    if 'aws_access_key_id' in new_values:
-        credential_file_values['aws_access_key_id'] = new_values.pop(
-            'aws_access_key_id')
-    if 'aws_secret_access_key' in new_values:
-        credential_file_values['aws_secret_access_key'] = new_values.pop(
-            'aws_secret_access_key')
+    for credential_key in [
+            'aws_access_key_id',
+            'aws_secret_access_key',
+            'aws_session_token']:
+        if credential_key in new_values:
+            credential_file_values[credential_key] = new_values.pop(
+                credential_key)
     if credential_file_values:
         if profile_name is not None:
             credential_file_values['__section__'] = profile_name
@@ -55,12 +56,13 @@ def write_values(session, profile_name, values, config_file_writer=None, existin
             credential_file_values,
             shared_credentials_filename)
 
-    config_filename = os.path.expanduser(
-        session.get_config_variable('config_file'))
+    if new_values:
+        config_filename = os.path.expanduser(
+            session.get_config_variable('config_file'))
 
-    section = 'profile {}'.format(process_profile_name(profile_name))
-    new_values['__section__'] = section
-    config_file_writer.update_config(new_values, config_filename, existing_config_action)
+        section = 'profile {}'.format(process_profile_name(profile_name))
+        new_values['__section__'] = section
+        config_file_writer.update_config(new_values, config_filename, existing_config_action)
 
 
 class ConfigFileWriter(object):

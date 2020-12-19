@@ -22,15 +22,16 @@ import logging
 import datetime
 import uuid
 import numbers
+import typing
 
 import boto3
 import botocore
 from botocore.credentials import JSONFileCache
+from botocore.credentials import SSOCredentialFetcher
 
 from .format import format_account_id
 
 from .vendored_botocore.utils import SSOTokenFetcher
-from .vendored_botocore.credentials import SSOCredentialFetcher
 
 from .exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError
 from .browser import OpenBrowserHandler, non_interactive_auth_raiser
@@ -45,14 +46,16 @@ CREDENTIALS_CACHE_DIR = os.path.expanduser(
 
 LOGGER = logging.getLogger(__name__)
 
-def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
+__all__ = ["get_boto3_session", "login", "list_available_accounts", "list_available_roles"]
+
+def _get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
                      on_pending_authorization=None, message=None, outfile=None,
                      disable_browser=None):
     if hasattr(session, "_session"): #boto3 Session
         session = session._session
 
-    if token_cache is None:
-        token_cache = JSONFileCache(SSO_TOKEN_DIR)
+    if sso_cache is None:
+        sso_cache = JSONFileCache(SSO_TOKEN_DIR)
 
     if on_pending_authorization is None:
         if interactive:
@@ -67,22 +70,10 @@ def get_token_fetcher(session, sso_region, interactive=False, token_cache=None,
     token_fetcher = SSOTokenFetcher(
         sso_region=sso_region,
         client_creator=session.create_client,
-        cache=token_cache,
+        cache=sso_cache,
         on_pending_authorization=on_pending_authorization,
     )
     return token_fetcher
-
-# def get_token_loader(session, sso_region, interactive=False, token_cache=None,
-#                      on_pending_authorization=None, message=None, force_refresh=False):
-#     token_fetcher = get_token_fetcher(
-#         session=session,
-#         sso_region=sso_region,
-#         interactive=interactive,
-#         token_cache=token_cache,
-#         on_pending_authorization=on_pending_authorization,
-#         message=message,
-#     )
-#     return get_token_loader_from_token_fetcher(token_fetcher, force_refresh=force_refresh)
 
 def _get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
     def token_loader(start_url):
@@ -96,11 +87,21 @@ def _get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
     return token_loader
 
 
-def get_credentials(session, start_url, sso_region, account_id, role_name, token_fetcher=None, force_refresh=False, cache=None):
+def get_credentials(session, start_url, sso_region, account_id, role_name, *,
+        token_fetcher=None,
+        force_refresh=False,
+        sso_cache=None):
+    """Return credentials for the given role.
+
+    The return value is a dict containing the assumed role credentials.
+
+    You probably want to use get_boto3_session() instead, which returns
+    a boto3 session that caches its credentials and automatically refreshes them.
+    """
     if hasattr(session, "_session"): #boto3 Session
         session = session._session
     if not token_fetcher:
-        token_fetcher = get_token_fetcher(session, sso_region)
+        token_fetcher = _get_token_fetcher(session, sso_region, sso_cache=sso_cache)
 
     token_loader = _get_token_loader_from_token_fetcher(token_fetcher=token_fetcher, force_refresh=force_refresh)
 
@@ -117,9 +118,16 @@ def get_credentials(session, start_url, sso_region, account_id, role_name, token
         token_loader=token_loader,
     )
 
-    return credential_fetcher.fetch_credentials()
+    return credential_fetcher.fetch_credentials()["Credentials"]
 
-def get_botocore_session(start_url, sso_region, account_id, role_name):
+def _get_botocore_session(
+        start_url,
+        sso_region,
+        account_id,
+        role_name,
+        credential_cache=None,
+        sso_cache=None,
+        ):
     botocore_session = botocore.session.Session()
 
     profile_name = str(uuid.uuid4())
@@ -136,7 +144,9 @@ def get_botocore_session(start_url, sso_region, account_id, role_name):
     sso_provider = botocore.credentials.SSOProvider(
         load_config=load_config,
         client_creator=botocore_session.create_client,
-        profile_name=profile_name
+        profile_name=profile_name,
+        cache=credential_cache,
+        token_cache=sso_cache,
     )
 
     botocore_session.register_component(
@@ -146,16 +156,27 @@ def get_botocore_session(start_url, sso_region, account_id, role_name):
 
     return botocore_session
 
-def get_boto3_session(start_url, sso_region, account_id, role_name, *, region, login=False):
+def get_boto3_session(
+        start_url: str,
+        sso_region: str,
+        account_id: typing.Union[str, int],
+        role_name: str,
+        *,
+        region: str,
+        login: bool=False,
+        sso_cache=None,
+        credential_cache=None) -> boto3.Session:
     """Get a boto3 session with the input configuration.
 
     Args:
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
         account_id (str): The AWS account ID to use.
-        role_name (str): The AWS SSO role (aka PermissionSet) name to use.
+        role_name (str): The AWS SSO role (aka Permission Set) name to use.
         region (str): The AWS region for the boto3 session.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
+        sso_cache: A dict-like object for AWS SSO credential caching.
+        credential_cache: A dict-like object to cache the role credentials in.
 
     Returns:
         A boto3 Session object configured for the account and role.
@@ -163,15 +184,25 @@ def get_boto3_session(start_url, sso_region, account_id, role_name, *, region, l
     account_id = format_account_id(account_id)
 
     if login:
-        _login(start_url, sso_region)
+        _login(start_url, sso_region, sso_cache=sso_cache)
 
-    botocore_session = get_botocore_session(start_url, sso_region, account_id, role_name)
+    botocore_session = _get_botocore_session(start_url, sso_region, account_id, role_name,
+        credential_cache=credential_cache,
+        sso_cache=sso_cache)
 
     session = boto3.Session(botocore_session=botocore_session, region_name=region)
 
     return session
 
-def login(start_url, sso_region, *, force_refresh=False, disable_browser=None, message=None, outfile=None):
+def login(
+        start_url: str,
+        sso_region: str,
+        *,
+        force_refresh: bool=False,
+        disable_browser: bool=None,
+        message: str=None,
+        outfile: typing.Union[typing.TextIO, typing.Literal[False]]=None,
+        sso_cache=None) -> typing.Dict:
     """Interactively log in the user if their AWS SSO credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
@@ -194,6 +225,7 @@ def login(start_url, sso_region, *, force_refresh=False, disable_browser=None, m
         message (str): A message template to print with the fallback URL and code.
         outfile (file): The file-like object to print the message to,
             or False to suppress the message.
+        sso_cache: A dict-like object for AWS SSO credential caching.
 
     Returns:
         The token dict as returned by sso-oidc:CreateToken,
@@ -201,13 +233,14 @@ def login(start_url, sso_region, *, force_refresh=False, disable_browser=None, m
         """
     session = botocore.session.Session()
 
-    token_fetcher = get_token_fetcher(
+    token_fetcher = _get_token_fetcher(
         session=session,
         sso_region=sso_region,
         interactive=True,
         message=message,
         outfile=outfile,
-        disable_browser=disable_browser)
+        disable_browser=disable_browser,
+        sso_cache=sso_cache)
 
     token = token_fetcher.fetch_token(
         start_url=start_url,
@@ -218,20 +251,78 @@ def login(start_url, sso_region, *, force_refresh=False, disable_browser=None, m
 
 _login = login
 
-def list_available_accounts(start_url, sso_region, *, login=False):
+def logout(
+        start_url: str,
+        sso_region: str,
+        *,
+        sso_cache=None):
+    """Log out of the given AWS SSO instance.
+
+    Note that this function currently does not remove the token from
+    the SSO file cache, which can cause subsequent usage of other functions
+    in this module to pick up an invalid token from there.
+    https://github.com/boto/botocore/issues/2255
+
+    Args:
+        start_url (str): The start URL for the AWS SSO instance.
+        sso_region (str): The AWS region for the AWS SSO instance.
+        sso_cache: A dict-like object for AWS SSO credential caching.
+
+    Returns:
+        Never raises.
+        Returns True if a token was found and successfully logged out.
+        Returns False if no token was found.
+        If any exception is raised during the logout process,
+            it is caught and returned.
+    """
+
+    session = botocore.session.Session()
+
+    token_fetcher = _get_token_fetcher(
+        session=session,
+        sso_region=sso_region,
+        sso_cache=sso_cache)
+
+    try:
+        token = token_fetcher.pop_token_from_cache(
+            start_url=start_url
+        )
+
+        if not token:
+            return True
+        else:
+            config = botocore.config.Config(
+                region_name=sso_region,
+                signature_version=botocore.UNSIGNED,
+            )
+            client = session.create_client("sso", config=config)
+
+            client.logout(accessToken=token["accessToken"])
+            return False
+    except Exception as e:
+        LOGGER.debug("Exception during logout", exc_info=True)
+        return e
+
+def list_available_accounts(
+        start_url: str,
+        sso_region: str,
+        *,
+        login: bool=False,
+        sso_cache=None) -> typing.Iterator[typing.Tuple[str, str]]:
     """Iterate over the available accounts the user has access to through AWS SSO.
 
     Args:
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
+        sso_cache: A dict-like object for AWS SSO credential caching.
 
     Returns:
         An iterator that yields account id and account name.
     """
     session = botocore.session.Session()
 
-    token_fetcher = get_token_fetcher(session, sso_region, interactive=login)
+    token_fetcher = _get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
     token = token_fetcher.fetch_token(start_url)
 
@@ -254,7 +345,13 @@ def list_available_accounts(start_url, sso_region, *, login=False):
         else:
             list_accounts_args["nextToken"] = response["nextToken"]
 
-def list_available_roles(start_url, sso_region, account_id=None, *, login=False):
+def list_available_roles(
+        start_url: str,
+        sso_region: str,
+        account_id: typing.Union[str, int, typing.Iterable[typing.Union[str, int]]]=None,
+        *,
+        login: bool=False,
+        sso_cache=None) -> typing.Iterator[typing.Tuple[str, str, str]]:
     """Iterate over the available accounts and roles the user has access to through AWS SSO.
 
     Args:
@@ -263,6 +360,7 @@ def list_available_roles(start_url, sso_region, account_id=None, *, login=False)
         account_id: Optional account id or list of account ids to check.
             If not set, all accounts available to the user are listed.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
+        sso_cache: A dict-like object for AWS SSO credential caching.
 
     Returns:
         An iterator that yields account id, account name, and role name.
@@ -278,7 +376,7 @@ def list_available_roles(start_url, sso_region, account_id=None, *, login=False)
 
     session = botocore.session.Session()
 
-    token_fetcher = get_token_fetcher(session, sso_region, interactive=login)
+    token_fetcher = _get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
     token = token_fetcher.fetch_token(start_url)
 
