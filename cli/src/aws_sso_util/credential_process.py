@@ -27,7 +27,7 @@ from botocore.exceptions import ClientError
 
 import click
 
-from aws_sso_lib.sso import get_token_fetcher, get_credentials
+from aws_sso_lib.sso import get_credentials
 from aws_sso_lib.exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError, UnauthorizedSSOTokenError
 
 LOG_FILE = os.path.expanduser(
