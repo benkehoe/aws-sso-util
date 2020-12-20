@@ -28,7 +28,7 @@ Resources:
         PrincipalId: c843295c-d41f-4f23-9832-1521dbaf36f7
 
       PermissionSet:
-      - !Ref SomePSResource
+      - !GetAtt SomePSResource.PermissionSetArn
 
       Target:
       - Type: AWS_ACCOUNT
@@ -52,7 +52,7 @@ Resources:
       PermissionSet:
       - arn:aws:sso:::permissionSet/ssoins-69e2ecd0b249f0cd/ps-45b2cb9e8a6aee12
       - ps-b5b9375180ceaaac
-      - !Ref SomePSResource
+      - !GetAtt SomePSResource.PermissionSetArn
 
       Target:
       - Type: AWS_ACCOUNT

@@ -183,12 +183,11 @@ def generate_template(
             base_generation_config=generation_config,
         )
 
-    templates_to_write = process_templates(
-        template_process_inputs=template_process_inputs,
-        template_file_suffix=template_file_suffix,
-    )
-
     if not assignments_csv_only:
+        templates_to_write = process_templates(
+            template_process_inputs=template_process_inputs,
+            template_file_suffix=template_file_suffix,
+        )
         write_templates(templates_to_write)
 
     if assignments_csv:
