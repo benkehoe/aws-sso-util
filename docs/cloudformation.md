@@ -79,6 +79,7 @@ The syntax for the `AWSSSOUtil::SSO::AssignmentGroup` resource is:
 MyAssignmentGroup:
   Type: AWSSSOUtil::SSO::AssignmentGroup
   Properties:
+    Name: MyAssignmentGroup # As documentation
     InstanceArn: arn:aws:sso:::instance/ssoins-d9e7477013d8e62a
     Principal:
     - Type: USER
