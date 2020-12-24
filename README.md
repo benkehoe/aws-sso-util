@@ -96,6 +96,8 @@ Not all AWS SDKs have support for AWS SSO (which will change eventually).
 However, they all have support for `credential_process`, which allows an external process to provide credentials.
 `aws-sso-util credential-process` uses this to allow these SDKs to get credentials from AWS SSO.
 
+NOTE: if you test it out with your favorite script or application and get something like `NoCredentialProviders: no valid providers in chain.`, you may need to set the environment variable `AWS_SDK_LOAD_CONFIG=1`
+
 ## Administrators: Looking up identifiers and assignments
 
 Read the full docs for `aws-sso-util admin lookup` and `aws-sso-util admin assignments` [here](docs/lookup.md).
