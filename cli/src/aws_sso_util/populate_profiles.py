@@ -17,19 +17,21 @@ import argparse
 import logging
 import json
 import subprocess
-import shlex
 import re
+import shlex
 from collections import namedtuple
 
 import botocore
 from botocore.session import Session
 from botocore.exceptions import ClientError, ProfileNotFound
+from botocore.compat import compat_shell_split as shell_split
 
 import click
 
 from aws_sso_lib.sso import get_token_fetcher
 from aws_sso_lib.config import find_instances, SSOInstance
 from aws_sso_lib.config_file_writer import ConfigFileWriter, write_values, get_config_filename, process_profile_name
+from aws_sso_lib.compat import shell_quote, shell_join
 
 from .utils import configure_logging, get_instance, GetInstanceError
 
@@ -119,11 +121,11 @@ def get_process_formatter(command):
     def formatter(i, **kwargs):
         kwargs["region_index"] = str(i)
         kwargs["short_region"] = get_short_region(kwargs["region"])
-        run_args = shlex.split(command)
+        run_args = shell_split(command)
         for component in PROCESS_FORMATTER_ARGS:
             run_args.append(kwargs[component])
         try:
-            result = subprocess.run(shlex.join(run_args), shell=True, stdout=subprocess.PIPE, check=True)
+            result = subprocess.run(shell_join(run_args), shell=True, stdout=subprocess.PIPE, check=True)
         except subprocess.CalledProcessError as e:
             lines = [
                 "Profile name process failed ({})".format(e.returncode)
@@ -146,6 +148,9 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, **kwargs)
     return trim_formatter
 
+def get_safe_account_name(name):
+    return re.sub(r"[\s]+", "-", name)
+
 @click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
 @click.option("--sso-region", help="The AWS region your AWS SSO instance is deployed in")
@@ -164,6 +169,7 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
 @click.option("--profile-name-process")
+@click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences not in A-Za-z0-9-._ with a single -")
 
 @click.option("--credential-process/--no-credential-process", default=None, help="Force enable/disable setting the credential process SDK helper")
 
@@ -183,6 +189,7 @@ def populate_profiles(
         profile_name_trim_account_name_patterns,
         profile_name_trim_role_name_patterns,
         profile_name_process,
+        safe_account_names,
         credential_process,
         force_refresh,
         verbose):
@@ -280,6 +287,9 @@ def populate_profiles(
 
     configs = []
     for account in accounts:
+        if not account.get("accountName"):
+            account["accountName"] = account["accountId"]
+
         LOGGER.debug("Getting roles for {}".format(account["accountId"]))
         list_role_args = {
             "accessToken": token["accessToken"],
@@ -291,12 +301,19 @@ def populate_profiles(
 
             for role in response["roleList"]:
                 for i, region in enumerate(regions):
+                    if safe_account_names:
+                        account_name_for_profile = get_safe_account_name(account["accountName"])
+                    else:
+                        account_name_for_profile = account["accountName"]
+
                     profile_name = profile_name_formatter(i,
-                        account_name=account["accountName"],
+                        account_name=account_name_for_profile,
                         account_id=account["accountId"],
                         role_name=role["roleName"],
                         region=region,
                     )
+                    if profile_name == "SKIP":
+                        continue
                     configs.append(ConfigParams(profile_name, account["accountName"], account["accountId"], role["roleName"], region))
 
             next_token = response.get("nextToken")
@@ -316,7 +333,7 @@ def populate_profiles(
         config_writer = ConfigFileWriter()
         def write_config(profile_name, config_values):
             # discard because we're already loading the existing values
-            write_values(session, profile_name, config_values, config_file_writer=config_writer, existing_config_action="discard")
+            write_values(session, profile_name, config_values, existing_config_action="discard", config_file_writer=config_writer)
     else:
         LOGGER.info("Dry run for {} profiles".format(len(configs)))
         def write_config(profile_name, config_values):
@@ -345,12 +362,14 @@ def populate_profiles(
         config_values.update({
             "sso_start_url": instance.start_url,
             "sso_region": instance.region,
-            "sso_account_name": config.account_name,
+        })
+        if config.account_name != config.account_id:
+            config_values["sso_account_name"] = config.account_name
+        config_values.update({
             "sso_account_id": config.account_id,
             "sso_role_name": config.role_name,
             "region": config.region,
         })
-
 
         for k, v in config_default.items():
             if k in existing_config and existing_config_action in ["keep"]:
@@ -366,7 +385,7 @@ def populate_profiles(
 
         if set_credential_process:
             credential_process_name = os.environ.get(CREDENTIAL_PROCESS_NAME_VAR) or "aws-sso-util credential-process"
-            config_values["credential_process"] = f"{credential_process_name} --profile {config.profile_name}"
+            config_values["credential_process"] = f"{credential_process_name} --profile {shell_quote(config.profile_name)}"
         elif set_credential_process is False:
             config_values.pop("credential_process", None)
 

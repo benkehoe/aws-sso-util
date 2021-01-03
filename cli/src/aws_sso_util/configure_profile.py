@@ -26,6 +26,7 @@ import click
 
 from aws_sso_lib.config import find_instances, SSOInstance
 from aws_sso_lib.config_file_writer import write_values
+from aws_sso_lib.compat import shell_quote
 
 from .utils import configure_logging, get_instance, GetInstanceError
 
@@ -153,7 +154,7 @@ def configure_profile(
 
     if set_credential_process:
         credential_process_name = os.environ.get(CREDENTIAL_PROCESS_NAME_VAR) or "aws-sso-util credential-process"
-        config_values["credential_process"] = f"{credential_process_name} --profile {profile}"
+        config_values["credential_process"] = f"{credential_process_name} --profile {shell_quote(profile)}"
     elif set_credential_process is False:
         config_values.pop("credential_process", None)
 
@@ -173,7 +174,7 @@ def configure_profile(
     else:
         LOGGER.debug(f"Missing keys: {', '.join(missing_keys)}")
 
-    # discard because we're already loading the existing values
+    # discard because we've already loading the existing values
     write_values(session, profile, config_values, existing_config_action="discard")
 
     if not missing_keys:
@@ -198,7 +199,7 @@ def configure_profile(
             https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html"""))
         sys.exit(2)
 
-    result = subprocess.run(f"aws configure sso --profile {profile}", shell=True)
+    result = subprocess.run(f"aws configure sso --profile {shell_quote(profile)}", shell=True)
 
     if result.returncode:
         # this doesn't appear to work
