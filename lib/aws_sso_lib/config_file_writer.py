@@ -29,7 +29,7 @@ def process_profile_name(profile_name):
         profile_name = shlex.quote(profile_name)
     return profile_name
 
-def write_values(session, profile_name, values, config_file_writer=None, existing_config_action=None):
+def write_values(session, profile_name, values, existing_config_action=None, config_file_writer=None):
     if not config_file_writer:
         config_file_writer = ConfigFileWriter()
 

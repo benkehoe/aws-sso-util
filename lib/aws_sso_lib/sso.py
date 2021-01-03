@@ -202,7 +202,7 @@ def login(
         force_refresh: bool=False,
         disable_browser: bool=None,
         message: str=None,
-        outfile: typing.Union[typing.TextIO, typing.Literal[False]]=None,
+        outfile: typing.Union[typing.TextIO, bool]=None,
         sso_cache=None) -> typing.Dict:
     """Interactively log in the user if their AWS SSO credentials have expired.
 
