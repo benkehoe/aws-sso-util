@@ -44,7 +44,7 @@ Then enter the code:
 
 class OpenBrowserHandler(object):
     def __init__(self, outfile=None, open_browser=None, disable_browser=None, message=None):
-        if outfile is None:
+        if outfile is None or outfile is True:
             outfile = sys.stderr
         self._outfile = outfile
 

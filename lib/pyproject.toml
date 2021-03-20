@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-sso-lib"
-version = "1.4.0"
+version = "1.6.0"
 description = "Library to make AWS SSO easier"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"

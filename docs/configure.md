@@ -155,6 +155,7 @@ You can view the profiles without writing them using the `--dry-run` flag.
 The generated profile names are highly configurable.
 
 By default, the profile name is `{account_name}.{role_name}` for the first region given, and `{account_name}.{role_name}.{short_region}` for additional regions.
+The account name has any sequences of whitespace replaced by single `-` characters.
 The "short region" is a five-character abbreviation of the region: the country code followed by either the first two letters of the location or the abbreviation for locations like "northwest" ("nw") followed by the number.
 For example, this results in "usea1" for "us-east-1", "apne1" for "ap-northeast-1", and "cace1" for "ca-central-1".
 
@@ -168,6 +169,10 @@ The components are:
 * `region`
 * `short_region` (as defined above)
 * `default_style_region` (use the region style from `--region-style`, which is `short_region` by default)
+
+By default, any sequences of whitespace in account names are replaced by single `-` characters.
+This is because AWS SDKs are inconsistent in the way they parse profile names in `.aws/config`, and there isn't a format for profile names with whitespace that works for all of them.
+You can opt out of this behavior with `--raw-account-names`.
 
 You can provide a comma separated list of components to the `--components` parameter.
 Any value that doesn't match the list above is included as a literal.
