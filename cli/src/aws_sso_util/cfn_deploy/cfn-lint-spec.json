@@ -1,0 +1,40 @@
+{
+    "ResourceTypes": {
+        "AWS::SSO::PermissionSet": {
+            "Properties": {
+                "InstanceArn": {
+                    "Required": false
+                },
+                "InlinePolicy": {
+                    "PrimitiveType": "Json"
+                }
+            }
+        },
+        "SSOUtil::SSO::AssignmentGroup": {
+            "Properties": {
+                "InstanceArn": {
+                    "PrimitiveType": "String",
+                    "Required": false,
+                    "UpdateType": "Immutable"
+                },
+                "Name": {
+                    "PrimitiveType": "String",
+                    "Required": false,
+                    "UpdateType": "Immutable"
+                },
+                "Principal": {
+                    "Required": true,
+                    "UpdateType": "Mutable"
+                },
+                "PermissionSet": {
+                    "Required": true,
+                    "UpdateType": "Mutable"
+                },
+                "Target": {
+                    "Required": true,
+                    "UpdateType": "Mutable"
+                }
+            }
+        }
+    }
+}
