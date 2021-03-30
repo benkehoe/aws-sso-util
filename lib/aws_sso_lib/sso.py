@@ -261,8 +261,7 @@ def login(
         disable_browser=disable_browser,
         sso_cache=sso_cache,
         expiry_window=expiry_window,
-        on_pending_authorization=on_pending_authorization
-    )
+        on_pending_authorization=on_pending_authorization)
 
     token = token_fetcher.fetch_token(
         start_url=start_url,
