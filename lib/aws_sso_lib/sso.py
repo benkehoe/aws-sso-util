@@ -214,7 +214,8 @@ def login(
         message: str=None,
         outfile: typing.Union[typing.TextIO, bool]=None,
         sso_cache=None,
-        expiry_window=None,) -> typing.Dict:
+        expiry_window=None,
+        on_pending_authorization: typing.Callable=None) -> typing.Dict:
     """Interactively log in the user if their AWS SSO credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
@@ -242,6 +243,8 @@ def login(
         expiry_window: An int or datetime.timedelta, or callable returning such,
             specifying the minimum duration in seconds any existing token
             must be valid for.
+        on_pending_authorization (function): A function called with the fallback URL and code instead of launching
+            a browser or printing a message
 
     Returns:
         The token dict as returned by sso-oidc:CreateToken,
@@ -257,7 +260,9 @@ def login(
         outfile=outfile,
         disable_browser=disable_browser,
         sso_cache=sso_cache,
-        expiry_window=expiry_window)
+        expiry_window=expiry_window,
+        on_pending_authorization=on_pending_authorization
+    )
 
     token = token_fetcher.fetch_token(
         start_url=start_url,

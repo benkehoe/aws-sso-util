@@ -44,13 +44,13 @@ While the functions that require the user to be logged in let you specify `login
 If the user is not logged in or `force_refresh` is `True`, it will attempt to log in.
 If the user is logged in and `force_refresh` is `False`, no action is taken.
 
-Normally, it will attempt to automatically open the user's browser to log in, as well as printing the URL and code to stderr as a fallback. However, if `disable_browser` is `True`, or if `disable_browser` is `None` (the default) and the environment variable `AWS_SSO_DISABLE_BROWSER` is set to `1` or `true`, only the message with the URL and code will be printed.
+Normally, it will attempt to automatically open the user's browser to log in, as well as printing the URL and code to stderr as a fallback. However, if `disable_browser` is `True`, or if `disable_browser` is `None` (the default) and the environment variable `AWS_SSO_DISABLE_BROWSER` is set to `1` or `true`, only the message with the URL and code will be printed. If `on_pending_authorization` is set, the URL and code are provided through this callback, no message is printed, and a browser is not launched.
 
 A custom message can be printed by setting `message` to a template string using `{url}` and `{code}` as placeholders.
 The message can be suppressed by setting `message` to `False`.
 
 ```python
-login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_browser=None, message=None, outfile=None)
+login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_browser=None, message=None, outfile=None, sso_cache=None, on_pending_authorization=None)
 ```
 
 * `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
@@ -60,6 +60,8 @@ login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_br
 * `disable_browser`: Set to `True` to skip the browser popup and only print a message with the URL and code.
 * `message`: A message template to print with the fallback URL and code, or `False` to suppress the message.
 * `outfile`: The file-like object to print the message to (stderr by default)
+* `sso_cache`: A dict-like object for AWS SSO credential caching (`None` by default)
+* `on_pending_authorization`: A callable invoked with URL and code parameters for interactive login (`None` by default). Specifying this value disables the browser popup. 
 * Returns the token dict as returned by [sso-oidc:CreateToken](https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html), which contains the actual authorization token, as well as the expiration.
 
 ## `list_available_accounts` and `list_available_roles`
