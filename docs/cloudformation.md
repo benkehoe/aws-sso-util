@@ -73,11 +73,11 @@ The template must include `AWS-SSO-Util-2020-11-08` in its [`Transform` section]
 * Specify the `InlinePolicy` as JSON/YAML, and it will get converted to string-containing-json. Note this only works if the policy does not contain references.
 * Specify a default session duration in the template metadata or the Macro template parameters, and it will get put on the permission sets if they don't have a value set already.
 
-The syntax for the `AWSSSOUtil::SSO::AssignmentGroup` resource is:
+The syntax for the `SSOUtil::SSO::AssignmentGroup` resource is:
 
 ```yaml
 MyAssignmentGroup:
-  Type: AWSSSOUtil::SSO::AssignmentGroup
+  Type: SSOUtil::SSO::AssignmentGroup
   Properties:
     Name: MyAssignmentGroup # As documentation
     InstanceArn: arn:aws:sso:::instance/ssoins-d9e7477013d8e62a
@@ -115,7 +115,7 @@ PermissionSets can be provided as ARNs, the id including the instance, or just t
 
 OUs can optionally be recursive with the `Recursive` property set to true, in which case all accounts in all child OUs are included.
 If the accounts in an OU change, and you need the macro to regenerate the assignments based on the change, the resource properties won't have changed, so you can optionally add a string-valued property to the resource called `UpdateNonce` to force CloudFormation to re-run the macro.
-Note this will cause all `AWSSOUtil::SSO::AssignmentGroup` resources in the template to be re-processed, as the macro does not interpret or store this value.
+Note this will cause all `SSOUtil::SSO::AssignmentGroup` resources in the template to be re-processed, as the macro does not interpret or store this value.
 
 The template can control some of its generation by including the following keys in the `Metadata` section of the template under the `SSO` section:
 * `NumChildStacks` and `MaxAssignmentsAllocation`: set one of these (not both) to fix a default number of child stacks.
