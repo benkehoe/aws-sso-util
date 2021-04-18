@@ -17,6 +17,7 @@ from . import __version__
 
 from .assignments import assignments
 from .cfn import generate_template
+from .check import check
 from .configure_profile import configure_profile
 from .credential_process import credential_process
 from .deploy_macro import deploy_macro
@@ -42,6 +43,7 @@ configure.add_command(populate_profiles, "populate")
 cli.add_command(login)
 cli.add_command(logout)
 cli.add_command(roles)
+cli.add_command(check)
 
 @cli.group()
 def admin():
