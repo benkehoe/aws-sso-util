@@ -23,6 +23,7 @@ import datetime
 import uuid
 import numbers
 import typing
+import json
 
 import boto3
 import botocore
@@ -48,6 +49,14 @@ LOGGER = logging.getLogger(__name__)
 
 __all__ = ["get_boto3_session", "login", "list_available_accounts", "list_available_roles"]
 
+# from customizations/sso/utils.py in AWS CLI v2
+def _serialize_utc_timestamp(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+    return obj
+def _sso_json_dumps(obj):
+    return json.dumps(obj, default=_serialize_utc_timestamp)
+
 def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
                      on_pending_authorization=None, message=None, outfile=None,
                      disable_browser=None, expiry_window=None):
@@ -55,7 +64,7 @@ def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
         session = session._session
 
     if sso_cache is None:
-        sso_cache = JSONFileCache(SSO_TOKEN_DIR)
+        sso_cache = JSONFileCache(SSO_TOKEN_DIR, dumps_func=_sso_json_dumps)
 
     if on_pending_authorization is None:
         if interactive:
@@ -254,6 +263,7 @@ def login(
         start_url=start_url,
         force_refresh=force_refresh
     )
+    token['expiresAt'] = _serialize_utc_timestamp(token['expiresAt'])
 
     return token
 
