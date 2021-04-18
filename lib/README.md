@@ -50,12 +50,13 @@ A custom message can be printed by setting `message` to a template string using 
 The message can be suppressed by setting `message` to `False`.
 
 ```python
-login(start_url, sso_region, force_refresh=False, disable_browser=None, message=None, outfile=None)
+login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_browser=None, message=None, outfile=None)
 ```
 
 * `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
 * `sso_region`: [REQUIRED] The AWS region for the AWS SSO instance.
 * `force_refresh`: Set to `True` to always go through the authentication process.
+* `expiry_window`: A datetime.timedelta (or number of seconds), or callable returning such, specifying the minimum duration any existing token must be valid for.
 * `disable_browser`: Set to `True` to skip the browser popup and only print a message with the URL and code.
 * `message`: A message template to print with the fallback URL and code, or `False` to suppress the message.
 * `outfile`: The file-like object to print the message to (stderr by default)
