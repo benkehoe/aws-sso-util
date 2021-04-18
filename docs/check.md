@@ -15,7 +15,7 @@ For use in shell scripts, the `--quiet`/`-q` flag can be specified, which will s
 To use `aws-sso-util` commands (not including `aws-sso-util admin` commands), an AWS SSO instance must be specified.
 
 This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
-However, `aws-sso-util configure` tries to be smart about finding this value.
+However, `aws-sso-util` tries to be smart about finding this value.
 
 If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
