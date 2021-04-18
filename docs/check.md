@@ -20,7 +20,7 @@ However, `aws-sso-util configure` tries to be smart about finding this value.
 If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
-`aws-sso-util configure` uses the following algorithm to determine these values:
+`aws-sso-util check` uses the following algorithm to determine these values:
 1. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
   1. `--sso-start-url`/`-u` and `--sso-region`
   2. If `--command` is specified and is not set to `default`:
