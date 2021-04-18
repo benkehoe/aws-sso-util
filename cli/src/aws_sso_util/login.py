@@ -31,8 +31,8 @@ from .utils import configure_logging
 
 LOGGER = logging.getLogger(__name__)
 
-DEFAULT_START_URL_VARS  = ["AWS_SSO_LOGIN_DEFAULT_SSO_START_URL"]
-DEFAULT_SSO_REGION_VARS = ["AWS_SSO_LOGIN_DEFAULT_SSO_REGION"]
+LOGIN_DEFAULT_START_URL_VARS  = ["AWS_SSO_LOGIN_DEFAULT_SSO_START_URL"]
+LOGIN_DEFAULT_SSO_REGION_VARS = ["AWS_SSO_LOGIN_DEFAULT_SSO_REGION"]
 
 LOGIN_ALL_VAR = "AWS_SSO_LOGIN_ALL"
 
@@ -82,8 +82,8 @@ def login(
         start_url_source="CLI input",
         region=sso_region,
         region_source="CLI input",
-        start_url_vars=DEFAULT_START_URL_VARS,
-        region_vars=DEFAULT_SSO_REGION_VARS,
+        start_url_vars=LOGIN_DEFAULT_START_URL_VARS,
+        region_vars=LOGIN_DEFAULT_SSO_REGION_VARS,
     )
 
     if not instances:

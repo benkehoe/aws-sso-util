@@ -36,9 +36,9 @@ from aws_sso_lib.compat import shell_quote, shell_join
 from .utils import configure_logging, get_instance, GetInstanceError
 
 from .configure_profile import (
-    DEFAULT_START_URL_VARS,
-    DEFAULT_SSO_REGION_VARS,
-    DEFAULT_REGION_VARS,
+    CONFIGURE_DEFAULT_START_URL_VARS,
+    CONFIGURE_DEFAULT_SSO_REGION_VARS,
+    CONFIGURE_DEFAULT_REGION_VARS,
     DISABLE_CREDENTIAL_PROCESS_VAR,
     CREDENTIAL_PROCESS_NAME_VAR,
     SET_CREDENTIAL_PROCESS_DEFAULT
@@ -94,7 +94,7 @@ def get_formatter(include_region, region_format, no_region_format):
         kwargs["account_number"] = kwargs["account_id"]
         return kwargs
     if include_region == "default":
-        def formatter(i, **kwargs):
+        def formatter(i, n, **kwargs):
             kwargs = proc_kwargs(kwargs)
             if i == 0:
                 return no_region_format.format(**kwargs)
@@ -102,7 +102,7 @@ def get_formatter(include_region, region_format, no_region_format):
                 return region_format.format(**kwargs)
         return formatter
     elif include_region == "always":
-        def formatter(i, **kwargs):
+        def formatter(i, n, **kwargs):
             kwargs = proc_kwargs(kwargs)
             return region_format.format(**kwargs)
         return formatter
@@ -116,10 +116,12 @@ PROCESS_FORMATTER_ARGS = [
     "region",
     "short_region",
     "region_index",
+    "num_regions",
 ]
 def get_process_formatter(command):
-    def formatter(i, **kwargs):
+    def formatter(i, n, **kwargs):
         kwargs["region_index"] = str(i)
+        kwargs["num_regions"] = str(n)
         kwargs["short_region"] = get_short_region(kwargs["region"])
         run_args = shell_split(command)
         for component in PROCESS_FORMATTER_ARGS:
@@ -140,12 +142,12 @@ def get_process_formatter(command):
     return formatter
 
 def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
-    def trim_formatter(i, **kwargs):
+    def trim_formatter(i, n, **kwargs):
         for pattern in account_name_patterns:
             kwargs["account_name"] = re.sub(pattern, "", kwargs["account_name"])
         for pattern in role_name_patterns:
             kwargs["role_name"] = re.sub(pattern, "", kwargs["role_name"])
-        return formatter(i, **kwargs)
+        return formatter(i, n, **kwargs)
     return trim_formatter
 
 def get_safe_account_name(name):
@@ -207,14 +209,14 @@ def populate_profiles(
         instance = get_instance(
             sso_start_url,
             sso_region,
-            sso_start_url_vars=DEFAULT_START_URL_VARS,
-            sso_region_vars=DEFAULT_SSO_REGION_VARS,)
+            sso_start_url_vars=CONFIGURE_DEFAULT_START_URL_VARS,
+            sso_region_vars=CONFIGURE_DEFAULT_SSO_REGION_VARS,)
     except GetInstanceError as e:
         LOGGER.fatal(str(e))
         sys.exit(1)
 
     if not regions:
-        for var_name in DEFAULT_REGION_VARS:
+        for var_name in CONFIGURE_DEFAULT_REGION_VARS:
             value = os.environ.get(var_name)
             if value:
                 LOGGER.debug(f"Got default region {value} from {var_name}")
@@ -245,7 +247,7 @@ def populate_profiles(
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
 
     try:
-        profile_name_formatter(0, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
+        profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
     except Exception as e:
         raise click.UsageError("Invalid profile name format: {}".format(e))
 
@@ -296,6 +298,7 @@ def populate_profiles(
             "accountId": account["accountId"],
         }
 
+        num_regions = len(regions)
         while True:
             response = client.list_account_roles(**list_role_args)
 
@@ -306,7 +309,7 @@ def populate_profiles(
                     else:
                         account_name_for_profile = account["accountName"]
 
-                    profile_name = profile_name_formatter(i,
+                    profile_name = profile_name_formatter(i, num_regions,
                         account_name=account_name_for_profile,
                         account_id=account["accountId"],
                         role_name=role["roleName"],

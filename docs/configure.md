@@ -205,6 +205,7 @@ Finally, if you want total control over the generated profile names, you can pro
 * Region name
 * Short region name (see above)
 * Region index (zero-based index of what position the region is in the provided list of regions)
+* Number of regions
 
 This must output a profile name to stdout and return an exit code of 0.
 

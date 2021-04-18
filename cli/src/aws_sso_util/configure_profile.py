@@ -32,9 +32,9 @@ from .utils import configure_logging, get_instance, GetInstanceError
 
 LOGGER = logging.getLogger(__name__)
 
-DEFAULT_START_URL_VARS  = ["AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL", "AWS_CONFIGURE_DEFAULT_SSO_START_URL"]
-DEFAULT_SSO_REGION_VARS = ["AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION",    "AWS_CONFIGURE_DEFAULT_SSO_REGION"]
-DEFAULT_REGION_VARS = ["AWS_CONFIGURE_DEFAULT_REGION", "AWS_DEFAULT_REGION"]
+CONFIGURE_DEFAULT_START_URL_VARS  = ["AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL", "AWS_SSO_CONFIGURE_DEFAULT_SSO_START_URL", "AWS_CONFIGURE_DEFAULT_SSO_START_URL"]
+CONFIGURE_DEFAULT_SSO_REGION_VARS = ["AWS_CONFIGURE_SSO_DEFAULT_SSO_REGION",    "AWS_SSO_CONFIGURE_DEFAULT_SSO_REGION",    "AWS_CONFIGURE_DEFAULT_SSO_REGION"]
+CONFIGURE_DEFAULT_REGION_VARS = ["AWS_CONFIGURE_DEFAULT_REGION", "AWS_DEFAULT_REGION"]
 DISABLE_CREDENTIAL_PROCESS_VAR = "AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS"
 
 CREDENTIAL_PROCESS_NAME_VAR= "AWS_SSO_CREDENTIAL_PROCESS_NAME"
@@ -88,8 +88,8 @@ def configure_profile(
         instance = get_instance(
             sso_start_url,
             sso_region,
-            sso_start_url_vars=DEFAULT_START_URL_VARS,
-            sso_region_vars=DEFAULT_SSO_REGION_VARS,)
+            sso_start_url_vars=CONFIGURE_DEFAULT_START_URL_VARS,
+            sso_region_vars=CONFIGURE_DEFAULT_SSO_REGION_VARS,)
     except GetInstanceError as e:
         LOGGER.fatal(str(e))
         sys.exit(1)
@@ -130,7 +130,7 @@ def configure_profile(
     if region:
         config_values["region"] = region
     elif "region" not in config_values:
-        for var_name in DEFAULT_REGION_VARS:
+        for var_name in CONFIGURE_DEFAULT_REGION_VARS:
             value = os.environ.get(var_name)
             if value:
                 LOGGER.debug(f"Got default region {value} from {var_name}")

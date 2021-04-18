@@ -50,7 +50,7 @@ __all__ = ["get_boto3_session", "login", "list_available_accounts", "list_availa
 
 def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
                      on_pending_authorization=None, message=None, outfile=None,
-                     disable_browser=None):
+                     disable_browser=None, expiry_window=None):
     if hasattr(session, "_session"): #boto3 Session
         session = session._session
 
@@ -72,6 +72,7 @@ def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
         client_creator=session.create_client,
         cache=sso_cache,
         on_pending_authorization=on_pending_authorization,
+        expiry_window=expiry_window,
     )
     return token_fetcher
 
@@ -203,7 +204,8 @@ def login(
         disable_browser: bool=None,
         message: str=None,
         outfile: typing.Union[typing.TextIO, bool]=None,
-        sso_cache=None) -> typing.Dict:
+        sso_cache=None,
+        expiry_window=None,) -> typing.Dict:
     """Interactively log in the user if their AWS SSO credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
@@ -222,11 +224,15 @@ def login(
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
         force_refresh (bool): Always go through the authentication process.
-        disable_browser (bool): Skip the browser popup and only print a message with the URL and code.
+        disable_browser (bool): Skip the browser popup
+            and only print a message with the URL and code.
         message (str): A message template to print with the fallback URL and code.
         outfile (file): The file-like object to print the message to,
             or False to suppress the message.
         sso_cache: A dict-like object for AWS SSO credential caching.
+        expiry_window: An int or datetime.timedelta, or callable returning such,
+            specifying the minimum duration in seconds any existing token
+            must be valid for.
 
     Returns:
         The token dict as returned by sso-oidc:CreateToken,
@@ -241,7 +247,8 @@ def login(
         message=message,
         outfile=outfile,
         disable_browser=disable_browser,
-        sso_cache=sso_cache)
+        sso_cache=sso_cache,
+        expiry_window=expiry_window)
 
     token = token_fetcher.fetch_token(
         start_url=start_url,

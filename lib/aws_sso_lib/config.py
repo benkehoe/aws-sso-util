@@ -45,11 +45,12 @@ class SSOInstance(namedtuple("SSOInstance", ["start_url", "region", "start_url_s
         return self.to_str()
 
     def __bool__(self):
-        return bool(self.start_url) and bool(self.region)
+        return bool(self.start_url) or bool(self.region)
 
     @classmethod
     def to_strs(cls, instances, region=None):
         return ", ".join(i.to_str(region=region) for i in instances)
+
 def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=False) -> SSOInstance:
     start_url = scoped_config.get("sso_start_url")
     region = scoped_config.get("sso_region")
@@ -58,7 +59,7 @@ def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=Fal
             LOGGER.debug(f"Did not find config in profile {profile_name}")
         return None
     instance = SSOInstance(start_url, region, "profile", "profile")
-    LOGGER.debug(f"Found instance {instance} in profile {profile_name}")
+    LOGGER.debug(f"Profile {profile_name} has instance {instance.to_str(region=True)}")
     return instance
 
 def _get_all_instances_from_config(full_config: dict):
@@ -124,9 +125,9 @@ def _specifier_matches(specifier, instance):
     if specifier.start_url:
         if specifier.start_url.startswith("http"):
             if not specifier.start_url == instance.start_url:
-                return False
+                return False, "does not match literal start URL"
         elif not re.search(specifier.start_url, instance.start_url):
-            return False
+            return False, "does not match regex start URL"
         if specifier.region and specifier.region != instance.region:
             LOGGER.warn(
                 f"Instance {instance.start_url} " +
@@ -136,11 +137,21 @@ def _specifier_matches(specifier, instance):
                 f"from {specifier.region_source}"
             )
 
-    if specifier.region:
-        if specifier.region != instance.region:
-            return False
+    if specifier.region and specifier.region != instance.region:
+        return False, "does not match region"
 
-    return True
+    if specifier.start_url:
+        if specifier.start_url.startswith("http"):
+            if specifier.region:
+                return True, "matches literal start URL and region"
+            else:
+                return True, "matches literal start URL and region"
+        elif specifier.region:
+            return True, "matches regex start URL and region"
+        else:
+            return True, "matches regex start URL"
+    else:
+        return True, "matches region"
 
 
 def find_instances(
@@ -153,10 +164,19 @@ def find_instances(
         start_url_vars=None,
         region_vars=None):
     if profile_name:
-        instance = _find_instance_from_profile()
+        LOGGER.debug(f"Finding instance from profile {profile_name}")
+        instance = _find_instance_from_profile(
+            profile_name=profile_name,
+            profile_source=profile_source,
+            start_url=start_url,
+            start_url_source=start_url_source,
+            region=region,
+            region_source=region_source
+        )
         if instance:
             return [instance], None, [instance]
         else:
+            LOGGER.debug("No instance found in profile")
             return [], None, []
 
     specifier = _get_specifier(
@@ -170,7 +190,7 @@ def find_instances(
 
     if specifier:
         parts = [
-            f"Using AWS SSO instance spec"
+            f"Using AWS SSO instance specifier"
         ]
         if specifier.start_url:
             parts.extend([
@@ -185,21 +205,32 @@ def find_instances(
                 f"{specifier.region}",
                 f"from {specifier.region_source}"
             ])
-        LOGGER.debug(" ".join(parts))
+        LOGGER.info(" ".join(parts))
+    else:
+        LOGGER.debug("No AWS SSO instance specifier found")
 
-    if specifier and specifier.start_url.startswith("http"):
+    if specifier.start_url and specifier.region and specifier.start_url.startswith("http"):
+        LOGGER.debug("Specifier has literal start URL and region, not searching for instances")
         return [specifier], specifier, [specifier]
 
     session = botocore.session.Session()
     all_instances = _get_all_instances_from_config(session.full_config)
 
-    if not (specifier.start_url or specifier.region):
+    LOGGER.debug(f"Found instances: {SSOInstance.to_strs(all_instances, region=True)}")
+
+    if not specifier:
+        LOGGER.debug("No specifier, returning all instances")
         return all_instances, specifier, all_instances
 
     instances = []
     for instance in all_instances:
-        match = _specifier_matches(specifier, instance)
+        match, reason = _specifier_matches(specifier, instance)
         if match:
+            LOGGER.debug(f"Instance {instance} {reason}")
             instances.append(instance)
+        else:
+            LOGGER.debug(f"Instance {instance} {reason}")
+
+    LOGGER.debug(f"Matching instances: {SSOInstance.to_strs(instances)}")
 
     return instances, specifier, all_instances

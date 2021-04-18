@@ -58,13 +58,14 @@ class SSOTokenFetcher(object):
     _SLOW_DOWN_DELAY = 5
     # The default interval of 5 is also defined in the RFC (see above link)
     _DEFAULT_INTERVAL = 5
-    _EXPIRY_WINDOW = 15 * 60
+    _DEFAULT_EXPIRY_WINDOW = 15 * 60
     _CLIENT_REGISTRATION_TYPE = 'public'
     _GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
 
     def __init__(
             self, sso_region, client_creator, cache=None,
-            on_pending_authorization=None, time_fetcher=None, sleep=None,
+            on_pending_authorization=None, time_fetcher=None,
+            sleep=None, expiry_window=None,
     ):
         self._sso_region = sso_region
         self._client_creator = client_creator
@@ -82,6 +83,10 @@ class SSOTokenFetcher(object):
             cache = {}
         self._cache = cache
 
+        if expiry_window is None:
+            expiry_window = self._DEFAULT_EXPIRY_WINDOW
+        self._expiry_window = expiry_window
+
     def _utc_now(self):
         return datetime.datetime.now(tzutc())
 
@@ -93,7 +98,13 @@ class SSOTokenFetcher(object):
     def _is_expired(self, response):
         end_time = self._parse_if_needed(response['expiresAt'])
         seconds = total_seconds(end_time - self._time_fetcher())
-        return seconds < self._EXPIRY_WINDOW
+        if callable(self._expiry_window):
+            expiry_window = self._expiry_window()
+        else:
+            expiry_window = self._expiry_window
+        if isinstance(expiry_window, datetime.timedelta):
+            expiry_window = expiry_window.total_seconds()
+        return seconds < expiry_window
 
     @CachedProperty
     def _client(self):

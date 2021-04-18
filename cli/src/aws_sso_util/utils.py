@@ -25,6 +25,7 @@ def configure_logging(logger, verbose, **config_args):
     logging.basicConfig(**config_args)
 
     aws_sso_util_logger = logging.getLogger("aws_sso_util")
+    aws_sso_lib_logger = logging.getLogger("aws_sso_lib")
     root_logger = logging.getLogger()
 
     if verbose == 0:
@@ -36,13 +37,21 @@ def configure_logging(logger, verbose, **config_args):
     elif verbose == 1:
         logger.setLevel(logging.DEBUG)
         aws_sso_util_logger.setLevel(logging.INFO)
+        aws_sso_lib_logger.setLevel(logging.INFO)
     elif verbose == 2:
         logger.setLevel(logging.DEBUG)
         aws_sso_util_logger.setLevel(logging.DEBUG)
+        aws_sso_lib_logger.setLevel(logging.INFO)
         root_logger.setLevel(logging.INFO)
-    elif verbose >= 3:
+    elif verbose == 3:
         logger.setLevel(logging.DEBUG)
         aws_sso_util_logger.setLevel(logging.DEBUG)
+        aws_sso_lib_logger.setLevel(logging.DEBUG)
+        root_logger.setLevel(logging.INFO)
+    elif verbose >= 4:
+        logger.setLevel(logging.DEBUG)
+        aws_sso_util_logger.setLevel(logging.DEBUG)
+        aws_sso_lib_logger.setLevel(logging.DEBUG)
         root_logger.setLevel(logging.DEBUG)
 
 class GetInstanceError(Exception):
@@ -63,13 +72,13 @@ def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_
     if not instances:
         if all_instances:
             raise GetInstanceError(
-                f"No AWS SSO config matched {specifier.to_str(region=True)} " +
+                f"No AWS SSO instance matched {specifier.to_str(region=True)} " +
                 f"from {SSOInstance.to_strs(all_instances)}")
         else:
-            GetInstanceError("No AWS SSO config found")
+            raise GetInstanceError("No AWS SSO instance found")
 
     if len(instances) > 1:
-        GetInstanceError(f"Found {len(instances)} SSO configs, please specify one: {SSOInstance.to_strs(instances)}")
+        raise GetInstanceError(f"Found {len(instances)} SSO instance, please specify one: {SSOInstance.to_strs(instances)}")
 
     return instances[0]
 
