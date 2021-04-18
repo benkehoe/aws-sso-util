@@ -240,7 +240,7 @@ class Assignment:
         if self.target.source_ou:
             metadata["AccountSourceOU"] = self.target.source_ou
 
-        if principal_name_fetcher:
+        if principal_name_fetcher and isinstance(self.principal.id, str):
             principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
             if principal_name:
                 metadata["PrincipalName"] = principal_name
@@ -253,7 +253,7 @@ class Assignment:
 
         if self.target.name:
             metadata["TargetName"] = self.target.name
-        elif target_name_fetcher:
+        elif target_name_fetcher and  isinstance(self.target.id, str):
             target_name = target_name_fetcher(self.target.type.value, self.target.id)
             if target_name:
                 metadata["TargetName"] = target_name

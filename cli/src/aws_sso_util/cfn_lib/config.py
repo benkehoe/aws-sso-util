@@ -174,7 +174,7 @@ class GenerationConfig:
         max_concurrent_assignments = _get_value(data, ["MaxConcurrentAssignments"], type=int)[1]
         max_assignments_allocation = _get_value(data, ["MaxAssignmentsAllocation"], type=int)[1]
         num_child_stacks = _get_value(data, ["NumChildStacks", "NumChildTemplates"], type=int)[1]
-        default_session_duration = _get_value(data, ["DefaultSessionDuration"], type=int)[1]
+        default_session_duration = _get_value(data, ["DefaultSessionDuration"])[1]
 
         self.set(
             max_resources_per_template=max_resources_per_template,

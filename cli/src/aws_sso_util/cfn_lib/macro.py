@@ -46,8 +46,8 @@ Output:
     "fragment" : { ... }
 }
 """
-TRANSFORM_NAME = "AWS-SSO-Util-2020-11-08"
-RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
+TRANSFORM_NAME_20201108 = "AWS-SSO-Util-2020-11-08"
+ASSIGNMENT_GROUP_RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
 PERMISSION_SET_RESOURCE_TYPE = "SSOUtil::SSO::PermissionSet"
 
 LOGGER = logging.getLogger(__name__)
@@ -56,9 +56,9 @@ def is_macro_template(template):
     if "Transform" not in template:
         return False
     transform = template["Transform"]
-    if transform == TRANSFORM_NAME:
+    if transform == TRANSFORM_NAME_20201108:
         return True
-    if isinstance(transform, list) and TRANSFORM_NAME in transform:
+    if isinstance(transform, list) and TRANSFORM_NAME_20201108 in transform:
         return True
     return False
 
@@ -74,16 +74,16 @@ def process_template(template,
     LOGGER.debug(f"generation_config: {generation_config!s}")
 
     if "Transform" in base_template:
-        if base_template["Transform"] == TRANSFORM_NAME:
+        if base_template["Transform"] == TRANSFORM_NAME_20201108:
             del base_template["Transform"]
         else:
-            base_template["Transform"] = [t for t in base_template["Transform"] if t != TRANSFORM_NAME]
+            base_template["Transform"] = [t for t in base_template["Transform"] if t != TRANSFORM_NAME_20201108]
 
     for resource_name, resource in base_template["Resources"].items():
         if resource["Type"] == PERMISSION_SET_RESOURCE_TYPE:
             resource["Type"] = "AWS::SSO::PermissionSet"
 
-    resource_keys = [k for k, v in base_template["Resources"].items() if v["Type"] == RESOURCE_TYPE]
+    resource_keys = [k for k, v in base_template["Resources"].items() if v["Type"] == ASSIGNMENT_GROUP_RESOURCE_TYPE]
     resource_dict = {k: base_template["Resources"].pop(k) for k in resource_keys}
     LOGGER.debug(f"Found AssignmentGroup resources: {', '.join(resource_keys)}")
 
@@ -194,7 +194,7 @@ def handler(event, context, put_object=None):
         LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
 
         if "Resources" not in input_template:
-            raise TypeError(f"{TRANSFORM_NAME} can only be used as a template-level transform")
+            raise TypeError(f"{TRANSFORM_NAME_20201108} can only be used as a template-level transform")
 
         lookup_cache = {}
 
@@ -244,32 +244,39 @@ def handler(event, context, put_object=None):
             s3_base_path_parts.insert(1, KEY_PREFIX)
         s3_base_path = "/".join(s3_base_path_parts)
 
-        for resource_name, resource_collection in resource_collection_dict.items():
-            num_parent_resources = len(output_template["Resources"]) + max_stack_resources
+        if not resource_collection_dict:
+            LOGGER.debug(f"No assignment groups, processing permission sets")
+            for resource in output_template["Resources"].values():
+                if resource["Type"] != "AWS::SSO::PermissionSet":
+                    continue
+                templates.process_permission_set_resource(resource, generation_config)
+        else:
+            for resource_name, resource_collection in resource_collection_dict.items():
+                num_parent_resources = len(output_template["Resources"]) + max_stack_resources
 
-            parent_template = templates.resolve_templates(
-                resource_collection.assignments,
-                resource_collection.permission_sets,
-                generation_config=generation_config,
-                num_parent_resources=num_parent_resources,
-            )
+                parent_template = templates.resolve_templates(
+                    resource_collection.assignments,
+                    resource_collection.permission_sets,
+                    generation_config=generation_config,
+                    num_parent_resources=num_parent_resources,
+                )
 
-            suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
+                suffix = ".yaml" if CHILD_TEMPLATES_IN_YAML else ".json"
 
-            template_collection = parent_template.get_templates(
-                s3_base_path,
-                f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
-                resource_name,
-                suffix,
-                generation_config=generation_config,
-                base_template=output_template,
-                path_joiner=lambda *args: "/".join(args)
+                template_collection = parent_template.get_templates(
+                    s3_base_path,
+                    f"https://s3.amazonaws.com/{BUCKET_NAME}/{s3_base_path}",
+                    resource_name,
+                    suffix,
+                    generation_config=generation_config,
+                    base_template=output_template,
+                    path_joiner=lambda *args: "/".join(args)
 
-            )
-            output_template = template_collection.parent.template
-            LOGGER.debug(f"Intermediate output template:\n{utils.dump_yaml(output_template)}")
+                )
+                output_template = template_collection.parent.template
+                LOGGER.debug(f"Intermediate output template:\n{utils.dump_yaml(output_template)}")
 
-            all_child_templates_to_write.extend(template_collection.children)
+                all_child_templates_to_write.extend(template_collection.children)
 
         LOGGER.info(f"Writing {len(all_child_templates_to_write)} child templates")
 

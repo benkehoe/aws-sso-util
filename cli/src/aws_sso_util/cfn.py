@@ -313,31 +313,38 @@ def process_templates(
         LOGGER.info(f"Generating templates for {name}")
         parent_template_to_write = template_process_input.base_template or {}
         all_children = []
-        for template_process_input_item in template_process_input.items:
-            num_parent_resources = len(parent_template_to_write.get("Resources", {})) + template_process_input.max_stack_resources
 
-            parent_template = templates.resolve_templates(
-                template_process_input_item.resource_collection.assignments,
-                template_process_input_item.resource_collection.permission_sets,
-                generation_config=template_process_input.generation_config,
-                num_parent_resources=num_parent_resources,
-            )
+        if not template_process_input.items:
+            for resource in parent_template_to_write["Resources"].values():
+                if resource["Type"] != "AWS::SSO::PermissionSet":
+                    continue
+                templates.process_permission_set_resource(resource, template_process_input.generation_config)
+        else:
+            for template_process_input_item in template_process_input.items:
+                num_parent_resources = len(parent_template_to_write.get("Resources", {})) + template_process_input.max_stack_resources
 
-            template_collection = parent_template.get_templates(
-                template_process_input.base_path,
-                ".",
-                template_process_input_item.stem,
-                template_file_suffix,
-                base_template=parent_template_to_write,
-                parameters=None,
-                generation_config=template_process_input.generation_config,
-                path_joiner=os.path.join
+                parent_template = templates.resolve_templates(
+                    template_process_input_item.resource_collection.assignments,
+                    template_process_input_item.resource_collection.permission_sets,
+                    generation_config=template_process_input.generation_config,
+                    num_parent_resources=num_parent_resources,
+                )
 
-            )
-            parent_template_to_write = template_collection.parent.template
-            LOGGER.debug(f"Intermediate parent template\n{cfn_utils.dump_yaml(parent_template_to_write)}")
+                template_collection = parent_template.get_templates(
+                    template_process_input.base_path,
+                    ".",
+                    template_process_input_item.stem,
+                    template_file_suffix,
+                    base_template=parent_template_to_write,
+                    parameters=None,
+                    generation_config=template_process_input.generation_config,
+                    path_joiner=os.path.join
 
-            all_children.extend(template_collection.children)
+                )
+                parent_template_to_write = template_collection.parent.template
+                LOGGER.debug(f"Intermediate parent template\n{cfn_utils.dump_yaml(parent_template_to_write)}")
+
+                all_children.extend(template_collection.children)
 
         templates_to_write[name] = templates.TemplateCollection(
             parent=templates.WritableTemplate(
