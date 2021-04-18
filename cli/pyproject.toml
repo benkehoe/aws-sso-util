@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-sso-util"
-version = "4.22.0"
+version = "4.23.0" # change in aws_sso_util/__init__.py too
 description = "Utilities to make AWS SSO easier"
 authors = ["Ben Kehoe <ben@kehoe.io>"]
 license = "Apache-2.0"
