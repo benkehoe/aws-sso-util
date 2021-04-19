@@ -62,12 +62,27 @@ def is_macro_template(template):
         return True
     return False
 
+def unref_struct(struct, template_parameters):
+    if isinstance(struct, dict) and len(struct) == 1 and "Ref" in struct:
+        # struct is a ref
+        param_name = struct["Ref"]
+        if param_name in template_parameters:
+            return template_parameters[param_name]
+    elif isinstance(struct, dict):
+        for k, v in struct.items():
+            struct[k] = unref_struct(v, template_parameters)
+    elif isinstance(struct, list):
+        for i, v in enumerate(struct):
+            struct[i] = unref_struct(v, template_parameters)
+    return struct
+
 def process_template(template,
         session,
         ids: lookup.Ids,
         generation_config: GenerationConfig,
         generation_config_template_priority: bool,
-        ou_accounts_cache=None):
+        ou_accounts_cache=None,
+        template_parameters={}):
     base_template = copy.deepcopy(template)
 
     generation_config.load(base_template.get("Metadata", {}).get("SSO", {}), overwrite=generation_config_template_priority)
@@ -91,6 +106,7 @@ def process_template(template,
 
     for resource_name, resource in resource_dict.items():
         validate_resource(resource)
+        resource = unref_struct(resource, template_parameters)
         config = Config()
         config.load_resource_properties(resource["Properties"])
         config.resource_name_prefix = resource_name
@@ -229,7 +245,8 @@ def handler(event, context, put_object=None):
                 ids=IDS,
                 generation_config=generation_config,
                 generation_config_template_priority=True,
-                ou_accounts_cache=ou_accounts_cache)
+                ou_accounts_cache=ou_accounts_cache,
+                template_parameters=event["templateParameterValues"])
 
         num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
         LOGGER.info(f"Generated {num_assignments} assignments from {len(resource_collection_dict)} resources")
