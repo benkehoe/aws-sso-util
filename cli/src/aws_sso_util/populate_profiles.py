@@ -151,7 +151,7 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
     return trim_formatter
 
 def get_safe_account_name(name):
-    return re.sub(r"[^\w-]+", "-", name).strip("-")
+    return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
 @click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
