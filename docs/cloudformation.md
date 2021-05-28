@@ -66,7 +66,7 @@ The macro template has the following parameters (note that for the values that c
 
 ## Use macro
 
-The template must include `AWS-SSO-Util-2020-11-08` in its [`Transform` section](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html).
+The template must include `AWS-SSO-Util-2020-11-08` in its [`Transform` section](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html)  ([see example template](../examples/template/example-template.yaml)).
 
 `AWS::SSO::PermissionSet` resources get the following features:
 * Leave the `InstanceArn` property off and it will get looked up using [`sso-admin:ListInstances`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html).
