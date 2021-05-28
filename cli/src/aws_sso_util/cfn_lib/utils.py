@@ -81,14 +81,7 @@ def get_references(value):
     return references
 
 def is_reference(value):
-    if isinstance(value, cfn_yaml_tags.CloudFormationObject):
-        return True
-    elif isinstance(value, dict) and "Ref" in value and len(value) == 1:
-        return True
-    elif isinstance(value, dict) and "Fn::GetAtt" in value and len(value) == 1:
-        return True
-    else:
-        return False
+    return cfn_yaml_tags.is_tag(value)
 
 def get_hash_key(value):
     value = cfn_yaml_tags.to_json(value)

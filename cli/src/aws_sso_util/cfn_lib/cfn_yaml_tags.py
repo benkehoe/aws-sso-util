@@ -159,6 +159,17 @@ functions = [
     ('Fn::Sub',         'Sub',         CloudFormationObject.SEQUENCE_OR_SCALAR),
 ]
 
+tag_names = list(map(lambda v: v[0], itertools.chain([ref], functions)))
+
+def is_tag(obj):
+    if isinstance(obj, CloudFormationObject):
+        return True
+    if isinstance(obj, dict) and len(obj) == 1:
+        key = list(obj.keys())[0]
+        if key in tag_names:
+            return True
+    return False
+
 _object_classes = None
 
 def init(safe=False):

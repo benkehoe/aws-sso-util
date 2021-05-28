@@ -186,8 +186,10 @@ def get_boto3_session(
         role_name (str): The AWS SSO role (aka Permission Set) name to use.
         region (str): The AWS region for the boto3 session.
         login (bool): Interactively log in the user if their AWS SSO credentials have expired.
-        sso_cache: A dict-like object for AWS SSO credential caching.
-        credential_cache: A dict-like object to cache the role credentials in.
+        sso_cache: A dict-like object for AWS SSO credential caching to replace
+            the default file cache in ~/.aws/sso/cache .
+        credential_cache: A dict-like object to cache the role credentials in to
+            replace the default in-memory cache.
 
     Returns:
         A boto3 Session object configured for the account and role.
@@ -210,11 +212,12 @@ def login(
         sso_region: str,
         *,
         force_refresh: bool=False,
+        expiry_window=None,
         disable_browser: bool=None,
         message: str=None,
         outfile: typing.Union[typing.TextIO, bool]=None,
-        sso_cache=None,
-        expiry_window=None,) -> typing.Dict:
+        user_auth_handler=None,
+        sso_cache=None,) -> typing.Dict:
     """Interactively log in the user if their AWS SSO credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
@@ -233,21 +236,39 @@ def login(
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
         force_refresh (bool): Always go through the authentication process.
+        expiry_window: A datetime.timedelta (or number of seconds),
+            or callable returning such, specifying the minimum duration
+            any existing token must be valid for.
         disable_browser (bool): Skip the browser popup
             and only print a message with the URL and code.
         message (str): A message template to print with the fallback URL and code.
         outfile (file): The file-like object to print the message to,
             or False to suppress the message.
-        sso_cache: A dict-like object for AWS SSO credential caching.
-        expiry_window: An int or datetime.timedelta, or callable returning such,
-            specifying the minimum duration in seconds any existing token
-            must be valid for.
+        user_auth_handler (callable): override browser popup and message printing and
+            use the given function instead. It must be a callable taking four
+            keyword arguments: verificationUri, userCode, verificationUriComplete,
+            and expiresAt (a datetime).
+            Provide the verificationUri and userCode if the user is expected to
+            type them in; verificationUriComplete has the userCode embedded in it,
+            suitable for copying or browser popup. This function must return
+            promptly or it will block the login process.
+        sso_cache: A dict-like object for AWS SSO credential caching to replace
+            the default file cache in ~/.aws/sso/cache .
 
     Returns:
         The token dict as returned by sso-oidc:CreateToken,
         which contains the actual authorization token, as well as the expiration.
         """
     session = botocore.session.Session()
+
+    on_pending_authorization = None
+    if user_auth_handler:
+        def on_pending_authorization(**kwargs):
+            kwargs_to_pass = {}
+            for key in ['verificationUri', 'userCode', 'verificationUriComplete', 'expiresAt']:
+                if key in kwargs:
+                    kwargs_to_pass[key] = kwargs[key]
+            return user_auth_handler(**kwargs_to_pass)
 
     token_fetcher = get_token_fetcher(
         session=session,
@@ -257,7 +278,8 @@ def login(
         outfile=outfile,
         disable_browser=disable_browser,
         sso_cache=sso_cache,
-        expiry_window=expiry_window)
+        expiry_window=expiry_window,
+        on_pending_authorization=on_pending_authorization)
 
     token = token_fetcher.fetch_token(
         start_url=start_url,

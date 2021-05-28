@@ -24,15 +24,20 @@ You could configure a profile in your `~/.aws/config` for this (perhaps using `a
 `get_boto3_session()` is the function to do that with.
 
 ```python
-get_boto3_session(start_url, sso_region, account_id, role_name, region, login=False)
+get_boto3_session(start_url, sso_region, account_id, role_name, *, region,
+    login=False,
+    sso_cache=None,
+    credential_cache=None)
 ```
 
 * `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
 * `sso_region`: [REQUIRED] The AWS region for the AWS SSO instance.
 * `account_id`: [REQUIRED] The AWS account ID to use.
 * `role_name`: [REQUIRED] The AWS SSO role (aka PermissionSet) name to use.
-* `region`: [REQUIRED] The AWS region for the boto3 session.
+* `region`: [REQUIRED] The AWS region for the boto3 session (note, required but keyword-only).
 * `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
+* `sso_cache`: A dict or dict-like object for AWS SSO credential caching to replace the default file cache in `~/.aws/sso/cache`.
+* `credential_cache`: A dict or dict-like object to cache the role credentials in to replace the default in-memory cache.
 * Returns a [boto3 Session object](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html) configured for the account and role.
 
 For more control over the login process, use the `login` function separately.
@@ -49,8 +54,20 @@ Normally, it will attempt to automatically open the user's browser to log in, as
 A custom message can be printed by setting `message` to a template string using `{url}` and `{code}` as placeholders.
 The message can be suppressed by setting `message` to `False`.
 
+To fully control the communication with the user, use the `user_auth_handler` parameter.
+It must be a callable taking four keyword arguments: `verificationUri`, `userCode`, `verificationUriComplete`, and `expiresAt` (a datetime).
+Provide `verificationUri` and `userCode` to the user if they are expected to type them in manually (e.g., on a separate device); `verificationUriComplete` has the userCode embedded in it, suitable for copying, linking, or a browser popup.
+The function must return promptly or it will block the login process.
+
 ```python
-login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_browser=None, message=None, outfile=None)
+login(start_url, sso_region, *,
+    force_refresh=False,
+    expiry_window=None,
+    disable_browser=None,
+    message=None,
+    outfile=None,
+    user_auth_handler=None,
+    sso_cache=None)
 ```
 
 * `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
@@ -60,6 +77,8 @@ login(start_url, sso_region, force_refresh=False, expiry_window=None, disable_br
 * `disable_browser`: Set to `True` to skip the browser popup and only print a message with the URL and code.
 * `message`: A message template to print with the fallback URL and code, or `False` to suppress the message.
 * `outfile`: The file-like object to print the message to (stderr by default)
+* `user_auth_handler`: override browser popup and message printing and use the given function instead.
+* `sso_cache`: A dict or dict-like object for AWS SSO credential caching, to override the default file cache in `~/.aws/sso/cache`.
 * Returns the token dict as returned by [sso-oidc:CreateToken](https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html), which contains the actual authorization token, as well as the expiration.
 
 ## `list_available_accounts` and `list_available_roles`
@@ -73,7 +92,7 @@ Note that these functions return iterators; they don't return a list, because th
 You can always get a list by, for example, `list(list_available_roles(...))`.
 
 ```python
-list_available_accounts(start_url, sso_region, login=False)
+list_available_accounts(start_url, sso_region, *, login=False)
 ```
 
 * `start_url`: The start URL for the AWS SSO instance.
@@ -81,8 +100,8 @@ list_available_accounts(start_url, sso_region, login=False)
 * `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
 * Returns an iterator that yields account id and account name.
 
-```
-list_available_roles(start_url, sso_region, account_id=None, login=False)
+```python
+list_available_roles(start_url, sso_region, account_id=None, *, login=False)
 ```
 
 * `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
