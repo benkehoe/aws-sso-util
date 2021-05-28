@@ -20,3 +20,5 @@ samconfig.toml
 
 dist
 poetry.lock
+*.egg-info
+.python-version
