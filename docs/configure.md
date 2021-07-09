@@ -1,7 +1,5 @@
 # `aws-sso-util configure` and `aws-sso-util roles`
 
-> :warning: The AWS Go SDK is currently preventing AWS SSO configuration from also having a credential process defined, which is the mechanism used here to provide support for SDKs that do not yet support AWS SSO configuration. There's an [open bug](https://github.com/aws/aws-sdk-go/issues/3763) you can +1 to help get it fixed. To disable the credential process entry when using `aws-sso-util configure`, use `--no-credential-process` or set `AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS=true`
-
 You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles in [`~/.aws/config`](https://ben11kehoe.medium.com/aws-configuration-files-explained-9a7ea7a5b42e), but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
