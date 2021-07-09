@@ -99,8 +99,6 @@ It validates that `aws-sso-util` can find an AWS SSO instance configuration, and
 
 ## Adding AWS SSO support to AWS SDKs
 
-> :warning: The Go SDK has added support for AWS SSO configuration, but their profile validation disallows `credential_process` to also be specified. If you're using the Go SDK, until this is fixed, when you use `aws-sso-util configure` you'll want to add the `--no-credential-process` flag to prevent the `credential_process` key to be set. Add your support to getting this fixed by adding a :thumbsup: reaction to this bug on the SDK: https://github.com/aws/aws-sdk-go/issues/3763
-
 The credential process is added automatically (by default) by the `aws-sso-util configure` commands; you only need to read this section if you're not using that or want to understand it more fully.
 Read the full docs for `aws-sso-util credential-process` [here](docs/credential-process.md).
 
