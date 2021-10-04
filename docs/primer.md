@@ -24,7 +24,7 @@ The provisioned IAM roles use mangled names that are not shown to users.
 ## Signing in
 
 When a user signs in, they first authenticate with AWS SSO, which, if it is configured to use an external IdP, involves a redirection to the IdP.
-This authentication results in an OIDC access token that represents the user's session.
+This authentication results in an OAuth access token that represents the user's session.
 Note that this is *not* AWS credentials, because the user may have access to many accounts and roles (provisioned permission sets), but they only need to sign in once.
 
 The sign-in always happens through the browser, so it can leverage your existing session with your external IdP.
@@ -35,16 +35,29 @@ When using the AWS CLI and `aws-sso-util`/`aws-sso-lib`, this token is cached in
 
 ## AWS credentials
 
-Subsequently, this OIDC access token can be used to determine the user's access, and to get AWS credentials for a specific account and role (i.e., an IAM role provisioned for a permission set).
+Subsequently, this OAuth access token can be used to determine the user's access, and to get AWS credentials for a specific account and role (i.e., an IAM role provisioned for a permission set).
 
-The ability to enumerate which accounts and roles the user has access to, using the access token, is leveraged by [`aws configure sso`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/configure/sso.html), [`aws-sso-util configure`](https://github.com/benkehoe/aws-sso-util/blob/master/docs/configure.md), and [`aws-sso-util roles`](https://github.com/benkehoe/aws-sso-util/blob/master/docs/configure.md#aws-sso-util-roles).
+This is mainly done by configuring profiles in `~/.aws/config`.
+Each profile specifies the account and SSO role to use.
+A profile configured for AWS SSO looks like this:
 
-For a given account and role, the token can be used to get AWS credentials.
-A profile configured for AWS SSO in `~/.aws/config` has an account and role specified, and the AWS CLI and SDKs* automatically load the cached access token and use it to retrieve AWS credentials for that account and role (including refreshing the AWS credentials if they expire but the access token is still valid).
-This mechanism is also used for programmatic access using [`aws_sso_lib.get_boto3_session()`](https://github.com/benkehoe/aws-sso-util/blob/master/lib/README.md#get_boto3_session).
+```ini
+[profile my-sso-profile]
+sso_start_url = https://example.awsapps.com/start
+sso_region = us-east-1 # the region AWS SSO is configured in
+sso_account_id = 123456789012
+sso_role_name = MyRoleName
+region = us-east-2 # the region to use for AWS API calls
+```
+
+The AWS CLI and (most) SDKs automatically load the cached access token and use it to retrieve AWS credentials for that account and role (including refreshing the AWS credentials if they expire but the access token is still valid). These profiles can be written manually, or using [`aws configure sso`](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/configure/sso.html) or [`aws-sso-util configure`](https://github.com/benkehoe/aws-sso-util/blob/master/docs/configure.md), which set up these profiles for you.
+
+The access token can also be used to enumerate the accounts and roles the token (i.e., the user) has access to. This is used by [`aws-sso-util roles`](https://github.com/benkehoe/aws-sso-util/blob/master/docs/configure.md#aws-sso-util-roles), and is used by `aws configure sso` for auto-complete and by `aws-sso-util configure populate` to create profiles for every account and role.
+
+Programmatic access in Python for an account and role using the cached token is available with [`aws_sso_lib.get_boto3_session()`](https://github.com/benkehoe/aws-sso-util/blob/master/lib/README.md#get_boto3_session).
 
 ## Administration
 
 Administering AWS SSO is done through the [`sso-admin`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/welcome.html) and [`identitystore`](https://docs.aws.amazon.com/singlesignon/latest/IdentityStoreAPIReference/welcome.html) APIs, which are accessed using AWS credentials.
 
-Note that a) these APIs cannot be used directly with the OIDC access token resulting from signing in, and b) the AWS credentials used to access them do not need to come from a role linked to AWS SSO (otherwise, how would you set it up?).
+Note that a) these APIs cannot be used directly with the OAuth access token resulting from signing in, and b) the AWS credentials used to access them do not need to come from a role linked to AWS SSO (otherwise, how would you set it up?).

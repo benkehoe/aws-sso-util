@@ -69,7 +69,19 @@ fi
 
 Read the full docs for `aws-sso-util configure` and `aws-sso-util roles` [here](docs/configure.md).
 
-You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles in [`~/.aws/config`](https://ben11kehoe.medium.com/aws-configuration-files-explained-9a7ea7a5b42e), but `aws-sso-util` also provides functionality to directly configure profiles for you.
+The AWS CLI and most AWS SDKs support AWS SSO configuration in `~/.aws/config`; each profile specifies the account and SSO role to use.
+A profile configured for AWS SSO looks like this:
+
+```ini
+[profile my-sso-profile]
+sso_start_url = https://example.awsapps.com/start
+sso_region = us-east-1 # the region AWS SSO is configured in
+sso_account_id = 123456789012
+sso_role_name = MyRoleName
+region = us-east-2 # the region to use for AWS API calls
+```
+
+You can view the roles you have available to you with `aws-sso-util roles`, which you can use to configure your profiles in [`~/.aws/config`](https://ben11kehoe.medium.com/aws-configuration-files-explained-9a7ea7a5b42e), or you can use `aws configure sso` in the AWS CLI v2, but `aws-sso-util` also provides functionality to directly configure profiles for you.
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 
