@@ -537,13 +537,14 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None,
         paginator = client.get_paginator("list_accounts_for_parent")
         for ind, response in enumerate(paginator.paginate(ParentId=ou)):
             _init_cache(cache, ou_accounts_key, list)
+            cached_list = cache[ou_accounts_key]
             if not response["Accounts"]:
                 LOGGER.debug(f"No accounts directly in {ou}")
                 continue
             acct_strs = [_acct_str(a) for a in response["Accounts"]]
             LOGGER.debug(f"ListAccountsPage page {ind+1} for {ou}: {', '.join(acct_strs)}")
             for account in response["Accounts"]:
-                cache[ou_accounts_key].append(account)
+                cached_list.append(account)
                 if org_mgmt_acct and account["Id"] == org_mgmt_acct:
                     continue
                 yield account
@@ -571,13 +572,14 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None,
             paginator = client.get_paginator("list_organizational_units_for_parent")
             for ind, response in enumerate(paginator.paginate(ParentId=ou)):
                 _init_cache(cache, ou_children_key, list)
+                cached_list = cache[ou_children_key]
                 if not response["OrganizationalUnits"]:
                     LOGGER.debug(f"No child OUs in {ou}")
                     continue
                 sub_ous = [data["Id"] for data in response["OrganizationalUnits"]]
                 LOGGER.debug(f"ListOrganizationalUnitsForParent page {ind+1} for {ou}: {', '.join(sub_ous)}")
                 for sub_ou_id in sub_ous:
-                    cache[ou_children_key].append(sub_ou_id)
+                    cached_list.append(sub_ou_id)
                     for account in lookup_accounts_for_ou(session, sub_ou_id,
                             recursive=child_recursive,
                             refresh=refresh,

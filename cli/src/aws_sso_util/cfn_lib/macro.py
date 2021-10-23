@@ -138,6 +138,9 @@ KEY_PREFIX = None
 
 S3_PUT_OBJECT_ARGS = None
 
+LOOKUP_CACHE = None
+OU_ACCOUNTS_CACHE = None
+
 def handler_init():
     global HANDLER_INITIALIZED, \
         SESSION, \
@@ -151,11 +154,14 @@ def handler_init():
         DEFAULT_SESSION_DURATION, \
         BUCKET_NAME, \
         KEY_PREFIX, \
-        S3_PUT_OBJECT_ARGS
+        S3_PUT_OBJECT_ARGS, \
+        LOOKUP_CACHE, \
+        OU_ACCOUNTS_CACHE
     if HANDLER_INITIALIZED:
         return
 
     logging.getLogger("aws_sso_util").setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
+    logging.getLogger("aws_sso_lib").setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "INFO")))
     logging.basicConfig()
 
     LOGGER.info("Initializing handler")
@@ -180,6 +186,12 @@ def handler_init():
     except:
         LOGGER.exception("Error parsing S3_PUT_OBJECT_ARGS")
 
+    if "CACHE_EXPIRATION_SECONDS" in os.environ:
+        cache_expiration_seconds = int(os.environ["CACHE_EXPIRATION_SECONDS"])
+        LOOKUP_CACHE = utils.ExpiringDict(datetime.timedelta(seconds=cache_expiration_seconds))
+        OU_ACCOUNTS_CACHE = utils.ExpiringDict(datetime.timedelta(seconds=cache_expiration_seconds))
+
+
     HANDLER_INITIALIZED = True
 
 def handler(event, context, put_object=None):
@@ -196,7 +208,10 @@ def handler(event, context, put_object=None):
         if "Resources" not in input_template:
             raise TypeError(f"{TRANSFORM_NAME_20201108} can only be used as a template-level transform")
 
-        lookup_cache = {}
+        if LOOKUP_CACHE is not None:
+            lookup_cache = LOOKUP_CACHE
+        else:
+            lookup_cache = {}
 
         if LOOKUP_NAMES:
             principal_name_fetcher = utils.get_principal_name_fetcher(SESSION, IDS, lookup_cache)
@@ -221,7 +236,10 @@ def handler(event, context, put_object=None):
             default_session_duration=DEFAULT_SESSION_DURATION,
         )
 
-        ou_accounts_cache = {}
+        if OU_ACCOUNTS_CACHE is not None:
+            ou_accounts_cache = OU_ACCOUNTS_CACHE
+        else:
+            ou_accounts_cache = {}
 
         LOGGER.info("Extracting resources from template")
         output_template, max_stack_resources, resource_collection_dict = process_template(input_template,

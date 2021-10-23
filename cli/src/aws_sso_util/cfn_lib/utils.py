@@ -14,6 +14,7 @@
 import logging
 import json
 import hashlib
+import datetime
 from collections import OrderedDict
 
 import yaml
@@ -23,6 +24,8 @@ cfn_yaml_tags.mark_safe()
 
 from aws_sso_lib import lookup
 from aws_sso_lib import format as _format
+
+LOGGER = logging.getLogger(__name__)
 
 def to_ordered_dict(obj):
     if isinstance(obj, dict):
@@ -130,3 +133,64 @@ def get_target_name_fetcher(session, ids, cache):
         except lookup.LookupError:
             return None
     return fetcher
+
+class ExpiringDict:
+    @classmethod
+    def _now(cls):
+        return datetime.datetime.now(datetime.timezone.utc)
+
+    def _valid(self, dt):
+        diff = self._now() - dt
+        valid = diff <= self._max_age
+        return valid, diff
+
+    def __init__(self, max_age: datetime.timedelta):
+        # LOGGER.debug("Setting max age to %s", max_age)
+        self._max_age = max_age
+        self._dict = {}
+
+    @property
+    def max_age(self):
+        return self._max_age
+
+    def __setitem__(self, key, value):
+        now = self._now()
+        # LOGGER.debug("Setting %s to %s at %s", key, value, now.isoformat())
+        self._dict[key] = (value, now)
+
+    def __contains__(self, key):
+        if key not in self._dict:
+            # LOGGER.debug("Cache miss for %s (not found)", key) #
+            return False
+        _, dt = self._dict[key]
+        valid, diff = self._valid(dt)
+        if not valid:
+            # LOGGER.debug("Cache miss for %s (age %s)", key, diff)
+            return False
+        # LOGGER.debug("Cache hit for %s (age %s)", key, diff) #
+        return True
+
+    def __getitem__(self, key):
+        if key not in self._dict:
+            # LOGGER.debug("Cache miss for %s (not found)", key) #
+            raise KeyError(key)
+        value, dt = self._dict[key]
+        valid, diff = self._valid(dt)
+        if not valid:
+            # LOGGER.debug("Cache miss for %s (age %s)", key, diff)
+            raise KeyError(key)
+        # LOGGER.debug("Cache hit for %s (age %s)", key, diff) #
+        return value
+
+    def get(self, key, default=None):
+        if key not in self._dict:
+            # LOGGER.debug("Cache miss for %s (not found)", key) #
+            return default
+        value, dt = self._dict[key]
+        valid, diff = self._valid(dt)
+        if not valid:
+            # LOGGER.debug("Cache miss for %s (age %s)", key, diff)
+            return default
+        # LOGGER.debug("Cache hit for %s (age %s)", key, diff) #
+        return value
+
