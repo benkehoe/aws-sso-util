@@ -15,10 +15,11 @@ import enum
 import logging
 import hashlib
 from collections import OrderedDict, namedtuple
+import typing
 
 from aws_sso_lib.assignments import Assignment as _Assignment
 
-from .config import Config
+from .config import Config, TransformVersion
 from . import utils
 from . import cfn_yaml_tags
 
@@ -192,10 +193,12 @@ class Target:
             ou_str = ""
         return f"{self.__class__.__name__}({self.type!r}, {self.id!r}{ou_str})"
 
+AssignmentOrigin = namedtuple("AssignmentOrigin", ["assignment_group", "target_source_ou"])
+
 class Assignment:
     RESOURCE_NAME_PREFIX = "Assignment"
 
-    def __init__(self, instance, principal, permission_set, target, resource_name_prefix=None, metadata=None):
+    def __init__(self, instance, principal, permission_set, target, resource_name_prefix=None, metadata=None, assignment_group=None):
         self.instance = instance
         self.principal = principal
         self.permission_set = permission_set
@@ -203,9 +206,22 @@ class Assignment:
 
         self.metadata = metadata
 
+        self.origin = []
+        if assignment_group or target.source_ou:
+            if not assignment_group:
+                assignment_group = "<unknown>"
+            self.origin.append(AssignmentOrigin(assignment_group, target.source_ou))
+
         self._resource_name_prefix = resource_name_prefix
 
         self.references = utils.get_references(self.instance) | self.principal.references | self.permission_set.references | self.target.references
+
+    def add_origin(self, other_assignment):
+        hash = self.get_hash().hexdigest()
+        other_hash = other_assignment.get_hash().hexdigest()
+        if hash != other_hash:
+            raise ValueError(f"Assignment {other_assignment!r} is incompatible with {self!r}")
+        self.origin.extend(other_assignment.origin)
 
     def get_hash(self):
         hasher = hashlib.md5()
@@ -222,6 +238,7 @@ class Assignment:
         return f"{prefix}{self.RESOURCE_NAME_PREFIX}{hash_value}"
 
     def get_resource(self,
+            transform_version,
             child_stack,
             depends_on=None,
             principal_name_fetcher=None,
@@ -237,8 +254,21 @@ class Assignment:
         if self.metadata:
             metadata.update(self.metadata)
 
-        if self.target.source_ou:
-            metadata["AccountSourceOU"] = self.target.source_ou
+        if transform_version == TransformVersion.v2020_11_08:
+            if self.origin and self.origin[0].assignment_group:
+                metadata["AssignmentGroupName"] = self.origin[0].assignment_group
+            if self.target.source_ou:
+                metadata["AccountSourceOU"] = self.target.source_ou
+        elif self.origin:
+            origin_list = []
+            for origin in self.origin:
+                origin_item = {}
+                if origin.assignment_group:
+                    origin_item["AssignmentGroup"] = origin.assignment_group
+                if origin.target_source_ou:
+                    origin_item["TargetSourceOU"] = origin.target_source_ou
+                origin_list.append(origin_item)
+            metadata["Origin"] = origin_list
 
         if principal_name_fetcher and isinstance(self.principal.id, str):
             principal_name = principal_name_fetcher(self.principal.type.value, self.principal.id)
@@ -377,14 +407,31 @@ class PermissionSetResources(ResourceList):
 
 ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignments", "permission_sets"])
 
+def merge_resource_collections(resource_collections: typing.List[ResourceCollection]):
+    assignments = {}
+    permission_sets = PermissionSetResources([])
+    for resource_collection in resource_collections:
+        for assignment in resource_collection.assignments:
+            hash = assignment.get_hash().hexdigest()
+            if hash in assignments:
+                print(f"matched assignments {assignments[hash]!r} {assignment!r}")
+                assignments[hash].add_origin(assignment)
+            else:
+                assignments[hash] = assignment
+        permission_sets.extend(resource_collection.permission_sets)
+    assignments = AssignmentResources(assignments.values())
+    num_resources = len(assignments) + len(permission_sets)
+    return ResourceCollection(num_resources, assignments, permission_sets)
+
 def get_resources_from_config(config: Config, assignment_metadata=None, ou_fetcher=None) -> ResourceCollection:
     if config.instance is None:
         raise ValueError("SSO instance is not set on config")
 
-    if config.assignment_group_name:
-        if assignment_metadata is None:
-            assignment_metadata = {}
-        assignment_metadata["AssignmentGroupName"] = config.assignment_group_name
+    # if config.transform_version == TransformVersion.v2020_11_08:
+    #     if config.assignment_group_name:
+    #         if assignment_metadata is None:
+    #             assignment_metadata = {}
+    #         assignment_metadata["AssignmentGroupName"] = config.assignment_group_name
 
     num_resources = 0
 
@@ -433,6 +480,7 @@ def get_resources_from_config(config: Config, assignment_metadata=None, ou_fetch
                     principal,
                     permission_set,
                     target,
+                    assignment_group=config.assignment_group_name,
                     metadata=assignment_metadata,
                     resource_name_prefix=config.resource_name_prefix,
                 ))

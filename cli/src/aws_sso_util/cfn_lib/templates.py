@@ -82,6 +82,7 @@ def add_assignments_to_template(
         assignment_resources.append((
             assignment.get_resource_name(),
             assignment.get_resource(
+                transform_version=generation_config.transform_version,
                 child_stack=child_stack,
                 depends_on=depends_on,
                 principal_name_fetcher=generation_config.principal_name_fetcher,

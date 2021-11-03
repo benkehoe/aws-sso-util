@@ -14,6 +14,7 @@
 import jsonschema
 import logging
 import math
+import enum
 
 from aws_sso_lib import lookup
 from aws_sso_lib.format import format_account_id
@@ -24,6 +25,10 @@ LOGGER = logging.getLogger(__name__)
 
 class ConfigError(Exception):
     pass
+
+class TransformVersion(enum.Enum):
+    v2020_11_08 = "2020-11-08"
+    v2021_11_03 = "2021-11-03"
 
 def _get_value(dct, keys, ensure_list=False, type=None):
     if not isinstance(keys, list):
@@ -51,6 +56,7 @@ class GenerationConfig:
     DEFAULT_MAX_RESOURCES_PER_TEMPLATE = 500
     DEFAULT_MAX_CONCURRENT_ASSIGNMENTS = 20
     DEFAULT_NUM_CHILD_STACKS = None
+    DEFAULT_TRANSFORM_VERSION = TransformVersion.v2020_11_08
 
     def __init__(self,
             ids: lookup.Ids,
@@ -58,6 +64,8 @@ class GenerationConfig:
             permission_set_name_fetcher=None,
             target_name_fetcher=None):
         self.ids = ids
+
+        self._transform_version = None
         self._max_resources_per_template = None
         self._max_concurrent_assignments = None
         self._max_assignments_allocation = None
@@ -71,11 +79,13 @@ class GenerationConfig:
 
     def __str__(self):
         return str({
+            "transform_version": self.transform_version,
             "max_resources_per_template": self.max_resources_per_template,
             "max_concurrent_assignments": self.max_concurrent_assignments,
             "num_child_stacks": self.num_child_stacks,
             "default_session_duration": self.default_session_duration,
             "internal": {
+                "transform_version": self._transform_version,
                 "max_resources_per_template": self._max_resources_per_template,
                 "max_concurrent_assignments": self._max_concurrent_assignments,
                 "max_assignments_allocation": self._max_assignments_allocation,
@@ -92,6 +102,7 @@ class GenerationConfig:
             target_name_fetcher=self.target_name_fetcher
         )
         obj.set(
+            transform_version=self._transform_version,
             max_resources_per_template=self._max_resources_per_template,
             max_concurrent_assignments=self._max_concurrent_assignments,
             max_assignments_allocation=self._max_assignments_allocation,
@@ -99,6 +110,13 @@ class GenerationConfig:
             default_session_duration=self._default_session_duration,
         )
         return obj
+
+    @property
+    def transform_version(self):
+        if self._transform_version is None:
+            return self.DEFAULT_TRANSFORM_VERSION
+        else:
+            return self._transform_version
 
     @property
     def max_resources_per_template(self):
@@ -147,12 +165,16 @@ class GenerationConfig:
             return self._default_session_duration
 
     def set(self,
+            transform_version=None,
             max_resources_per_template=None,
             max_concurrent_assignments=None,
             max_assignments_allocation=None,
             num_child_stacks=None,
             default_session_duration=None,
             overwrite=False):
+
+        if self._transform_version is None or (transform_version is not None and overwrite):
+            self._transform_version = TransformVersion(transform_version) if transform_version else None
 
         if self._max_resources_per_template is None or (max_resources_per_template is not None and overwrite):
             self._max_resources_per_template = max_resources_per_template
@@ -170,6 +192,7 @@ class GenerationConfig:
             self._default_session_duration = default_session_duration
 
     def load(self, data, overwrite=False):
+        transform_version = _get_value(data, ["TransformVersion"], type=TransformVersion)[1]
         max_resources_per_template = _get_value(data, ["MaxResourcesPerTemplate"], type=int)[1]
         max_concurrent_assignments = _get_value(data, ["MaxConcurrentAssignments"], type=int)[1]
         max_assignments_allocation = _get_value(data, ["MaxAssignmentsAllocation"], type=int)[1]
@@ -177,6 +200,7 @@ class GenerationConfig:
         default_session_duration = _get_value(data, ["DefaultSessionDuration"])[1]
 
         self.set(
+            transform_version=transform_version,
             max_resources_per_template=max_resources_per_template,
             max_concurrent_assignments=max_concurrent_assignments,
             max_assignments_allocation=max_assignments_allocation,
@@ -186,7 +210,8 @@ class GenerationConfig:
         )
 
 class Config:
-    def __init__(self, data=None, resource_properties=None, resource_name_prefix=None):
+    def __init__(self, transform_version: TransformVersion, data=None, resource_properties=None, resource_name_prefix=None):
+        self.transform_version = transform_version
         self.instance = None
 
         self.groups = []

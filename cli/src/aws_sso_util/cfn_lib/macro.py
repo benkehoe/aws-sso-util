@@ -23,7 +23,7 @@ import boto3
 
 from aws_sso_lib import lookup
 
-from .config import Config, validate_resource, GenerationConfig
+from .config import Config, validate_resource, GenerationConfig, TransformVersion
 from . import resources, templates, utils, cfn_yaml_tags
 
 """
@@ -46,21 +46,33 @@ Output:
     "fragment" : { ... }
 }
 """
-TRANSFORM_NAME_20201108 = "AWS-SSO-Util-2020-11-08"
+TRANSFORM_NAME_PREFIX = "AWS-SSO-Util-"
+
 ASSIGNMENT_GROUP_RESOURCE_TYPE = "SSOUtil::SSO::AssignmentGroup"
 PERMISSION_SET_RESOURCE_TYPE = "SSOUtil::SSO::PermissionSet"
 
 LOGGER = logging.getLogger(__name__)
 
 def is_macro_template(template):
-    if "Transform" not in template:
-        return False
-    transform = template["Transform"]
-    if transform == TRANSFORM_NAME_20201108:
-        return True
-    if isinstance(transform, list) and TRANSFORM_NAME_20201108 in transform:
-        return True
-    return False
+    _, transform_version = _get_transform(template)
+    return transform_version is not None
+
+def _get_transform(template_or_transform):
+    if isinstance(template_or_transform, dict):
+        transform_list = template_or_transform.get("Transform", [])
+    else:
+        transform_list = template_or_transform
+    if not isinstance(transform_list, list):
+        transform_list = [transform_list]
+    for transform_name in transform_list:
+        if transform_name.startswith(TRANSFORM_NAME_PREFIX):
+            try:
+                transform_version = TransformVersion(transform_name[len(TRANSFORM_NAME_PREFIX):])
+                return transform_name, transform_version
+            except ValueError:
+                pass
+
+    return None, None
 
 def process_template(template,
         session,
@@ -70,14 +82,18 @@ def process_template(template,
         ou_accounts_cache=None):
     base_template = copy.deepcopy(template)
 
+    if "Transform" in base_template:
+        transform_name, transform_version = _get_transform(base_template)
+        if transform_name:
+            print("****XFORM VERSION {} ****".format(transform_version))
+            generation_config.set(transform_version=transform_version, overwrite=generation_config_template_priority)
+            if base_template["Transform"] == transform_name:
+                base_template.pop("Transform")
+            else:
+                base_template["Transform"].remove(transform_name)
+
     generation_config.load(base_template.get("Metadata", {}).get("SSO", {}), overwrite=generation_config_template_priority)
     LOGGER.debug(f"generation_config: {generation_config!s}")
-
-    if "Transform" in base_template:
-        if base_template["Transform"] == TRANSFORM_NAME_20201108:
-            del base_template["Transform"]
-        else:
-            base_template["Transform"] = [t for t in base_template["Transform"] if t != TRANSFORM_NAME_20201108]
 
     for resource_name, resource in base_template["Resources"].items():
         if resource["Type"] == PERMISSION_SET_RESOURCE_TYPE:
@@ -91,12 +107,16 @@ def process_template(template,
 
     for resource_name, resource in resource_dict.items():
         validate_resource(resource)
-        config = Config()
+        config = Config(generation_config.transform_version)
         config.load_resource_properties(resource["Properties"])
-        config.resource_name_prefix = resource_name
+        if generation_config.transform_version == TransformVersion.v2020_11_08:
+            config.resource_name_prefix = resource_name
 
         if not config.instance:
             config.instance = ids.instance_arn
+
+        if not config.assignment_group_name:
+            config.assignment_group_name = resource_name
 
         configs[resource_name] = config
 
@@ -110,7 +130,7 @@ def process_template(template,
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
             config,
-            assignment_metadata={"AssignmentGroupResourceName": resource_name},
+            # assignment_metadata={"AssignmentGroupResourceName": resource_name},
             ou_fetcher=ou_fetcher)
 
         max_stack_resources += generation_config.get_max_number_of_child_stacks(resource_collection.num_resources)
@@ -194,7 +214,7 @@ def handler(event, context, put_object=None):
         LOGGER.debug(f"Input template:\n{utils.dump_yaml(input_template)}")
 
         if "Resources" not in input_template:
-            raise TypeError(f"{TRANSFORM_NAME_20201108} can only be used as a template-level transform")
+            raise TypeError(f"This transform can only be used as a template-level transform")
 
         lookup_cache = {}
 
@@ -251,6 +271,13 @@ def handler(event, context, put_object=None):
                     continue
                 templates.process_permission_set_resource(resource, generation_config)
         else:
+            if generation_config.transform_version == TransformVersion.v2021_11_03:
+                LOGGER.debug("Merging resource collections")
+                resource_collection_dict = {
+                    "Assignments": resources.merge_resource_collections(
+                        resource_collection_dict.values()
+                    )
+                }
             for resource_name, resource_collection in resource_collection_dict.items():
                 num_parent_resources = len(output_template["Resources"]) + max_stack_resources
 

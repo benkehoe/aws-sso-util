@@ -27,7 +27,7 @@ from aws_sso_lib import lookup
 from aws_sso_lib import format as _format
 from aws_sso_lib.assignments import Assignment
 
-from .cfn_lib.config import Config, ConfigError, validate_config, GenerationConfig
+from .cfn_lib.config import Config, ConfigError, validate_config, GenerationConfig, TransformVersion
 from .cfn_lib import resources, templates, macro
 from .cfn_lib import utils as cfn_utils
 
@@ -289,6 +289,14 @@ def process_macro(
 
         num_assignments = sum(len(rc.assignments) for rc in resource_collection_dict.values())
         LOGGER.info(f"Generated {num_assignments} assignments")
+
+        if generation_config.transform_version == TransformVersion.v2021_11_03:
+            print("Merging resource collections")
+            resource_collection_dict = {
+                "Assignments": resources.merge_resource_collections(
+                    resource_collection_dict.values()
+                )
+            }
 
         template_process_inputs[config_file_path] = TemplateProcessInput(
             base_path=base_path,
