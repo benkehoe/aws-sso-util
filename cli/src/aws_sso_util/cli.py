@@ -26,6 +26,7 @@ from .logout import logout
 from .lookup import lookup
 from .populate_profiles import populate_profiles
 from .roles import roles
+from .run_as import run_as
 
 @click.group(name="aws-sso-util")
 @click.version_option(version=__version__, message='%(version)s')
@@ -44,6 +45,7 @@ cli.add_command(login)
 cli.add_command(logout)
 cli.add_command(roles)
 cli.add_command(check)
+cli.add_command(run_as)
 
 @cli.group()
 def admin():
