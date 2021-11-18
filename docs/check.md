@@ -8,13 +8,14 @@ It can help you validate whether or not you have access to a specific account an
 
 For use in shell scripts, the `--quiet`/`-q` flag can be specified, which will suppress all output, allowing for shell script conditionals to check the return code.
 
-## AWS SSO instance configuration
+## AWS SSO instance configuration check
+
+To use `aws-sso-util` commands (not including `aws-sso-util admin` commands), an AWS SSO instance must be specified.
+`aws-sso-util check` always determines if a valid instance is configured.
 
 ### Overview
 
-To use `aws-sso-util` commands (not including `aws-sso-util admin` commands), an AWS SSO instance must be specified.
-
-This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
+The AWS SSO instance consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
 However, `aws-sso-util` tries to be smart about finding this value.
 
 If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
@@ -34,7 +35,7 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
     * If a region was found in step 1, instances must match this region.
 4. The resulting filtered list of instances must contain exactly one entry.
 
-### Debugging
+### Instance check
 If `aws-sso-util check` cannot find a unique AWS SSO instance, it will return an error and a description of what it did find.
 
 * If no AWS SSO instances were found at all, it will print that and exit with return code 101.
@@ -42,17 +43,23 @@ If `aws-sso-util check` cannot find a unique AWS SSO instance, it will return an
 * If no unique AWS SSO intance was found, either because no specifier was found or because the specifier matched more than one of them, it will print all matched instances, the specifier, and the entire set of instances, and exit with return code 103.
 
 If `aws-sso-util check` finds a unique instance, and neither `--account-id` nor `--role-name` are given, it will print the details of the instance, the specifier, and the entire set of instances, and exit with return code 0 (success).
+To print out these details when also checking access to an account and/or role, use the `--instance-details` flag.
 
 If you provide the flag `-vvv` (which turns the logging level of `aws_sso_lib` to `DEBUG`), the details of the AWS SSO instance collection and filtering process will be printed.
 
-## AWS SSO access
+## AWS SSO token check
 
-`aws-sso-util` can check if the user has access to a particular account and/or role.
+`aws-sso-util check` attempts to load the user's AWS SSO token.
+If `--force-refresh` is provided, it goes through the login process.
+Otherwise, it attempts to load the cached token.
+Either way, on successful retrieval of the token, the expiration is printed; on failure, it will exit with code 201.
+To skip this step when not checking access to an account or role (which requires the token anyway), use the `--skip-token-check` flag.
 
-If the above AWS SSO instance check passed, the instance is printed.
+`aws-sso-util check` attempts to identify common problems with cached tokens, including permissions errors.
 
-If a valid token cannot be found and the user cannot be logged in, it will print an error and exit with return code 201.
-Otherwise, the expiration of the token is printed.
+## AWS SSO access check
+
+`aws-sso-util` can check if the user has access to a particular account and/or role using the `--account-id` and `--role-name` options.
 
 If only `--account-id` is given, `aws-sso-util check` will find if any roles are accessible in that account, and print them out.
 If no roles are accessible in that account, it will print an error and exit with return code 202.
