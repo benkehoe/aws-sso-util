@@ -35,17 +35,17 @@ Otherwise, see below for the full resolution algorithm.
 
 `aws-sso-util roles` has the following options:
 * `--account`/`-a`: either an explicit 12-digit account ID (which will speed up the process) or a patterns to match, either the account ID prefix or suffix, or a regex to match against the account name.
-  * This option can be provided multiple times.
-  * If explicit account IDs are provided, the account name will always be `UNKNOWN`.
+    * This option can be provided multiple times.
+    * If explicit account IDs are provided, the account name will always be `UNKNOWN`.
 * `--role-name`/`-r`: a regex to match against the role name
 * `--separator`/`--sep`: the field separator.
-  * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end. This can be useful if you have access to a large number of accounts and roles.
+    * If `--separator` is provided and not `--sort-by` (see below), the rows will be printed as they are received, rather than all at once at the end. This can be useful if you have access to a large number of accounts and roles.
 * `--header`/`--no-header`: print a header row (default) or suppress it.
 * `--sort-by`: sort the output (and order the columns) according to the specification. The input must be two comma-separated values:
-  * `id` is the account ID.
-  * `name` is the account name.
-  * `role` is the role name.
-  * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
+    * `id` is the account ID.
+    * `name` is the account name.
+    * `role` is the role name.
+    * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
 * `--force-refresh`: log in again.
 
 # Common options
@@ -65,9 +65,9 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
     3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
 3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
-    * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
-    * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
-    * If a region was found in step 2, instances must match this region.
+    * If a start URL was found in step 1 and it begins with `http`, it will ignore all other instances.
+    * If a start URL was found in step 1 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
+    * If a region was found in step 1, instances must match this region.
 4. The resulting filtered list of instances must contain exactly one entry.
 
 In general: if you've got multiple AWS SSO instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
@@ -103,22 +103,22 @@ You can set all the options for a profile, or let it prompt you interactively to
 
 A complete profile has the following required information, and you can set them with the listed parameters/environment variables:
 * AWS SSO start URL
-  * See above for how to set this
-  * `--sso-start-url`
-  * `AWS_CONFIGURE_DEFAULT_SSO_START_URL`
-  * `AWS_DEFAULT_SSO_START_URL`
+    * See above for how to set this
+    * `--sso-start-url`
+    * `AWS_CONFIGURE_DEFAULT_SSO_START_URL`
+    * `AWS_DEFAULT_SSO_START_URL`
 * AWS SSO region
-  * `--sso-region`
-  * `AWS_CONFIGURE_DEFAULT_SSO_REGION`
-  * `AWS_DEFAULT_SSO_REGION`
+    * `--sso-region`
+    * `AWS_CONFIGURE_DEFAULT_SSO_REGION`
+    * `AWS_DEFAULT_SSO_REGION`
 * Account
-  * `--account-id`/`-a`
+    * `--account-id`/`-a`
 * Role name
-  * `--role-name`/`-r`
+    * `--role-name`/`-r`
 * Region
-  * `--region`
-  * `AWS_CONFIGURE_DEFAULT_REGION` environment variable
-  * `AWS_DEFAULT_REGION`
+    * `--region`
+    * `AWS_CONFIGURE_DEFAULT_REGION` environment variable
+    * `AWS_DEFAULT_REGION`
 
 You can additionally set the `output` field with `--output`/`-o`, and as mentioned above, you can provide additional fields with `--config-default`/`-c`.
 

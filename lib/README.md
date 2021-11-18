@@ -162,12 +162,12 @@ list_assignments(
 * `instance_arn`: The SSO instance to use, or it will be looked up using ListInstances
 * `identity_store_id`: The identity store to use if principal names are being retrieved or it will be looked up using ListInstances
 * `principal`: A principal specification or list of principal specifications.
-  * A principal specification is a principal id or a 2-tuple of principal type and id.
+    * A principal specification is a principal id or a 2-tuple of principal type and id.
 * `principal_filter`: A callable taking principal type, principal id, and principal name (which may be `None`), and returning `True` if the principal should be included.
 * `permission_set`: A permission set arn or id, or a list of the same.
 * `permission_set_filter`: A callable taking permission set arn and name (name may be `None`), returning True if the permission set should be included.
 * `target`: A target specification or list of target specifications.
-  * A target specification is an account or OU id, or a 2-tuple of target type, which is either AWS_ACCOUNT or AWS_OU, and target id.
+    * A target specification is an account or OU id, or a 2-tuple of target type, which is either AWS_ACCOUNT or AWS_OU, and target id.
 * `target_filter`: A callable taking target type, target id, and target name (which may be `None`), and returning `True` if the target should be included.
 * `get_principal_names`: Set to `True` to retrieve names for principals in assignments.
 * ` get_permission_set_names`: Set to `True` to retrieve names for permission sets in assignments.

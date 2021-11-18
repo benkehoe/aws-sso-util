@@ -22,16 +22,16 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
 
 `aws-sso-util check` uses the following algorithm to determine these values:
 1. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
-  1. `--sso-start-url`/`-u` and `--sso-region`
-  2. If `--command` is specified and is not set to `default`:
-      * If `--command` is `configure`: `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_DEFAULT_SSO_REGION`
-      * If `--command` is `login`: `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
-  3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
+    1. `--sso-start-url`/`-u` and `--sso-region`
+    2. If `--command` is specified and is not set to `default`:
+        * If `--command` is `configure`: `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_DEFAULT_SSO_REGION`
+        * If `--command` is `login`: `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
+    3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
 3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
-    * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
-    * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
-    * If a region was found in step 2, instances must match this region.
+    * If a start URL was found in step 1 and it begins with `http`, it will ignore all other instances.
+    * If a start URL was found in step 1 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
+    * If a region was found in step 1, instances must match this region.
 4. The resulting filtered list of instances must contain exactly one entry.
 
 ### Debugging

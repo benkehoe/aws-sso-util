@@ -34,8 +34,8 @@ If an OU that contains the management account is given as a target, the generate
 The assignment resources can contain metadata, in the `Metadata` section of the resource under the `SSO` key.
 * If you are using the macro: The resource name of the `AssignmentGroup` resource, as well as the value of the `Name` property of the resource, if it exists and is a string.
 * If you specified an OU as a target
-  * The metadata for every assignment for an account from that OU will have the OU in the metadata in the `SourceOU` field.
-  * The account name will be present under the `TargetName` field.
+    * The metadata for every assignment for an account from that OU will have the OU in the metadata in the `SourceOU` field.
+    * The account name will be present under the `TargetName` field.
 * If you enable name lookups, the principal and permission set names will be looked up and put in the `PrincipalName` and `PermissionSetName` fields, as will the account name (in `TargetName`) if it wasn't generated from an OU.
 See below for how to enable this.
 

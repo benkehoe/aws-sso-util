@@ -18,14 +18,14 @@ If you've got multiple SSO instances configured, you've got to tell `aws-sso-uti
 `aws-sso-util login` uses the following algorithm to determine these values:
 1. Except for `aws-sso-util configure profile`, if you provide a profile name with `--profile`, this profile will be checked for the fields `sso_start_url` and `sso_region`. It fails if they are not found.
 2. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
-  1. The arguments from `aws-sso-util login [[sso_start_url] sso_region]`
-  2. `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
-  3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
+    1. The arguments from `aws-sso-util login [[sso_start_url] sso_region]`
+    2. `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
+    3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 3. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
 4. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
-  * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
-  * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
-  * If a region was found in step 2, instances must match this region.
+    * If a start URL was found in step 2 and it begins with `http`, it will ignore all other instances.
+    * If a start URL was found in step 2 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
+    * If a region was found in step 2, instances must match this region.
 5. The resulting filtered list of instances must contain exactly one entry, unless `--all` is set or `AWS_SSO_LOGIN_ALL=true`.
 
 In general: if you've got multiple AWS SSO instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
