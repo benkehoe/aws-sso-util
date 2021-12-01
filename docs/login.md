@@ -10,7 +10,7 @@ To login, an AWS SSO instance must be specified.
 This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
 However, `aws-sso-util configure` tries to be smart about finding this value.
 
-If you've only got one AWS SSO instance in your `~/.aws/config`, you can just do `aws-sso-util login` and it will just work.
+If you've got only one AWS SSO instance in your `~/.aws/config`, you can just do `aws-sso-util login` and it will just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
 If you've got multiple SSO instances configured, you've got to tell `aws-sso-util login` which one to choose, or use `--all` or set `AWS_SSO_LOGIN_ALL=true` to log in to them all.
