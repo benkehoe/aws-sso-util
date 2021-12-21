@@ -41,7 +41,7 @@ If `aws-sso-util check` cannot find a unique AWS SSO instance, it will return an
 * If at least one AWS SSO instance was found, but the specifier filtered all of them, it will print the specifier and the entire set of instances, and exit with return code 102.
 * If no unique AWS SSO intance was found, either because no specifier was found or because the specifier matched more than one of them, it will print all matched instances, the specifier, and the entire set of instances, and exit with return code 103.
 
-If `aws-sso-util check` finds a unique instance, and neither `--account` nor `--role-name` are given, it will print the details of the instance, the specifier, and the entire set of instances, and exit with return code 0 (success).
+If `aws-sso-util check` finds a unique instance, and neither `--account-id` nor `--role-name` are given, it will print the details of the instance, the specifier, and the entire set of instances, and exit with return code 0 (success).
 
 If you provide the flag `-vvv` (which turns the logging level of `aws_sso_lib` to `DEBUG`), the details of the AWS SSO instance collection and filtering process will be printed.
 
@@ -54,13 +54,13 @@ If the above AWS SSO instance check passed, the instance is printed.
 If a valid token cannot be found and the user cannot be logged in, it will print an error and exit with return code 201.
 Otherwise, the expiration of the token is printed.
 
-If only `--account` is given, `aws-sso-util check` will find if any roles are accessible in that account, and print them out.
+If only `--account-id` is given, `aws-sso-util check` will find if any roles are accessible in that account, and print them out.
 If no roles are accessible in that account, it will print an error and exit with return code 202.
 
 If only `--role-name` is given, `aws-sso-util check` will find if there are any accounts where that role is accessible, and print them out.
 If the role is not accessible in any account, it will print an error and exit with return code 203.
 
-If both `--account` and `--role-name` are given, `aws-sso-util check` will find if the role is accessible in that account, and print out a success message.
+If both `--account-id` and `--role-name` are given, `aws-sso-util check` will find if the role is accessible in that account, and print out a success message.
 If no roles are accessible in the account, it will print an error and exit with return code 202.
 If there are roles accessible in the account, but the given role is not accessible in the account, it will exit with return code 204.
 

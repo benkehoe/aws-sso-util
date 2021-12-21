@@ -34,7 +34,7 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
 Otherwise, see below for the full resolution algorithm.
 
 `aws-sso-util roles` has the following options:
-* `--account`/`-a`: either an explicit 12-digit account ID (which will speed up the process) or a patterns to match, either the account ID prefix or suffix, or a regex to match against the account name.
+* `--account-id`/`-a`: either an explicit 12-digit account ID (which will speed up the process) or a patterns to match, either the account ID prefix or suffix, or a regex to match against the account name.
     * This option can be provided multiple times.
     * If explicit account IDs are provided, the account name will always be `UNKNOWN`.
 * `--role-name`/`-r`: a regex to match against the role name

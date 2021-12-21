@@ -80,7 +80,11 @@ For a given parameter, providing multiple values is an OR operation; combining m
 
 `--permission-set` can be the ARN, or the full id (everything after the first slash in the ARN) or the short id (after the last slash), or a regex to match against the permission set name.
 
-`--account`/`-a` can be a string that matches either the beginning or the end of the AWS account number, or a regex to match against the account name.
+`--account-id` can be a string that matches either the beginning or the end of the AWS account number.
+
+`--account-name` is a regex to match against the account name.
+
+`-a` is shorthand and can take values for either `--account-id` or `--account-name`.
 
 `--ou` can be an Organizations OU id or root id, which will use all the accounts directly in the OU, or recursively in child OUs as well if the `--ou-recursive` flag is added.
 
