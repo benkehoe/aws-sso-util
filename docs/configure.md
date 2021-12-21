@@ -29,7 +29,7 @@ The profile names are completely customizable.
 This table contains the following columns: account ID, account name, role name.
 
 An AWS SSO instance must be specified when using `aws-sso-util roles`.
-If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
+If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 Otherwise, see below for the full resolution algorithm.
 
@@ -48,14 +48,14 @@ Otherwise, see below for the full resolution algorithm.
     * The default used if `--separator` is not provided is `name,role`, that is, sort first by account name, then by role name.
 * `--force-refresh`: log in again.
 
-# Common options
+# `aws-sso-util configure` common options
 
 ## AWS SSO instance
 For both commands, an AWS SSO instance must be specified.
 This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
 However, `aws-sso-util configure` tries to be smart about finding this value.
 
-If you've only got one AWS SSO instance, and you've already got a profile configured for it, it should just work.
+If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
 `aws-sso-util configure` uses the following algorithm to determine these values:
@@ -96,7 +96,7 @@ There are three options:
 By default, a `credential_process` entry is created in profiles, see [the docs for `aws-sso-util credential-process`](credential-process.md) for details.
 To disable this, set `--no-credential-process` or the environment variable `AWS_CONFIGURE_SSO_DISABLE_CREDENTIAL_PROCESS=true`.
 
-# aws-sso-util configure profile
+# `aws-sso-util configure profile`
 
 `aws-sso-util configure profile` allows you to configure a single profile for use with AWS SSO.
 You can set all the options for a profile, or let it prompt you interactively to select from available accounts and roles.
@@ -152,7 +152,7 @@ To use this profile, specify the profile name using --profile, as shown:
 aws s3 ls --profile my-sso-profile
 ```
 
-# aws-sso-util configure populate
+# `aws-sso-util configure populate`
 
 `aws-sso-util configure populate` allows you to configure profiles for all the access you have through AWS SSO.
 You specify one or more regions, and a profile is created for every account, role, and region you have access to through AWS SSO (note that if access to a region is prohibited by an IAM policy, this does not suppress creation of the profile).
@@ -228,9 +228,10 @@ sep = "."
     account_id,
     role_name,
     region_name,
-    short_region_name
-) = sys.argv[1:6]
-region_index = int(sys.argv[6])
+    short_region_name,
+    region_index_str
+) = sys.argv[1:7]
+region_index = int(region_index_str)
 region_str = "" if region_index == 0 else sep + short_region_name
 print(account_name + sep + role_name + region_str)
 ```
