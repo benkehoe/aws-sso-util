@@ -139,9 +139,12 @@ def _get_botocore_session(
         credential_cache=None,
         sso_cache=None,
         ):
-    botocore_session = botocore.session.Session()
-
     profile_name = str(uuid.uuid4())
+    botocore_session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
+
     load_config = lambda: {
         "profiles": {
             profile_name: {
