@@ -182,7 +182,10 @@ def check(
             sys.exit(201)
     else:
         try:
-            session = botocore.session.Session()
+            session = botocore.session.Session(session_vars={
+                'profile': (None, None, None, None),
+                'region': (None, None, None, None),
+            })
             token_fetcher = get_token_fetcher(session, instance.region, interactive=False)
             token = token_fetcher.fetch_token(instance.start_url)
         except AuthenticationNeededError as e:

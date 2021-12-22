@@ -35,7 +35,10 @@ LOGGER = logging.getLogger(__name__)
 def logout(verbose):
     """Log out of all AWS SSO sessions"""
     configure_logging(LOGGER, verbose)
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     LOGGER.debug("Removing tokens")
     SSOTokenSweeper(session).delete_credentials(SSO_TOKEN_DIR)

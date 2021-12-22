@@ -101,7 +101,10 @@ def login(
 
     LOGGER.debug(f"Instances: {SSOInstance.to_strs(instances)}")
 
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     regions = [i.region for i in instances]
     token_fetchers = {}

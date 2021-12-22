@@ -22,7 +22,6 @@ import shlex
 from collections import namedtuple
 
 import botocore
-from botocore.session import Session
 from botocore.exceptions import ClientError, ProfileNotFound
 from botocore.compat import compat_shell_split as shell_split
 
@@ -251,7 +250,10 @@ def populate_profiles(
     except Exception as e:
         raise click.UsageError("Invalid profile name format: {}".format(e))
 
-    session = Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     token_fetcher = get_token_fetcher(session,
             instance.region,
@@ -356,7 +358,7 @@ def populate_profiles(
         existing_config = {}
         if existing_config_action != "discard":
             try:
-                existing_config = Session(profile=config.profile_name).get_scoped_config()
+                existing_config = botocore.session.Session(profile=config.profile_name).get_scoped_config()
                 config_values.update(existing_config)
                 existing_profile = True
             except ProfileNotFound:

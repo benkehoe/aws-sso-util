@@ -142,7 +142,7 @@ def _get_botocore_session(
     profile_name = str(uuid.uuid4())
     botocore_session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
-        'region': (None, None, None, None),
+        # 'region': (None, None, None, None), # allow region to be set by env var
     })
 
     load_config = lambda: {
@@ -262,7 +262,10 @@ def login(
         The token dict as returned by sso-oidc:CreateToken,
         which contains the actual authorization token, as well as the expiration.
         """
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     on_pending_authorization = None
     if user_auth_handler:
@@ -319,7 +322,10 @@ def logout(
             it is caught and returned.
     """
 
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     token_fetcher = get_token_fetcher(
         session=session,
@@ -363,7 +369,10 @@ def list_available_accounts(
     Returns:
         An iterator that yields account id and account name.
     """
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
@@ -417,7 +426,10 @@ def list_available_roles(
     else:
         account_id_list = None
 
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
 
     token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
