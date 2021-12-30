@@ -27,6 +27,7 @@ from .lookup import lookup
 from .populate_profiles import populate_profiles
 from .roles import roles
 from .run_as import run_as
+from .console import launch, get_config_token, launch_from_config
 
 @click.group(name="aws-sso-util")
 @click.version_option(version=__version__, message='%(version)s')
@@ -46,6 +47,15 @@ cli.add_command(logout)
 cli.add_command(roles)
 cli.add_command(check)
 cli.add_command(run_as)
+
+@cli.group()
+def console():
+    """Commands for launching the AWS console in a browser."""
+    pass
+
+console.add_command(launch)
+console.add_command(get_config_token)
+console.add_command(launch_from_config)
 
 @cli.group()
 def admin():
