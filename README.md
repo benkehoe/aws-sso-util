@@ -113,6 +113,16 @@ However, there are times when it's useful to be able to run a command as a speci
 For this purpose, there's `aws-sso-util run-as`.
 Think of it as the shell equivalent to [`aws_sso_lib.get_boto3_session()`](lib/README.md#get_boto3_session).
 
+## Opening the AWS console in a browser
+
+> :warning: This feature is in beta and is subject to change without a compatibility version bump.
+
+Read the full docs for `aws-sso-util console` [here](docs/console.md).
+
+You can open the AWS console in the browser for a given account and role with `aws-sso-util console`, including going to a specific page in the console.
+This uses the [federated sign-in](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_enable-console-custom-url.html) process.
+It also allows for the launch configuration to be packaged up as a token, which makes it easier to share between users.
+
 ## Debugging issues
 
 Read the full docs for `aws-sso-util check` [here](docs/check.md).
