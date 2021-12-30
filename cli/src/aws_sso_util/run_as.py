@@ -92,3 +92,6 @@ def run_as(
     command = ' '.join(shlex.quote(arg) for arg in exec_args)
     result = subprocess.run(command, shell=True)
     sys.exit(result.returncode)
+
+if __name__ == "__main__":
+    run_as(prog_name="python -m aws_sso_util.run_as")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter

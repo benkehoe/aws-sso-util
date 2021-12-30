@@ -18,7 +18,7 @@ For those, the standalone tool [`aws-export-credentials`](https://github.com/ben
 
 # Usage
 ```bash
-aws-sso-util --sso-start-url https://example.awsapps.com/start --sso-region us-east-2 \
+aws-sso-util run-as --sso-start-url https://example.awsapps.com/start --sso-region us-east-2 \
     --account-id 123456789012 --role-name Developer --region us-west-2 \
     aws sts get-caller-identity --output yaml
 ```
