@@ -236,3 +236,16 @@ region_str = "" if region_index == 0 else sep + short_region_name
 print(account_name + sep + role_name + region_str)
 ```
 If this was stored as `profile_formatter.py`, it could be used as `--profile-name-process "python profile_formatter.py"`
+
+### Transform profile names
+
+If you don't want to run (and maintain) a process completely outside of the
+`--profile-name-process`, an option between trimming account & role names
+and executing a separate process is available through `--transform-profile-name`.
+Use this to change a generated profile name after assembly and trimming by
+running the name through Python code.
+
+For example, to lowercase the profile name, pass it through a Lambda:
+
+```
+    --transform-profile-name 'lambda x: x.lower()'

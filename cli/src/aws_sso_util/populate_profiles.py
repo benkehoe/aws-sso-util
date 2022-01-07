@@ -149,6 +149,17 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, n, **kwargs)
     return trim_formatter
 
+def get_transform_formatter(transforms, formatter):
+    def transform_formatter(i, n, **kwargs):
+        for transform in transforms:
+            LOGGER.debug("evaluating transform(%s) on kwargs: %s", transform, kwargs)
+            kwargs["account_id"] = eval(f"({transform})(account_id)", kwargs)
+            kwargs["account_name"] = eval(f"({transform})(account_name)", kwargs)
+            kwargs["role_name"] =  eval(f"({transform})(role_name)", kwargs)
+            kwargs["region"] =  eval(f"({transform})(region)", kwargs)
+        return formatter(i, n, **kwargs)
+    return transform_formatter
+
 def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
@@ -169,6 +180,7 @@ def get_safe_account_name(name):
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
+@click.option("--transform-profile-name", "profile_name_transforms", multiple=True, default=[], help="Filter to transform profile names, can provide multiple times")
 @click.option("--profile-name-process")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
@@ -189,6 +201,7 @@ def populate_profiles(
         profile_name_region_style,
         profile_name_trim_account_name_patterns,
         profile_name_trim_role_name_patterns,
+        profile_name_transforms,
         profile_name_process,
         safe_account_names,
         credential_process,
@@ -244,6 +257,8 @@ def populate_profiles(
         profile_name_formatter = get_formatter(profile_name_include_region, region_format, no_region_format)
         if profile_name_trim_account_name_patterns or profile_name_trim_role_name_patterns:
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
+        if profile_name_transforms:
+            profile_name_formatter = get_transform_formatter(profile_name_transforms, profile_name_formatter)
 
     try:
         profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
