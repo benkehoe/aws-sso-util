@@ -304,11 +304,6 @@ def logout(
         sso_cache=None):
     """Log out of the given AWS SSO instance.
 
-    Note that this function currently does not remove the token from
-    the SSO file cache, which can cause subsequent usage of other functions
-    in this module to pick up an invalid token from there.
-    https://github.com/boto/botocore/issues/2255
-
     Args:
         start_url (str): The start URL for the AWS SSO instance.
         sso_region (str): The AWS region for the AWS SSO instance.
@@ -338,7 +333,7 @@ def logout(
         )
 
         if not token:
-            return True
+            return False
         else:
             config = botocore.config.Config(
                 region_name=sso_region,
@@ -347,7 +342,7 @@ def logout(
             client = session.create_client("sso", config=config)
 
             client.logout(accessToken=token["accessToken"])
-            return False
+            return True
     except Exception as e:
         LOGGER.debug("Exception during logout", exc_info=True)
         return e

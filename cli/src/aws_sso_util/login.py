@@ -23,7 +23,7 @@ import click
 
 import aws_error_utils
 
-from aws_sso_lib.config import find_instances, SSOInstance
+from aws_sso_lib.config import find_instances, find_all_instances, SSOInstance
 from aws_sso_lib.sso import get_token_fetcher
 from aws_sso_lib.exceptions import PendingAuthorizationExpiredError
 
@@ -75,29 +75,35 @@ def login(
 
     configure_logging(LOGGER, verbose)
 
-    instances, specifier, all_instances = find_instances(
-        profile_name=profile,
-        profile_source="--profile",
-        start_url=sso_start_url,
-        start_url_source="CLI input",
-        region=sso_region,
-        region_source="CLI input",
-        start_url_vars=LOGIN_DEFAULT_START_URL_VARS,
-        region_vars=LOGIN_DEFAULT_SSO_REGION_VARS,
-    )
+    if login_all:
+        instances, _ = find_all_instances(
+            start_url_vars=LOGIN_DEFAULT_START_URL_VARS,
+            region_vars=LOGIN_DEFAULT_SSO_REGION_VARS,
+        )
+    else:
+        instances, specifier, all_instances = find_instances(
+            profile_name=profile,
+            profile_source="--profile",
+            start_url=sso_start_url,
+            start_url_source="CLI input",
+            region=sso_region,
+            region_source="CLI input",
+            start_url_vars=LOGIN_DEFAULT_START_URL_VARS,
+            region_vars=LOGIN_DEFAULT_SSO_REGION_VARS,
+        )
 
-    if not instances:
-        if all_instances:
-            LOGGER.fatal((
-                f"No AWS SSO config matched {specifier.to_str(region=True)} " +
-                f"from {SSOInstance.to_strs(all_instances)}"))
-        else:
-            LOGGER.fatal("No AWS SSO config found")
-        sys.exit(1)
+        if not instances:
+            if all_instances:
+                LOGGER.fatal((
+                    f"No AWS SSO config matched {specifier.to_str(region=True)} " +
+                    f"from {SSOInstance.to_strs(all_instances)}"))
+            else:
+                LOGGER.fatal("No AWS SSO config found")
+            sys.exit(1)
 
-    if len(instances) > 1 and not login_all:
-        LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one or use --all: {SSOInstance.to_strs(instances)}")
-        sys.exit(1)
+        if len(instances) > 1:
+            LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one or use --all: {SSOInstance.to_strs(instances)}")
+            sys.exit(1)
 
     LOGGER.debug(f"Instances: {SSOInstance.to_strs(instances)}")
 
@@ -112,9 +118,9 @@ def login(
         token_fetchers[region] = get_token_fetcher(session, region, interactive=True, disable_browser=headless)
 
     if len(instances) > 1:
-        print(f"Logging in {len(instances)} AWS SSO instances")
+        LOGGER.info(f"Logging in {len(instances)} AWS SSO instances")
     for instance in instances:
-        print(f"Logging in {instance.start_url}")
+        LOGGER.info(f"Logging in {instance.start_url}")
         token_fetcher = token_fetchers[instance.region]
         try:
             token = token_fetcher.fetch_token(instance.start_url, force_refresh=force)
@@ -130,25 +136,25 @@ def login(
                 # TODO: locale-friendly string
             except:
                 pass
-            print(f"Login succeeded, valid until {expiration_str}")
+            LOGGER.info(f"Login succeeded, valid until {expiration_str}")
         except PendingAuthorizationExpiredError:
-            print(f"Login window expired", file=sys.stderr)
+            LOGGER.error(f"Login window expired")
             sys.exit(2)
         except aws_error_utils.catch_aws_error("InvalidGrantException") as e:
             LOGGER.debug("Login failed; the login window may have expired", exc_info=True)
             err_info = aws_error_utils.get_aws_error_info(e)
             msg_str = f" ({err_info.message})" if err_info.message else ""
-            print(f"Login failed; the login window may have expired: {err_info.code}{msg_str}", file=sys.stderr)
+            LOGGER.error(f"Login failed; the login window may have expired: {err_info.code}{msg_str}")
             sys.exit(3)
         except botocore.exceptions.ClientError as e:
             LOGGER.debug("Login failed", exc_info=True)
             err_info = aws_error_utils.get_aws_error_info(e)
             msg_str = f" ({err_info.message})" if err_info.message else ""
-            print(f"Login failed: {err_info.code}{msg_str}", file=sys.stderr)
+            LOGGER.error(f"Login failed: {err_info.code}{msg_str}")
             sys.exit(4)
         except Exception as e:
             LOGGER.debug("Login failed", exc_info=True)
-            print(f"Login failed: {e}", file=sys.stderr)
+            LOGGER.error(f"Login failed: {e}")
             sys.exit(4)
 
 

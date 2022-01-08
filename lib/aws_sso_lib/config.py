@@ -41,6 +41,9 @@ class SSOInstance(namedtuple("SSOInstance", ["start_url", "region", "start_url_s
             region_str = ""
         return f"{self.start_url}{region_str}"
 
+    def __eq__(self, other):
+        return self.start_url == other.start_url and self.region == other.region
+
     def __str__(self):
         return self.to_str()
 
@@ -154,6 +157,41 @@ def _specifier_matches(specifier, instance):
         return True, "matches region"
 
 
+def find_all_instances(
+        start_url_vars=None,
+        region_vars=None):
+    unique_instances = []
+    all_instances = []
+
+    specifier = _get_specifier(
+        start_url=None,
+        start_url_source=None,
+        region=None,
+        region_source=None,
+        start_url_vars=start_url_vars,
+        region_vars=region_vars,
+    )
+
+    if specifier:
+        LOGGER.debug(f"Found instance in env vars: {specifier.to_str(region=True)}")
+        unique_instances.append(specifier)
+        all_instances.append(specifier)
+
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
+    config_instances = _get_all_instances_from_config(session.full_config)
+
+    LOGGER.debug(f"Found instances in config: {SSOInstance.to_strs(config_instances, region=True)}")
+
+    filtered_config_instances = list(i for i in config_instances if i not in unique_instances)
+    unique_instances.extend(filtered_config_instances)
+
+    all_instances.extend(config_instances)
+
+    return unique_instances, all_instances
+
 def find_instances(
         profile_name=None,
         profile_source=None,
@@ -213,7 +251,10 @@ def find_instances(
         LOGGER.debug("Specifier has literal start URL and region, not searching for instances")
         return [specifier], specifier, [specifier]
 
-    session = botocore.session.Session()
+    session = botocore.session.Session(session_vars={
+        'profile': (None, None, None, None),
+        'region': (None, None, None, None),
+    })
     all_instances = _get_all_instances_from_config(session.full_config)
 
     LOGGER.debug(f"Found instances: {SSOInstance.to_strs(all_instances, region=True)}")
