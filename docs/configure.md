@@ -240,12 +240,36 @@ If this was stored as `profile_formatter.py`, it could be used as `--profile-nam
 ### Transform profile names
 
 If you don't want to run (and maintain) a process completely outside of the
-`--profile-name-process`, an option between trimming account & role names
+`--profile-name-process`, an option between trimming account/role names
 and executing a separate process is available through `--transform-profile-name`.
 Use this to change a generated profile name after assembly and trimming by
-running the name through Python code.
+running the name through some common Python string functions.
 
-For example, to lowercase the profile name, pass it through a Lambda:
+For example, to lowercase the profile name, apply the "lower" transform:
 
-```
-    --transform-profile-name 'lambda x: x.lower()'
+    --transform-profile-name lower
+
+transforms include some [common Python string methods](https://docs.python.org/3/library/stdtypes.html#string-methods):
+
+    * `alnum`
+    * `ascii`
+    * `capitalize`
+    * `casefold`
+    * `lower`
+    * `swapcase`
+    * `title`
+    * `upper`
+
+If you want to see what it does, try a dry run:
+
+    aws-sso-util configure populate --region $AWS_REGION --dry-run --transform-profile-name swapcase
+
+Note that you can run more than one transform. This doesn't make sense for all of the options, but
+may be useful if you want to strip characters and then change case. As an experimental no-op,
+try this to see your case-swapped profiles get back to their original case:
+
+    aws-sso-util configure populate --region $AWS_REGION --dry-run --transform-profile-name swapcase --transform-profile-name swapcase
+
+A more practical example might be to trim all non-alphabetic and non-numeric characters:
+
+    aws-sso-util configure populate --region $AWS_REGION --dry-run --transform-profile-name alnum --transform-profile-name lower

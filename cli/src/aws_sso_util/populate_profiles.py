@@ -152,11 +152,29 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
 def get_transform_formatter(transforms, formatter):
     def transform_formatter(i, n, **kwargs):
         for transform in transforms:
-            LOGGER.debug("evaluating transform(%s) on kwargs: %s", transform, kwargs)
-            kwargs["account_id"] = eval(f"({transform})(account_id)", kwargs)
-            kwargs["account_name"] = eval(f"({transform})(account_name)", kwargs)
-            kwargs["role_name"] =  eval(f"({transform})(role_name)", kwargs)
-            kwargs["region"] =  eval(f"({transform})(region)", kwargs)
+            LOGGER.debug("evaluating transform(%s):", transform)
+            LOGGER.debug("* in  = %s", kwargs)
+            if transform == 'alnum':
+                transformation = lambda s: re.sub(r'[\W_]+', '', s)
+            if transform == 'capitalize':
+                transformation = lambda s: s.capitalize()
+            elif transform == 'casefold':
+                transformation = lambda s: s.casefold()
+            elif transform == 'lower':
+                transformation = lambda s: s.lower()
+            elif transform == 'swapcase':
+                transformation = lambda s: s.swapcase()
+            elif transform == 'title':
+                transformation = lambda s: s.title()
+            elif transform == 'upper':
+                transformation = lambda s: s.upper()
+            for prop in kwargs:
+                # skip alnum transforms on the region property --
+                # we can't take the punctuation out of it yet
+                if (prop == 'region' and transform == 'alnum'):
+                    continue
+                kwargs[prop] = (transformation)(kwargs[prop])
+            LOGGER.debug("* out = %s", kwargs)
         return formatter(i, n, **kwargs)
     return transform_formatter
 
@@ -180,7 +198,7 @@ def get_safe_account_name(name):
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
-@click.option("--transform-profile-name", "profile_name_transforms", multiple=True, default=[], help="Filter to transform profile names, can provide multiple times")
+@click.option("--transform-profile-name", "profile_name_transforms", multiple=True, type=click.Choice(["alnum", "capitalize", "casefold", "lower", "swapcase", "title", "upper"]), default=[], help="Filter to transform profile names, can provide multiple times")
 @click.option("--profile-name-process")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
