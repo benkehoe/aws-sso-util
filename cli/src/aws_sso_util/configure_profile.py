@@ -182,7 +182,7 @@ def configure_profile(
         return
 
     try:
-        result = subprocess.run(["aws", "--version"], capture_output=True)
+        result = subprocess.run(["aws", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         cli_version = parse_cli_version(result.stdout.decode("utf-8"))
         if cli_version.startswith("1."):
             LOGGER.warn(textwrap.dedent(f"""\
