@@ -6,13 +6,13 @@
 ## `aws-sso-util`
 
 ### CLI v4.26
-* Add `aws-sso-util run-as` command (#44). Read the docs [here](docs/run-as.md).
-* Add `aws-sso-util console` commands (#47). Read the docs [here](docs/console.md).
-* Better debugging of token issues in `aws-sso-util check` (#45).
+* Add `aws-sso-util run-as` command ([#44](https://github.com/benkehoe/aws-sso-util/pull/44)). Read the docs [here](docs/run-as.md).
+* Add `aws-sso-util console` commands ([#47](https://github.com/benkehoe/aws-sso-util/pull/47)). Read the docs [here](docs/console.md).
+* Better debugging of token issues in `aws-sso-util check` ([#45](https://github.com/benkehoe/aws-sso-util/pull/45)).
     * Note that the token is checked by default, which is a slight backwards-incompatible change if you were relying on a success return code to check specifically if the instance was configured correctly; for this situation, use `--skip-token-check`.
-* Ignore `AWS_PROFILE` and `AWS_DEFAULT_PROFILE` environment variables for commands that don't use them (#41).
+* Ignore `AWS_PROFILE` and `AWS_DEFAULT_PROFILE` environment variables for commands that don't use them ([#41](https://github.com/benkehoe/aws-sso-util/issues/41)).
 * Standardize account option as `--account-id` across commands (with backwards compatibility).
-* Include component names in `aws-sso-util configure populate` help (#33).
+* Include component names in `aws-sso-util configure populate` help ([#33](https://github.com/benkehoe/aws-sso-util/issues/33)).
 * Fix `aws-sso-util login --all` when environment variables are set.
 
 ### CLI v4.25
@@ -38,7 +38,7 @@
 ### lib v1.9
 * `get_boto3_session()` now ignores `AWS_PROFILE` and `AWS_DEFAULT_PROFILE` environment variables.
 * Add `find_all_instances()` function to `config` package.
-* Update `botocore` dependency for `JSONFileCache.__delitem__` support (#46).
+* Update `botocore` dependency for `JSONFileCache.__delitem__` support ([#46](https://github.com/benkehoe/aws-sso-util/issues/46)).
 * Fix `logout()` return values to match docs.
 
 ### lib v1.8
