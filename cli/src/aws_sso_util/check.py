@@ -4,7 +4,9 @@ import re
 import pathlib
 import getpass
 import traceback
+import datetime
 
+import botocore
 import click
 
 from aws_sso_lib.sso import get_boto3_session, list_available_accounts, list_available_roles, login, get_token_fetcher, SSO_TOKEN_DIR
@@ -16,7 +18,8 @@ from .utils import configure_logging, GetInstanceError
 from .login import LOGIN_DEFAULT_START_URL_VARS, LOGIN_DEFAULT_SSO_REGION_VARS
 from .configure_profile import CONFIGURE_DEFAULT_START_URL_VARS, CONFIGURE_DEFAULT_SSO_REGION_VARS
 
-import botocore
+from . import __version__ as aws_sso_util_version
+from aws_sso_lib import __version__ as aws_sso_lib_version
 
 LOGGER = logging.getLogger(__name__)
 
@@ -97,6 +100,9 @@ def check(
 
     if skip_token_check and force_refresh:
         raise click.UsageError("Cannot specify both --force-refresh and --skip-token-check")
+
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    LOGGER.info(f"aws-sso-util: v{aws_sso_util_version}; aws-sso-lib: v{aws_sso_lib_version}; time: {now}")
 
     instances, specifier, all_instances = find_instances(
         start_url=sso_start_url,
