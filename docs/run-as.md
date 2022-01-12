@@ -11,7 +11,7 @@ In general, in the AWS SSO world, you shouldn't be trying to manually set creden
 You log in to *AWS SSO* once, and then *use* accounts and roles with that session.
 You should orient yourself around configuration profiles—use [`aws-sso-util configure populate`](configure.md) to set up profiles for every account and role you have access to, and then use either the `--profile` argument to tell a command to use a specific profile, or set the `AWS_PROFILE` environment variable to have all commands your shell use a particular profile unless they are told otherwise ([here's a shell function to help manage that env var](https://gist.github.com/benkehoe/0d2985e56059437e489314d021be3fbe)).
 
-`aws-sso-util run-as` is **not** intended to serve as a general-purpose solution to exporti credentials for tools that do not support AWS SSO configuration.
+`aws-sso-util run-as` is **not** intended to serve as a general-purpose solution to export credentials for tools that do not support AWS SSO configuration.
 While `aws-sso-util run-as` will run those tools just fine, the purpose of this command is not to bridge that gap in configuration support in a general way.
 `aws-sso-util configure` already mitigates lack of SSO support by [adding a credential process added to profiles](https://github.com/benkehoe/aws-sso-util/blob/master/README.md#adding-aws-sso-support-to-aws-sdks), which enables AWS SSO support for SDKs that support credential processes.
 Some tools, notably those based on the AWS JavaScript v2 SDK, don't support the credential process.
