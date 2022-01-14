@@ -164,6 +164,8 @@ def get_name_case_formatter(account_name_transform, role_name_transform, formatt
                 kwargs[field] = kwargs[field].lower()
             elif transform == "upper":
                 kwargs[field] = kwargs[field].upper()
+            else:
+                raise ValueError("Unknown {} transform value {}".format(field, transform))
         return formatter(i, n, **kwargs)
     return case_formatter
 
