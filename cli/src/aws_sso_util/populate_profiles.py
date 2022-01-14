@@ -149,34 +149,22 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, n, **kwargs)
     return trim_formatter
 
-def get_transform_formatter(transforms, formatter):
-    def transform_formatter(i, n, **kwargs):
-        for transform in transforms:
-            LOGGER.debug("evaluating transform(%s):", transform)
-            LOGGER.debug("* in  = %s", kwargs)
-            if transform == 'alnum':
-                transformation = lambda s: re.sub(r'[\W_]+', '', s)
-            if transform == 'capitalize':
-                transformation = lambda s: s.capitalize()
-            elif transform == 'casefold':
-                transformation = lambda s: s.casefold()
-            elif transform == 'lower':
-                transformation = lambda s: s.lower()
-            elif transform == 'swapcase':
-                transformation = lambda s: s.swapcase()
-            elif transform == 'title':
-                transformation = lambda s: s.title()
-            elif transform == 'upper':
-                transformation = lambda s: s.upper()
-            for prop in kwargs:
-                # skip alnum transforms on the region property --
-                # we can't take the punctuation out of it yet
-                if (prop == 'region' and transform == 'alnum'):
-                    continue
-                kwargs[prop] = (transformation)(kwargs[prop])
-            LOGGER.debug("* out = %s", kwargs)
+def get_field_name_case_formatter(field, transform, formatter):
+    def case_formatter(i, n, **kwargs):
+        LOGGER.debug("evaluating case transform(%s)", transform)
+        LOGGER.debug("* in  = %s", kwargs[field])
+        if transform == 'capitalize':
+            transformation = lambda s: s.capitalize()
+        elif transform == 'casefold':
+            transformation = lambda s: s.casefold()
+        elif transform == 'lower':
+            transformation = lambda s: s.lower()
+        elif transform == 'upper':
+            transformation = lambda s: s.upper()
+        kwargs[field] = (transformation)(kwargs[field])
+        LOGGER.debug("* out = %s", kwargs[field])
         return formatter(i, n, **kwargs)
-    return transform_formatter
+    return case_formatter
 
 def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
@@ -198,7 +186,8 @@ def get_safe_account_name(name):
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
-@click.option("--transform-profile-name", "profile_name_transforms", multiple=True, type=click.Choice(["alnum", "capitalize", "casefold", "lower", "swapcase", "title", "upper"]), default=[], help="Filter to transform profile names, can provide multiple times")
+@click.option("--account-name-case", "profile_name_account_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "upper"]), help="Method to change the case of the account name")
+@click.option("--role-name-case", "profile_name_role_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "upper"]), help="Method to change the case of the role name")
 @click.option("--profile-name-process")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
@@ -219,7 +208,8 @@ def populate_profiles(
         profile_name_region_style,
         profile_name_trim_account_name_patterns,
         profile_name_trim_role_name_patterns,
-        profile_name_transforms,
+        profile_name_account_name_case_transform,
+        profile_name_role_name_case_transform,
         profile_name_process,
         safe_account_names,
         credential_process,
@@ -275,8 +265,10 @@ def populate_profiles(
         profile_name_formatter = get_formatter(profile_name_include_region, region_format, no_region_format)
         if profile_name_trim_account_name_patterns or profile_name_trim_role_name_patterns:
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
-        if profile_name_transforms:
-            profile_name_formatter = get_transform_formatter(profile_name_transforms, profile_name_formatter)
+        if profile_name_account_name_case_transform:
+            profile_name_formatter = get_field_name_case_formatter("account_name", profile_name_account_name_case_transform, profile_name_formatter)
+        if profile_name_role_name_case_transform:
+            profile_name_formatter = get_field_name_case_formatter("role_name", profile_name_role_name_case_transform, profile_name_formatter)
 
     try:
         profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
