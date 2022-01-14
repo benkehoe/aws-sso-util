@@ -157,6 +157,74 @@ aws s3 ls --profile my-sso-profile
 `aws-sso-util configure populate` allows you to configure profiles for all the access you have through AWS SSO.
 You specify one or more regions, and a profile is created for every account, role, and region you have access to through AWS SSO (note that if access to a region is prohibited by an IAM policy, this does not suppress creation of the profile).
 
+## Options
+
+    Usage: aws-sso-util configure populate [OPTIONS]
+
+      Configure profiles for all accounts and roles.
+
+      Writes a profile to your AWS config file (~/.aws/config) for every account
+      and role you have access to, for the regions you specify.
+
+    Options:
+      -u, --sso-start-url URL         Your AWS SSO start URL
+      --sso-region TEXT               The AWS region your AWS SSO instance is
+                                      deployed in
+
+      -r, --region REGION             AWS region for the profiles, can provide
+                                      multiple times
+
+      --dry-run                       Print the config to stdout instead of
+                                      writing to your config file
+
+      -c, --config-default KEY=VALUE  Additional config field to set, can provide
+                                      multiple times
+
+      --existing-config-action [keep|overwrite|discard]
+                                      Action when config defaults conflict with
+                                      existing settings
+
+      --components VALUE,VALUE,...    Profile name components to join (comma-
+                                      separated). Possible values are:
+                                      account_name account_id account_number
+                                      role_name region short_region
+
+      --separator, --sep SEP          Separator for profile name components,
+                                      default is '.'
+
+      --include-region [default|always]
+                                      By default, the first region is left off the
+                                      profile name
+
+      --region-style [short|long]     Default is five character region
+                                      abbreviations
+
+      --trim-account-name TEXT        Regex to remove from account names, can
+                                      provide multiple times
+
+      --trim-role-name TEXT           Regex to remove from role names, can provide
+                                      multiple times
+
+      --account-name-case [capitalize|casefold|lower|upper]
+                                      Method to change the case of the account
+                                      name
+
+      --role-name-case [capitalize|casefold|lower|upper]
+                                      Method to change the case of the role name
+      --profile-name-process TEXT
+      --safe-account-names / --raw-account-names
+                                      In profiles, replace any character sequences
+                                      in account names not in A-Za-z0-9-._ with a
+                                      single -
+
+      --credential-process / --no-credential-process
+                                      Force enable/disable setting the credential
+                                      process SDK helper
+
+      --force-refresh                 Re-login
+      -v, --verbose
+      --help                          Show this message and exit.
+
 You can provide regions through the `--region`/`-r` flag (multiple regions like `-r REGION1 -r REGION2`), or by setting the `AWS_CONFIGURE_DEFAULT_REGION` environment variable (this is ignored if any regions are specified on the command line).
 
 You can view the profiles without writing them using the `--dry-run` flag.
