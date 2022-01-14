@@ -149,20 +149,21 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, n, **kwargs)
     return trim_formatter
 
-def get_field_name_case_formatter(field, transform, formatter):
+def get_name_case_formatter(account_name_transform, role_name_transform, formatter):
+    field_transform_map = {
+        "account_name": account_name_transform,
+        "role_name": role_name_transform,
+    }
     def case_formatter(i, n, **kwargs):
-        LOGGER.debug("evaluating case transform(%s)", transform)
-        LOGGER.debug("* in  = %s", kwargs[field])
-        if transform == 'capitalize':
-            transformation = lambda s: s.capitalize()
-        elif transform == 'casefold':
-            transformation = lambda s: s.casefold()
-        elif transform == 'lower':
-            transformation = lambda s: s.lower()
-        elif transform == 'upper':
-            transformation = lambda s: s.upper()
-        kwargs[field] = (transformation)(kwargs[field])
-        LOGGER.debug("* out = %s", kwargs[field])
+        for field, transform in field_transform_map.items():
+            if transform == "capitalize":
+                kwargs[field] = kwargs[field].capitalize()
+            elif transform == "casefold":
+                kwargs[field] = kwargs[field].casefold()
+            elif transform == "lower":
+                kwargs[field] = kwargs[field].lower()
+            elif transform == "upper":
+                kwargs[field] = kwargs[field].upper()
         return formatter(i, n, **kwargs)
     return case_formatter
 
@@ -265,10 +266,8 @@ def populate_profiles(
         profile_name_formatter = get_formatter(profile_name_include_region, region_format, no_region_format)
         if profile_name_trim_account_name_patterns or profile_name_trim_role_name_patterns:
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
-        if profile_name_account_name_case_transform:
-            profile_name_formatter = get_field_name_case_formatter("account_name", profile_name_account_name_case_transform, profile_name_formatter)
-        if profile_name_role_name_case_transform:
-            profile_name_formatter = get_field_name_case_formatter("role_name", profile_name_role_name_case_transform, profile_name_formatter)
+        if profile_name_account_name_case_transform or profile_name_role_name_case_transform:
+            profile_name_formatter = get_name_case_formatter(profile_name_account_name_case_transform, profile_name_role_name_case_transform, profile_name_formatter)
 
     try:
         profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
