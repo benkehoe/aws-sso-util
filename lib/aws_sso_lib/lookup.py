@@ -213,7 +213,7 @@ def lookup_group_by_id(session: boto3.Session, ids: Ids, group_id, *, cache=None
 
     cache_key_id = f"{_CACHE_KEY_PREFIX_GROUP_ID}{group_id}"
     if cache_key_id in cache:
-        LOGGER.debug(f"Found group {group_id} in cache")
+        # LOGGER.debug(f"Found group {group_id} in cache")
         group = cache[cache_key_id]
         if isinstance(group, LookupError):
             raise group
@@ -244,7 +244,7 @@ def lookup_group_by_name(session: boto3.Session, ids: Ids, group_name, *, cache=
 
     cache_key_name = f"{_CACHE_KEY_PREFIX_GROUP_NAME}{group_name}"
     if cache_key_name in cache:
-        LOGGER.debug(f"Found group {group_name} in cache")
+        # LOGGER.debug(f"Found group {group_name} in cache")
         group = cache[cache_key_name]
         if isinstance(group, LookupError):
             raise group
@@ -282,7 +282,7 @@ def lookup_user_by_id(session: boto3.Session, ids: Ids, user_id, *, cache=None):
 
     cache_key_id = f"{_CACHE_KEY_PREFIX_USER_ID}{user_id}"
     if cache_key_id in cache:
-        LOGGER.debug(f"Found user {user_id} in cache")
+        # LOGGER.debug(f"Found user {user_id} in cache")
         user = cache[cache_key_id]
         if isinstance(user, LookupError):
             raise user
@@ -314,7 +314,7 @@ def lookup_user_by_name(session: boto3.Session, ids: Ids, user_name, *, cache=No
     cache_key_name = f"{_CACHE_KEY_PREFIX_USER_NAME}{user_name}"
 
     if cache_key_name in cache:
-        LOGGER.debug(f"Found user {user_name} in cache")
+        # LOGGER.debug(f"Found user {user_name} in cache")
         user = cache[cache_key_name]
         if isinstance(user, LookupError):
             raise user
@@ -356,7 +356,7 @@ def lookup_permission_set_by_id(session: boto3.Session, ids: Ids, permission_set
     cache_key_arn = f"{_CACHE_KEY_PREFIX_PERMISSION_SET_ARN}{permission_set_arn}"
 
     if cache_key_arn in cache:
-        LOGGER.debug(f"Found permission set {permission_set_id} in cache")
+        # LOGGER.debug(f"Found permission set {permission_set_id} in cache")
         ps = cache[cache_key_arn]
         if isinstance(ps, LookupError):
             raise ps
@@ -387,7 +387,7 @@ def lookup_permission_set_by_name(session: boto3.Session, ids: Ids, permission_s
     cache_key_name = f"{_CACHE_KEY_PREFIX_PERMISSION_SET_NAME}{permission_set_name}"
 
     if cache_key_name in cache:
-        LOGGER.debug(f"Found permission set {permission_set_name} in cache")
+        # LOGGER.debug(f"Found permission set {permission_set_name} in cache")
         ps = cache[cache_key_name]
         if isinstance(ps, LookupError):
             raise ps
@@ -433,7 +433,7 @@ def lookup_account_by_id(session, account_id, *, cache=None):
     cache_key_id = f"{_CACHE_KEY_PREFIX_ACCOUNT_ID}{account_id}"
 
     if cache_key_id in cache:
-        LOGGER.debug(f"Found account {account_id} in cache")
+        # LOGGER.debug(f"Found account {account_id} in cache")
         account = cache[cache_key_id]
         if isinstance(account, LookupError):
             raise account
@@ -471,7 +471,7 @@ def lookup_account_by_name(session, account_name, *, cache=None):
     cache_key_name = f"{_CACHE_KEY_PREFIX_ACCOUNT_NAME}{account_name}"
 
     if cache_key_name in cache:
-        LOGGER.debug(f"Found account {account_name} in cache")
+        # LOGGER.debug(f"Found account {account_name} in cache")
         account = cache[cache_key_name]
         if isinstance(account, LookupError):
             raise account
@@ -503,15 +503,23 @@ def lookup_account_by_name(session, account_name, *, cache=None):
 
     return found_account
 
+_DESCRIBE_ORGANIZATION_CACHE_KEY = "describe_organization"
+
 def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None, exclude_org_mgmt_acct=False):
     if cache is None:
         cache = {}
 
     org_mgmt_acct = False
     if exclude_org_mgmt_acct is True:
-        client = session.client("organizations")
-        response = client.describe_organization()
-        org_mgmt_acct = response["Organization"]["MasterAccountId"]
+        if _DESCRIBE_ORGANIZATION_CACHE_KEY in cache:
+            # LOGGER.debug("Found describe_organization response in cache")
+            describe_organization_response = cache[_DESCRIBE_ORGANIZATION_CACHE_KEY]
+        else:
+            LOGGER.debug("Calling describe_organization")
+            client = session.client("organizations")
+            describe_organization_response = client.describe_organization()["Organization"]
+            cache[_DESCRIBE_ORGANIZATION_CACHE_KEY] = describe_organization_response
+        org_mgmt_acct = describe_organization_response["MasterAccountId"]
     elif exclude_org_mgmt_acct:
         org_mgmt_acct = _format.format_account_id(exclude_org_mgmt_acct)
 
