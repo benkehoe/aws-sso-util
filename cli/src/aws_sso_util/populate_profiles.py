@@ -156,6 +156,8 @@ def get_name_case_formatter(account_name_transform, role_name_transform, formatt
     }
     def case_formatter(i, n, **kwargs):
         for field, transform in field_transform_map.items():
+            if not transform:
+                continue
             if transform == "capitalize":
                 kwargs[field] = kwargs[field].capitalize()
             elif transform == "casefold":
