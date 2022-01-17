@@ -217,6 +217,7 @@ The values for these options are as follows, and correspond to the Python string
 * [`capitalize`](https://docs.python.org/3/library/stdtypes.html#str.capitalize)
 * [`casefold`](https://docs.python.org/3/library/stdtypes.html#str.casefold)
 * [`lower`](https://docs.python.org/3/library/stdtypes.html#str.lower)
+* [`title`](https://docs.python.org/3/library/stdtypes.html#str.title)
 * [`upper`](https://docs.python.org/3/library/stdtypes.html#str.upper)
 
 For example, to lowercase both the account name and role name, add these options:

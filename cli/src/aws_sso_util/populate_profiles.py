@@ -164,6 +164,8 @@ def get_name_case_formatter(account_name_transform, role_name_transform, formatt
                 kwargs[field] = kwargs[field].casefold()
             elif transform == "lower":
                 kwargs[field] = kwargs[field].lower()
+            elif transform == "title":
+                kwargs[field] = kwargs[field].title()
             elif transform == "upper":
                 kwargs[field] = kwargs[field].upper()
             else:
@@ -191,8 +193,8 @@ def get_safe_account_name(name):
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
-@click.option("--account-name-case", "profile_name_account_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "upper"]), help="Method to change the case of the account name")
-@click.option("--role-name-case", "profile_name_role_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "upper"]), help="Method to change the case of the role name")
+@click.option("--account-name-case", "profile_name_account_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the account name")
+@click.option("--role-name-case", "profile_name_role_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the role name")
 @click.option("--profile-name-process")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
