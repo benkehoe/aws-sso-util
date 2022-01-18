@@ -77,13 +77,13 @@ def get_target_filter(values):
 
 @click.option("--profile", metavar="PROFILE_NAME", help="Use a specific AWS profile")
 
-@click.option("--group", "-g", "group_values", multiple=True, default=[], metavar="GROUP", help="Group ID or display name")
-@click.option("--user", "-u", "user_values", multiple=True, default=[], metavar="USER", help="User ID or user name")
-@click.option("--permission-set", "-p", "permission_set_values", multiple=True, default=[], metavar="PERM_SET", help="Permission set ARN, ID, or name")
-@click.option("--account-id", "account_values", multiple=True, default=[], metavar="ACCOUNT_ID", help="Full account ID or a prefix or suffix")
-@click.option("--account-name", "account_values", multiple=True, metavar="ACCOUNT_NAME_REGEX", help="Account name regex")
+@click.option("--group", "-g", "group_values", metavar="GROUP", multiple=True, default=[], help="Group ID or display name")
+@click.option("--user", "-u", "user_values", metavar="USER", multiple=True, default=[], help="User ID or user name")
+@click.option("--permission-set", "-p", "permission_set_values", metavar="PERM_SET", multiple=True, default=[], help="Permission set ARN, ID, or name")
+@click.option("--account-id", "account_values", metavar="ACCOUNT_ID", multiple=True, default=[], help="Full account ID or a prefix or suffix")
+@click.option("--account-name", "account_values", metavar="REGEX", multiple=True, help="Account name regex")
 @click.option("--account", "-a", "account_values", multiple=True, hidden=True)
-@click.option("--ou", "ou_values", multiple=True, default=[], metavar="ID", help="Organizations OU or root ID")
+@click.option("--ou", "ou_values", metavar="ID", multiple=True, default=[], help="Organizations OU or root ID")
 @click.option("--ou-recursive/--ou-not-recursive", help="Include accounts of child OUs when using --ou")
 
 @click.option("--lookup-names/--no-lookup-names", default=True, help="Look up names for principals, permission sets, and accounts")

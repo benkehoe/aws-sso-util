@@ -50,7 +50,7 @@ SET_CREDENTIAL_PROCESS_DEFAULT = True
 @click.option("--role-name", "-r", "role", metavar="ROLE_NAME", help="The SSO role (also the Permission Set name) to assume in account")
 @click.option("--region", metavar="REGION", help="The AWS region the profile will use")
 @click.option("--output", "-o", metavar="CLI_OUTPUT_FORMAT", help="Set the CLI output format for the profile")
-@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE", help="Additional config field to set, can provide multiple times")
+@click.option("--config-default", "-c", metavar="KEY=VALUE", multiple=True, help="Additional config field to set, can provide multiple times")
 @click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep", help="Action when config defaults conflict with existing settings")
 @click.option("--interactive/--non-interactive", default=True, help="If not all required settings are provided, use an interactive prompt")
 @click.option("--credential-process/--no-credential-process", default=None, help="Force enable/disable setting the credential process SDK helper")

@@ -178,24 +178,24 @@ def get_safe_account_name(name):
 
 @click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
 
-@click.option("--region", "-r", "regions", multiple=True, metavar="REGION", help="AWS region for the profiles, can provide multiple times")
+@click.option("--region", "-r", "regions", metavar="REGION", multiple=True, help="AWS region for the profiles, can provide multiple times")
 
 @click.option("--dry-run", is_flag=True, help="Print the config to stdout instead of writing to your config file")
 
-@click.option("--config-default", "-c", multiple=True, metavar="KEY=VALUE", help="Additional config field to set, can provide multiple times")
+@click.option("--config-default", "-c", metavar="KEY=VALUE", multiple=True, help="Additional config field to set, can provide multiple times")
 @click.option("--existing-config-action", type=click.Choice(["keep", "overwrite", "discard"]), default="keep", help="Action when config defaults conflict with existing settings")
 
 @click.option("--components", "profile_name_components", metavar="VALUE,VALUE,...", default="account_name,role_name,default_style_region", help=f"Profile name components to join (comma-separated). Possible values are: {' '.join(KNOWN_COMPONENTS)}")
 @click.option("--separator", "--sep", "profile_name_separator", metavar="SEP", help=f"Separator for profile name components, default is '{DEFAULT_SEPARATOR}'")
 @click.option("--include-region", "profile_name_include_region", type=click.Choice(["default", "always"]), default="default", help="By default, the first region is left off the profile name")
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
-@click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
-@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
+@click.option("--trim-account-name", "profile_name_trim_account_name_patterns", metavar="REGEX", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
+@click.option("--trim-role-name", "profile_name_trim_role_name_patterns", metavar="REGEX", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
 @click.option("--account-name-case", "profile_name_account_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the account name")
 @click.option("--role-name-case", "profile_name_role_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the role name")
-@click.option("--profile-name-process")
+@click.option("--profile-name-process", metavar="COMMAND")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
 @click.option("--credential-process/--no-credential-process", default=None, help="Force enable/disable setting the credential process SDK helper")
