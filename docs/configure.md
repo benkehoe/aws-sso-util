@@ -206,6 +206,24 @@ A useful piece of syntax for this is lookahead/lookbehind assertions.
 * `(?<!My)Role` would turn `"AdminRole"` into `"Admin"` and `"UserRole"` into `"User"` but leave `"MyRole"` as is.
 * `RoleFor(?=Admin)` and `RoleFor(?!My)` work similarly for suffixes.
 
+### Change the case of account and role names
+
+You can alter the case of your profile names with `--account-name-case` and
+`--role-name-case`. Use these to change the generated profile names after
+assembly and trimming.
+
+The values for these options are as follows, and correspond to the Python string methods of the same names:
+
+* [`capitalize`](https://docs.python.org/3/library/stdtypes.html#str.capitalize)
+* [`casefold`](https://docs.python.org/3/library/stdtypes.html#str.casefold)
+* [`lower`](https://docs.python.org/3/library/stdtypes.html#str.lower)
+* [`title`](https://docs.python.org/3/library/stdtypes.html#str.title)
+* [`upper`](https://docs.python.org/3/library/stdtypes.html#str.upper)
+
+For example, to lowercase both the account name and role name, add these options:
+
+    --account-name-case lower --role-name-case lower
+
 ### Profile name process
 
 Finally, if you want total control over the generated profile names, you can provide a shell command with `--profile-name-process` and it will be executed with the following positional arguments:

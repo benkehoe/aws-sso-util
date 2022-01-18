@@ -5,3 +5,4 @@
 * [Eoin Shanaghy](https://github.com/eoinsha)
 * [Geordam](https://github.com/Geordam)
 * [Imran](https://github.com/fai555)
+* [O'Shaughnessy Evans](https://github.com/oshaughnessy)

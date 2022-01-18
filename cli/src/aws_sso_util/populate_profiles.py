@@ -149,6 +149,30 @@ def get_trim_formatter(account_name_patterns, role_name_patterns, formatter):
         return formatter(i, n, **kwargs)
     return trim_formatter
 
+def get_name_case_formatter(account_name_transform, role_name_transform, formatter):
+    field_transform_map = {
+        "account_name": account_name_transform,
+        "role_name": role_name_transform,
+    }
+    def case_formatter(i, n, **kwargs):
+        for field, transform in field_transform_map.items():
+            if not transform:
+                continue
+            if transform == "capitalize":
+                kwargs[field] = kwargs[field].capitalize()
+            elif transform == "casefold":
+                kwargs[field] = kwargs[field].casefold()
+            elif transform == "lower":
+                kwargs[field] = kwargs[field].lower()
+            elif transform == "title":
+                kwargs[field] = kwargs[field].title()
+            elif transform == "upper":
+                kwargs[field] = kwargs[field].upper()
+            else:
+                raise ValueError("Unknown {} transform value {}".format(field, transform))
+        return formatter(i, n, **kwargs)
+    return case_formatter
+
 def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
@@ -169,6 +193,8 @@ def get_safe_account_name(name):
 @click.option("--region-style", "profile_name_region_style", type=click.Choice(["short", "long"]), default="short", help="Default is five character region abbreviations")
 @click.option("--trim-account-name", "profile_name_trim_account_name_patterns", multiple=True, default=[], help="Regex to remove from account names, can provide multiple times")
 @click.option("--trim-role-name", "profile_name_trim_role_name_patterns", multiple=True, default=[], help="Regex to remove from role names, can provide multiple times")
+@click.option("--account-name-case", "profile_name_account_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the account name")
+@click.option("--role-name-case", "profile_name_role_name_case_transform", type=click.Choice(["capitalize", "casefold", "lower", "title", "upper"]), help="Method to change the case of the role name")
 @click.option("--profile-name-process")
 @click.option("--safe-account-names/--raw-account-names", default=True, help="In profiles, replace any character sequences in account names not in A-Za-z0-9-._ with a single -")
 
@@ -189,6 +215,8 @@ def populate_profiles(
         profile_name_region_style,
         profile_name_trim_account_name_patterns,
         profile_name_trim_role_name_patterns,
+        profile_name_account_name_case_transform,
+        profile_name_role_name_case_transform,
         profile_name_process,
         safe_account_names,
         credential_process,
@@ -244,6 +272,8 @@ def populate_profiles(
         profile_name_formatter = get_formatter(profile_name_include_region, region_format, no_region_format)
         if profile_name_trim_account_name_patterns or profile_name_trim_role_name_patterns:
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
+        if profile_name_account_name_case_transform or profile_name_role_name_case_transform:
+            profile_name_formatter = get_name_case_formatter(profile_name_account_name_case_transform, profile_name_role_name_case_transform, profile_name_formatter)
 
     try:
         profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
