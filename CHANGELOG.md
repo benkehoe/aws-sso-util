@@ -1,9 +1,16 @@
 # Changelog
 
+`aws-sso-util` and `aws-sso-lib` use [monotonic versioning](blog.appliedcompscilab.com/monotonic_versioning_manifesto/).
+
 * [`aws-sso-util`](#aws-sso-util)
 * [`aws-sso-lib`](#aws-sso-lib)
 
 ## `aws-sso-util`
+
+### CLI v4.27
+* Added `--account-name-case` and `--role-name-case` to `aws-sso-util configure populate` ([#48](https://github.com/benkehoe/aws-sso-util/pull/48)).
+* `aws-sso-util check` logs version and timestamp information.
+* Fixed bug in `aws-sso-util configure profile` with Python 3.6
 
 ### CLI v4.26
 * Add `aws-sso-util run-as` command ([#44](https://github.com/benkehoe/aws-sso-util/pull/44)). Read the docs [here](docs/run-as.md).
@@ -34,6 +41,9 @@
 * Fix name fetching error with `!Ref` principal or target
 
 ## `aws-sso-lib`
+
+### lib v1.10
+* `lookup_accounts_for_ou()` now caches calls to `organizations.DescribeOrganization`.
 
 ### lib v1.9
 * `get_boto3_session()` now ignores `AWS_PROFILE` and `AWS_DEFAULT_PROFILE` environment variables.
