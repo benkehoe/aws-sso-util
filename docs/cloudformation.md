@@ -31,7 +31,7 @@ See below for how to configure this.
 Note that no assignments for the Organizations management account will be generated unless it is explicitly listed as an account target.
 If an OU that contains the management account is given as a target, the generated assignments for that OU will not include the management account.
 
-The assignment resources can contain metadata, in the `Metadata` section of the resource under the `SSO` key.
+The assignment resources can contain the following metadata, in the `Metadata` section of the resource under the `SSO` key:
 * If you are using the macro: The resource name of the `AssignmentGroup` resource, as well as the value of the `Name` property of the resource, if it exists and is a string.
 * If you specified an OU as a target
     * The metadata for every assignment for an account from that OU will have the OU in the metadata in the `SourceOU` field.
