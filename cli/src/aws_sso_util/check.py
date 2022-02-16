@@ -11,7 +11,6 @@ import click
 
 from aws_sso_lib.sso import get_boto3_session, list_available_accounts, list_available_roles, login, get_token_fetcher, SSO_TOKEN_DIR
 from aws_sso_lib.config import find_instances, SSOInstance
-from aws_sso_lib.exceptions import AuthenticationNeededError
 
 from .utils import configure_logging, GetInstanceError
 
@@ -184,7 +183,8 @@ def check(
         try:
             token = login(instance.start_url, instance.region, force_refresh=True)
         except Exception as e:
-            LOGGER.exception(f"Exception during login")
+            LOGGER.debug(traceback.format_exc())
+            LOGGER.error(f"Exception during login: {e}")
             sys.exit(201)
     else:
         try:
@@ -193,12 +193,23 @@ def check(
                 'region': (None, None, None, None),
             })
             token_fetcher = get_token_fetcher(session, instance.region, interactive=False)
-            token = token_fetcher.fetch_token(instance.start_url)
-        except AuthenticationNeededError as e:
-            LOGGER.debug(traceback.format_exc())
-            LOGGER.error("No valid token found")
-            sys.exit(201)
+            token = token_fetcher.get_token_from_cache(instance.start_url)
+            if not token:
+                message = (
+                    "No valid AWS SSO token found in the cache. Logging in may fix this. "
+                    + f"Log in with `aws-sso-util login {instance.start_url} {instance.region}` or use the --force-refresh option."
+                )
+                LOGGER.error(message)
+                sys.exit(201)
+            elif token_fetcher.is_token_expired(token):
+                message = (
+                    "Cached AWS SSO token is expired. "
+                    + f"Log in again with `aws-sso-util login {instance.start_url} {instance.region}` or use the --force-refresh option."
+                )
+                LOGGER.error(message)
+                sys.exit(201)
         except Exception as e:
+            LOGGER.debug(traceback.format_exc())
             perm_error = extract_error(e, PermissionError)
             if perm_error:
                 coda = ""
@@ -213,15 +224,16 @@ def check(
                         pass
                 else:
                     msg = f"located in {SSO_TOKEN_DIR} by default"
-                LOGGER.debug(traceback.format_exc())
                 LOGGER.error(f"The SSO cache file ({msg}) may have the wrong permissions{coda}")
-            else:
-                LOGGER.exception(f"Exception in loading token")
-                os_error = extract_error(e, OSError)
-                if os_error and os_error.filename:
-                    LOGGER.error(f"The SSO cache file is located at {os_error.filename}")
+                sys.exit(201)
+
+            LOGGER.error(f"Exception in loading token: {e}")
+            os_error = extract_error(e, OSError)
+            if os_error and os_error.filename:
+                LOGGER.error(f"The SSO cache file is located at {os_error.filename}")
             sys.exit(201)
-    LOGGER.info(f"Token expiration: {token['expiresAt']}")
+
+    LOGGER.info(f"Cached AWS SSO token is valid until {token['expiresAt']}")
 
     if not account and not role_name:
         return
