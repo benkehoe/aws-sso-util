@@ -25,6 +25,8 @@ aws-error-utils = "^1.0.4"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.2"
+mypy = "^0.931"
+types-python-dateutil = "^2.8.7"
 
 [build-system]
 requires = ["poetry>=0.12"]

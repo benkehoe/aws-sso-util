@@ -15,6 +15,7 @@ import os
 import logging
 import re
 from collections import namedtuple
+from typing import Optional
 
 import botocore
 from botocore.exceptions import ProfileNotFound
@@ -54,7 +55,7 @@ class SSOInstance(namedtuple("SSOInstance", ["start_url", "region", "start_url_s
     def to_strs(cls, instances, region=None):
         return ", ".join(i.to_str(region=region) for i in instances)
 
-def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=False) -> SSOInstance:
+def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=False) -> Optional[SSOInstance]:
     start_url = scoped_config.get("sso_start_url")
     region = scoped_config.get("sso_region")
     if not (start_url and region):
@@ -66,7 +67,7 @@ def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=Fal
     return instance
 
 def _get_all_instances_from_config(full_config: dict):
-    instances = {}
+    instances: dict = {}
     for profile_name, scoped_config in full_config.get("profiles", {}).items():
         instance = _get_instance_from_profile(profile_name, scoped_config, missing_ok=True)
         if not instance:
