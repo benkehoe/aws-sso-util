@@ -417,7 +417,7 @@ def list_available_roles(
         if isinstance(account_id, (str, numbers.Number)):
             account_id_list = [format_account_id(account_id)]
         else:
-            account_id_list = [format_account_id(v) for v in account_id]
+            account_id_list = [format_account_id(v) for v in account_id] # type: ignore
     else:
         account_id_list = None
 
@@ -467,7 +467,7 @@ def list_available_roles(
             for role in response["roleList"]:
                 role_name = role["roleName"]
 
-                yield account_id, account_name, role_name
+                yield account_id, account_name, role_name # type: ignore
 
             next_token = response.get("nextToken")
             if not next_token:
