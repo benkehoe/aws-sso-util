@@ -42,7 +42,7 @@ If you're finding that it's not correctly selecting the right instance, you can 
 
 ## Other options
 
-Use `--force` to ignore any cached tokens.
+Use `--force-refresh` to ignore any cached tokens.
 
 On headless systems, the attempt to pop up the browser will silently fail and the always-printed fallback message with the URL and code can be used.
 If you are on a system with a browser but you do not want the automatic pop up, use `--headless` or set the environment variable `AWS_SSO_DISABLE_BROWSER` to `1` or `true`.

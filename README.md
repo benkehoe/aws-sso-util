@@ -50,7 +50,7 @@ aws-sso-util --help
 4. Autocomplete
 
 `aws-sso-util` uses [click](https://click.palletsprojects.com/en/7.x/), which supports autocompletion.
-The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example for bash that updates the completion in the background.
+The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example for `.bashrc` that updates the completion script in the background.
 
 ```bash
 _AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR=~/.local/share/aws-sso-util

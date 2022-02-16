@@ -44,9 +44,12 @@ LOCAL_TIME_FORMAT = "%Y-%m-%d %H:%M %Z"
 @click.argument("sso_region", required=False)
 @click.option("--profile", metavar="PROFILE_NAME", help="Use a profile to specify AWS SSO instance")
 @click.option("--all", "login_all", is_flag=True, default=None, help="Log in to all AWS SSO instances if multiple are found")
-@click.option("--force", is_flag=True, help="Force re-authentication")
+@click.option("--force-refresh", "force", is_flag=True, help="Force re-authentication")
 @click.option("--headless", is_flag=True, default=None, help="Never open a browser window")
 @click.option("--verbose", "-v", count=True)
+@click.option("--sso-start-url", "alternate_sso_start_url", hidden=True)
+@click.option("--sso-region", "alternate_sso_region", hidden=True)
+@click.option("--force", "alternate_force", is_flag=True, hidden=True)
 def login(
         sso_start_url,
         sso_region,
@@ -54,7 +57,10 @@ def login(
         login_all,
         force,
         headless,
-        verbose):
+        verbose,
+        alternate_sso_start_url,
+        alternate_sso_region,
+        alternate_force):
     """Log in to an AWS SSO instance.
 
     Note this only needs to be done once for a given SSO instance (i.e., start URL),
@@ -69,6 +75,9 @@ def login(
 
     You can also provide a profile name with --profile to use the SSO instance from a specific profile.
     """
+    sso_start_url = sso_start_url or alternate_sso_start_url
+    sso_region = sso_region or alternate_sso_region
+    force = force or alternate_force
 
     if login_all is None:
         login_all = os.environ.get(LOGIN_ALL_VAR, "").lower() in ["true", "1"]
@@ -112,7 +121,7 @@ def login(
         'region': (None, None, None, None),
     })
 
-    regions = [i.region for i in instances]
+    regions = set(i.region for i in instances)
     token_fetchers = {}
     for region in regions:
         token_fetchers[region] = get_token_fetcher(session, region, interactive=True, disable_browser=headless)
