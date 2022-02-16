@@ -205,8 +205,11 @@ class SSOTokenFetcher(object):
                 raise PendingAuthorizationExpiredError()
             self._sleep(interval)
 
+    def _cache_key(self, start_url):
+        return hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+
     def _token(self, start_url, force_refresh):
-        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        cache_key = self._cache_key(start_url)
         # Only obey the token cache if we are not forcing a refresh.
         if not force_refresh and cache_key in self._cache:
             token = self._cache[cache_key]
@@ -220,8 +223,18 @@ class SSOTokenFetcher(object):
     def fetch_token(self, start_url, force_refresh=False):
         return self._token(start_url, force_refresh)
 
+    def get_token_from_cache(self, start_url):
+        cache_key = self._cache_key(start_url)
+        if cache_key in self._cache:
+            token = self._cache[cache_key]
+            return token
+        return None
+
+    def is_token_expired(self, token):
+        return self._is_expired(token)
+
     def pop_token_from_cache(self, start_url):
-        cache_key = hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+        cache_key = self._cache_key(start_url)
         # Only obey the token cache if we are not forcing a refresh.
         if cache_key in self._cache:
             token = self._cache[cache_key]
