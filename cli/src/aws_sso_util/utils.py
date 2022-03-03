@@ -78,7 +78,7 @@ def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_
             raise GetInstanceError("No AWS SSO instance found")
 
     if len(instances) > 1:
-        raise GetInstanceError(f"Found {len(instances)} SSO instance, please specify one: {SSOInstance.to_strs(instances)}")
+        raise GetInstanceError(f"Found {len(instances)} SSO instances, please specify one: {SSOInstance.to_strs(instances)}")
 
     return instances[0]
 
