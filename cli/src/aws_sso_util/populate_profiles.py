@@ -50,19 +50,26 @@ LOGGER = logging.getLogger(__name__)
 ConfigParams = namedtuple("ConfigParams", ["profile_name", "account_name", "account_id", "role_name", "region"])
 
 def get_short_region(region):
-    area, direction, num = region.split("-")
-    dir_abbr = {
-        "north": "no",
-        "northeast": "ne",
-        "east": "ea",
-        "southeast": "se",
-        "south": "so",
-        "southwest": "sw",
-        "west": "we",
-        "northwest": "nw",
-        "central": "ce",
-    }
-    return "".join([area, dir_abbr.get(direction, direction), num])
+    try:
+        area, direction, num = region.rsplit("-", 2)
+        area_abbr = {
+            "us-gov": "gov"
+        }
+        dir_abbr = {
+            "north": "no",
+            "northeast": "ne",
+            "east": "ea",
+            "southeast": "se",
+            "south": "so",
+            "southwest": "sw",
+            "west": "we",
+            "northwest": "nw",
+            "central": "ce",
+        }
+        return "".join([area_abbr.get(area, area), dir_abbr.get(direction, direction), num])
+    except Exception as e:
+        LOGGER.debug(f"Error creating short region: {e}", exc_info=True)
+        return region
 
 KNOWN_COMPONENTS = [
     "account_name",
