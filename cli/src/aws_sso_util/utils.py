@@ -13,8 +13,13 @@
 
 import logging
 import logging.handlers
+import sys
 
 from aws_sso_lib.config import find_instances, SSOInstance
+
+class StdoutFilter(logging.Filter):
+    def filter(self, rec):
+        return rec.levelno < logging.WARNING
 
 def configure_logging(logger, verbose, **config_args):
     if verbose in [False, None]:
@@ -29,9 +34,18 @@ def configure_logging(logger, verbose, **config_args):
     root_logger = logging.getLogger()
 
     if verbose == 0:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(handler)
+        stdout_handler = logging.StreamHandler(stream=sys.stdout)
+        stdout_handler.setFormatter(logging.Formatter("%(message)s"))
+        stdout_handler.setLevel(logging.DEBUG)
+        stdout_handler.addFilter(StdoutFilter())
+
+        stderr_handler = logging.StreamHandler(stream=sys.stderr)
+        stderr_handler.setFormatter(logging.Formatter("%(message)s"))
+        stderr_handler.setLevel(logging.WARNING)
+
+        logger.addHandler(stdout_handler)
+        logger.addHandler(stderr_handler)
+
         logger.propagate = False
         logger.setLevel(logging.INFO)
     elif verbose == 1:
