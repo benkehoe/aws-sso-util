@@ -7,6 +7,12 @@
 
 ## `aws-sso-util`
 
+### CLI v4.28
+* Log normal output to stdout ([#54](https://github.com/benkehoe/aws-sso-util/issues/54)).
+* Fix short region names for GovCloud in `aws-sso-util configure populate` and `aws-sso-util configure profile` ([#55](https://github.com/benkehoe/aws-sso-util/issues/55)).
+* Update `aws-sso-util login` to use `--force-refresh` for consistency with other commands (`--force` still works).
+* `aws-sso-util check` now provides more information about the token cache.
+
 ### CLI v4.27
 * Added `--account-name-case` and `--role-name-case` to `aws-sso-util configure populate` ([#48](https://github.com/benkehoe/aws-sso-util/pull/48)).
 * `aws-sso-util check` logs version and timestamp information.
@@ -41,6 +47,10 @@
 * Fix name fetching error with `!Ref` principal or target
 
 ## `aws-sso-lib`
+
+### lib v1.11
+* Improvements to `SSOTokenFetcher` to support better `aws-sso-util check` functionality.
+* Fixed type annotations.
 
 ### lib v1.10
 * `lookup_accounts_for_ou()` now caches calls to `organizations.DescribeOrganization`.
