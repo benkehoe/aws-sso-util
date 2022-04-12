@@ -236,6 +236,7 @@ Finally, if you want total control over the generated profile names, you can pro
 * Number of regions
 
 This must output a profile name to stdout and return an exit code of 0.
+If the profile name is `SKIP` no profile will be created for that configuration.
 
 The default formatting is roughly equivalent to the following code:
 ```python
