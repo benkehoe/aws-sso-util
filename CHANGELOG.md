@@ -7,6 +7,10 @@
 
 ## `aws-sso-util`
 
+### CLI v4.29
+* Remove support for Python 3.6 (removed in `boto3`).
+* Fix `aws-sso-credential-process` for `botocore` change.
+
 ### CLI v4.28
 * Log normal output to stdout ([#54](https://github.com/benkehoe/aws-sso-util/issues/54)).
 * Fix short region names for GovCloud in `aws-sso-util configure populate` and `aws-sso-util configure profile` ([#55](https://github.com/benkehoe/aws-sso-util/issues/55)).
@@ -47,6 +51,10 @@
 * Fix name fetching error with `!Ref` principal or target
 
 ## `aws-sso-lib`
+
+### lib v1.12
+* Remove support for Python 3.6 (removed in `boto3`).
+* Fix `get_credentials()` for `botocore` change.
 
 ### lib v1.11
 * Improvements to `SSOTokenFetcher` to support better `aws-sso-util check` functionality.
