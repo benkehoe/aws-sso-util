@@ -92,7 +92,7 @@ def _get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
             force_refresh=force_refresh
         )
         LOGGER.debug("TOKEN: {}".format(token_response))
-        return token_response["accessToken"]
+        return token_response
 
     return token_loader
 

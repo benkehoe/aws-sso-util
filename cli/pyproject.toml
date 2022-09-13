@@ -20,10 +20,10 @@ classifiers = [
 aws-sso-util = 'aws_sso_util.cli:cli'
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 # botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
 click = "^7.1.2"
-boto3 = ">=1.20.28, <2.0.0"
+boto3 = ">=1.24.60, <2.0.0"
 pyyaml = "^5.3.1"
 jsonschema = "^3.2.0"
 aws-error-utils = "^1.0.4"

@@ -18,9 +18,9 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 # botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
-boto3 = ">=1.20.28, <2.0.0"
+boto3 = ">=1.24.60, <2.0.0"
 aws-error-utils = "^1.0.4"
 
 [tool.poetry.dev-dependencies]
