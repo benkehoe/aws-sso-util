@@ -18,9 +18,12 @@ import pathlib
 import getpass
 import traceback
 import datetime
+import textwrap
 
 import botocore
 import click
+
+from aws_error_utils import catch_aws_error
 
 from aws_sso_lib.sso import get_boto3_session, list_available_accounts, list_available_roles, login, get_token_fetcher, SSO_TOKEN_DIR
 from aws_sso_lib.config import find_instances, SSOInstance
@@ -246,9 +249,30 @@ def check(
                 LOGGER.error(f"The SSO cache file is located at {os_error.filename}")
             sys.exit(201)
 
-    LOGGER.info(f"Cached AWS SSO token is valid until {token['expiresAt']}")
+    token_info_str = f"AWS SSO token cache entry is valid until {token['expiresAt']}"
+    if "receivedAt" in token:
+        token_info_str += f" (cached at {token['receivedAt']})"
+    LOGGER.info(token_info_str)
 
     if not account and not role_name:
+        try:
+            LOGGER.info("Attempting to use token...")
+            for _ in list_available_accounts(instance.start_url, instance.region):
+                LOGGER.info("Token appears to be valid for use")
+                break
+        except catch_aws_error("UnauthorizedException") as e:
+            err_msg = textwrap.dedent(f"""\
+                Exception using token: {e}
+                This may indicate the cache expiration is not in sync with the token expiration.
+                You can try using the `--force-refresh` option or separately running
+                `aws-sso-util login --force {instance.start_url} {instance.region}`
+                If this works, it may indicate an issue with the AWS SSO Portal service giving out invalid expirations.
+                """)
+            if verbose:
+                err_msg = err_msg.replace("\n", " ")
+            LOGGER.error(err_msg)
+        except Exception as e:
+            LOGGER.error(f"Exception using token: {e}")
         return
     elif not account:
         accounts = {}
