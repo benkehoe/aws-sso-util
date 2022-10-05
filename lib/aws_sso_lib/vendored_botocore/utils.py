@@ -115,11 +115,11 @@ class SSOTokenFetcher(object):
         return self._client_creator('sso-oidc', config=config)
 
     def _register_client(self):
-        timestamp = datetime2timestamp(self._time_fetcher())
+        timestamp = self._time_fetcher()
         response = self._client.register_client(
             # NOTE: As far as I know client name will never be returned to the
             # user. For now we'll just use botocore-client with the timestamp.
-            clientName='botocore-client-%s' % int(timestamp),
+            clientName='botocore-client-%s' % int(datetime2timestamp(timestamp)),
             clientType=self._CLIENT_REGISTRATION_TYPE,
         )
         expires_at = response['clientSecretExpiresAt']
@@ -128,6 +128,7 @@ class SSOTokenFetcher(object):
             'clientId': response['clientId'],
             'clientSecret': response['clientSecret'],
             'expiresAt': expires_at,
+            'receivedAt': timestamp,
         }
         return registration
 
@@ -155,12 +156,13 @@ class SSOTokenFetcher(object):
             startUrl=start_url,
         )
         expires_in = datetime.timedelta(seconds=response['expiresIn'])
+        timestamp = self._time_fetcher()
         authorization = {
             'deviceCode': response['deviceCode'],
             'userCode': response['userCode'],
             'verificationUri': response['verificationUri'],
             'verificationUriComplete': response['verificationUriComplete'],
-            'expiresAt': self._time_fetcher() + expires_in,
+            'expiresAt': timestamp + expires_in,
         }
         if 'interval' in response:
             authorization['interval'] = response['interval']
@@ -190,11 +192,13 @@ class SSOTokenFetcher(object):
                     deviceCode=authorization['deviceCode'],
                 )
                 expires_in = datetime.timedelta(seconds=response['expiresIn'])
+                timestamp = self._time_fetcher()
                 token = {
                     'startUrl': start_url,
                     'region': self._sso_region,
                     'accessToken': response['accessToken'],
-                    'expiresAt': self._time_fetcher() + expires_in
+                    'expiresAt': timestamp + expires_in,
+                    'receivedAt': timestamp,
                 }
                 return token
             except self._client.exceptions.SlowDownException:

@@ -292,6 +292,8 @@ def login(
         force_refresh=force_refresh
     )
     token['expiresAt'] = _serialize_utc_timestamp(token['expiresAt'])
+    if 'receivedAt' in token:
+        token['receivedAt'] = _serialize_utc_timestamp(token['receivedAt'])
 
     return token
 
