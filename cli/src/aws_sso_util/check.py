@@ -19,6 +19,7 @@ import getpass
 import traceback
 import datetime
 import textwrap
+import json
 
 import botocore
 import click
@@ -72,6 +73,7 @@ def extract_error(e, e_type):
 @click.option("--account-id", "-a", "account", metavar="ACCOUNT_ID", help="Check for access to a particular account")
 @click.option("--account", hidden=True)
 @click.option("--role-name", "-r", metavar="ROLE_NAME", help="Check for access to a particular role")
+@click.option("--check-profile", metavar="PROFILE_NAME", help="Use SSO config from the given profile")
 @click.option("--command", type=click.Choice(["default", "configure", "login"]), default="default")
 @click.option("--instance-details", is_flag=True, default=None, help="Display details of the AWS SSO instance")
 @click.option("--skip-token-check", is_flag=True, help="When not checking an account and/or role, do not check token validity")
@@ -83,6 +85,7 @@ def check(
         sso_region,
         account,
         role_name,
+        check_profile,
         command,
         instance_details,
         skip_token_check,
@@ -119,11 +122,46 @@ def check(
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     LOGGER.info(f"aws-sso-util: v{aws_sso_util_version}; aws-sso-lib: v{aws_sso_lib_version}; time: {now}")
 
+    start_url_source = "CLI input"
+    region_source = "CLI input"
+
+    if check_profile:
+        if (sso_start_url or sso_region or account or role_name):
+            raise click.UsageError("Cannot specify --sso-start-url, --sso-region, --account-id, or --role-name with --check-profile")
+        config_session = botocore.session.Session(profile=check_profile)
+        missing = []
+        profile_config = {}
+        for key in ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"]:
+            value = config_session.get_scoped_config().get(key)
+            if not value:
+                missing.append(key)
+            else:
+                profile_config[key] = value
+        if missing:
+            raise click.UsageError(f"Profile {check_profile} is missing config fields {', '.join(missing)}")
+
+        start_url_source = f"CLI-specified profile {check_profile}"
+        region_source = f"CLI-specified profile {check_profile}"
+
+        sso_start_url = profile_config["sso_start_url"]
+        sso_region = profile_config["sso_region"]
+        account = profile_config["sso_account_id"]
+        role_name = profile_config["sso_role_name"]
+        if verbose:
+            LOGGER.info(f"Configuration for profile {check_profile}: {json.dumps(profile_config)}")
+        else:
+            LOGGER.info(textwrap.dedent(f"""\
+            Configuration for profile {check_profile}:
+            Start URL:  {sso_start_url}
+            Region:     {sso_region}
+            Account ID: {account}
+            Role name:  {role_name}"""))
+
     instances, specifier, all_instances = find_instances(
         start_url=sso_start_url,
-        start_url_source="CLI input",
+        start_url_source=start_url_source,
         region=sso_region,
-        region_source="CLI input",
+        region_source=region_source,
         start_url_vars=start_url_vars,
         region_vars=region_vars
     )
