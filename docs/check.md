@@ -72,3 +72,9 @@ If no roles are accessible in the account, it will print an error and exit with 
 If there are roles accessible in the account, but the given role is not accessible in the account, it will exit with return code 204.
 
 If the access is found, it will exit with return code 0 (success).
+
+## Checking a config profile
+
+To check access for a specific profile in `~/.aws/config` (or a custom config file specified with the `AWS_CONFIG_FILE` environment variable), use the `--check-profile` option.
+The profile must have the `sso_start_url`, `sso_region`, `sso_account_id`, and `sso_role_name` fields.
+You cannot use `--sso-start-url`/`-u`, `--sso-region`, `--account-id`/`-a`, and `--role-name`/`-r` when using `--check-profile`.
