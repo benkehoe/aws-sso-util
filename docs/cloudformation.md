@@ -28,6 +28,8 @@ To allow for more assignments, you need to specify a number of child stacks.
 You can either specify the number of child stacks explicitly, or provide the maximum number of assignment resources you want to support (which will calculate the number of child stacks automatically).
 See below for how to configure this.
 
+When specifying an OU for assignment the generated assignments will not include accounts with a status of `SUSPENDED` or `PENDING_CLOSURE`, these accounts can be explicitly listed.
+
 Note that no assignments for the Organizations management account will be generated unless it is explicitly listed as an account target.
 If an OU that contains the management account is given as a target, the generated assignments for that OU will not include the management account.
 
