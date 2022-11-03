@@ -11,7 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
-__version__ = '1.12.0' # change in pyproject.toml too
+__version__ = '1.13.0' # change in pyproject.toml too
 
 from .sso import get_boto3_session, login, list_available_accounts, list_available_roles
 from .assignments import Assignment, list_assignments

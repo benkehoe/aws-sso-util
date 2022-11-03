@@ -7,6 +7,13 @@
 
 ## `aws-sso-util`
 
+### CLI v4.30
+* `aws-sso-util login` adds `receivedAt` time to token cache entry.
+* Improved `aws-sso-util check` feedback.
+    * Displays `receivedAt` time for token if present.
+    * Validates apparently-valid cached token by attempting to list one page of available accounts.
+* Add `--check-profile` option to `aws-sso-util check` for pulling configuration from a profile.
+
 ### CLI v4.29
 * Remove support for Python 3.6 (removed in `boto3`).
 * Fix `aws-sso-credential-process` for `botocore` change.
@@ -51,6 +58,9 @@
 * Fix name fetching error with `!Ref` principal or target
 
 ## `aws-sso-lib`
+
+### lib v1.13
+* `login()` adds `receivedAt` timestamp to token dict.
 
 ### lib v1.12
 * Remove support for Python 3.6 (removed in `boto3`).
