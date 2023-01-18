@@ -233,7 +233,8 @@ def process_config(
         ou_fetcher = lambda ou, recursive: lookup.lookup_accounts_for_ou(session, ou,
             recursive=recursive,
             cache=cache,
-            exclude_org_mgmt_acct=True)
+            exclude_org_mgmt_acct=True,
+            exclude_inactive_accts=True)
 
         resource_collection = resources.get_resources_from_config(
             config,
