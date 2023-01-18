@@ -93,7 +93,7 @@ class Ids:
                 self._print_instance(cached=True)
                 return self._instance_arn
 
-        self._do_lookup("SSO instance", "ARN")
+        self._do_lookup("Identity Center instance", "ARN")
         self._print_instance()
         return self._instance_arn
 
@@ -126,7 +126,7 @@ class Ids:
     def _print_instance(self, cached=False):
         if not self._instance_arn_printed:
             cached_str = "cached " if cached else ""
-            self._print(f"Using {cached_str}SSO instance {self._instance_arn.split('/')[-1]}")
+            self._print(f"Using {cached_str}Identity Center instance {self._instance_arn.split('/')[-1]}")
             self._instance_arn_printed = True
 
     def _print_identity_store(self, cached=False):
@@ -144,7 +144,7 @@ class Ids:
                 if self._instance_arn == instance["InstanceArn"]:
                     break
             else:
-                raise LookupError(f"No {lookup_for} found matching SSO instance {self._instance_arn}")
+                raise LookupError(f"No {lookup_for} found matching Identity Center instance {self._instance_arn}")
         elif self._identity_store_id_specified:
             found_instances = []
             for instance in instances:
@@ -154,11 +154,11 @@ class Ids:
                 raise LookupError(f"No {lookup_for} found matching identity store id {self._identity_store_id}")
             elif len(found_instances) > 1:
                 arns = ", ".join(i["InstanceArn"] for i in found_instances)
-                raise LookupError(f"{len(found_instances)} SSO instances found matching identity store id {self._identity_store_id}, please specify SSO instance ARN: {arns}")
+                raise LookupError(f"{len(found_instances)} Identity Center instances found matching identity store id {self._identity_store_id}, please specify Identity Center instance ARN: {arns}")
             instance = found_instances[0]
         elif len(instances) > 1:
             arns = ", ".join(i["InstanceArn"] for i in instances)
-            raise LookupError(f"{len(instances)} SSO instances found, please specify SSO instance ARN: {arns}")
+            raise LookupError(f"{len(instances)} Identity Center instances found, please specify Identity Center instance ARN: {arns}")
         else:
             instance = instances[0]
 

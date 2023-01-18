@@ -31,8 +31,8 @@ HEADER_FIELDS = {
 }
 
 @click.command()
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", "account_values", metavar="ACCOUNT_ID", multiple=True, default=[], help="List roles for a specific account ID, can be specified multiple times")
 @click.option("--account", "account_values", multiple=True, hidden=True)
 @click.option("--role-name", "-r", "role_name_patterns", metavar="REGEX", multiple=True, default=[], help="Filter roles by a regular expression, can be specified multiple times")

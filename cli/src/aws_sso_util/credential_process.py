@@ -72,7 +72,7 @@ def get_config(arg_config, profile_config):
 @click.option("--account-id")
 @click.option("--role-name")
 
-@click.option("--force-refresh", is_flag=True, help="Do not reuse cached AWS SSO token")
+@click.option("--force-refresh", is_flag=True, help="Do not reuse cached Identity Center token")
 @click.option( "--verbose", "-v", "--debug", count=True, help="Write to the debugging log file")
 def credential_process(
         profile,
@@ -82,14 +82,14 @@ def credential_process(
         role_name,
         force_refresh,
         verbose):
-    """Helper for AWS SDKs that don't yet support AWS SSO.
+    """Helper for AWS SDKs that don't yet support Identity Center.
 
     This is not a command you use directly.
-    In a ~/.aws/config profile set up for AWS SSO, you can add the line
+    In a ~/.aws/config profile set up for Identity Center, you can add
 
     credential_process = aws-sso-util credential-process --profile NAME
 
-    with the profile name set to the profile the line is in.
+    with the profile name set to the profile that line is in.
 
     This line is automatically added by aws-sso-util configure commands.
     """

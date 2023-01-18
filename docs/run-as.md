@@ -7,13 +7,13 @@ Another example is a shell script that knows what account and role it should be 
 If the script can be used with any credentials, it should assume the environment it runs in is configured appropriately (e.g., the user may have set the `AWS_PROFILE` environment variable).
 
 `aws-sso-util run-as` is **not** intended to serve as a mechanism to "set" the account and role for a shell environment.
-In general, in the AWS SSO world, you shouldn't be trying to manually set credentials in an environment, nor thinking about "logging in" to a particular account and role.
-You log in to *AWS SSO* once, and then *use* accounts and roles with that session.
+In general, in the Identity Center world, you shouldn't be trying to manually set credentials in an environment, nor thinking about "logging in" to a particular account and role.
+You log in to *Identity Center* once, and then *use* accounts and roles with that session.
 You should orient yourself around configuration profiles—use [`aws-sso-util configure populate`](configure.md) to set up profiles for every account and role you have access to, and then use either the `--profile` argument to tell a command to use a specific profile, or set the `AWS_PROFILE` environment variable to have all commands your shell use a particular profile unless they are told otherwise ([here's a shell function to help manage that env var](https://gist.github.com/benkehoe/0d2985e56059437e489314d021be3fbe)).
 
-`aws-sso-util run-as` is **not** intended to serve as a general-purpose solution to export credentials for tools that do not support AWS SSO configuration.
+`aws-sso-util run-as` is **not** intended to serve as a general-purpose solution to export credentials for tools that do not support Identity Center configuration.
 While `aws-sso-util run-as` will run those tools just fine, the purpose of this command is not to bridge that gap in configuration support in a general way.
-`aws-sso-util configure` already mitigates lack of SSO support by [adding a credential process added to profiles](https://github.com/benkehoe/aws-sso-util/blob/master/README.md#adding-aws-sso-support-to-aws-sdks), which enables AWS SSO support for SDKs that support credential processes.
+`aws-sso-util configure` already mitigates lack of Identity Center support by [adding a credential process added to profiles](https://github.com/benkehoe/aws-sso-util/blob/master/README.md#adding-aws-sso-support-to-aws-sdks), which enables Identity Center support for SDKs that support credential processes.
 Some tools, notably those based on the AWS JavaScript v2 SDK, don't support the credential process.
 For those, the standalone tool [`aws-export-credentials`](https://github.com/benkehoe/aws-export-credentials) is recommended to solve that general problem instead.
 
@@ -57,22 +57,22 @@ Note that `aws-sso-util configure profile` is configuring the `default` profile 
 If you need to use multiple configurations in the same script, you can make multiple calls to `aws-sso-util configure profile` using different profile names to put those configurations in the same temporary configuration file, which you then use in subsequent commands by using the `--profile` argument (if it's available) or the `AWS_PROFILE` environment variable.
 
 There's nothing special about `aws-sso-util configure profile` in this example; you could write the raw configuration directly, for example using a [heredoc](https://tldp.org/LDP/abs/html/here-docs.html).
-This works for both AWS SSO and [other configuration](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings); however, you should never embed credentials directly in a script.
+This works for both Identity Center and [other configuration](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings); however, you should never embed credentials directly in a script.
 
 # Arguments
 
-## AWS SSO instance
+## Identity Center instance
 
-To explicitly set the AWS SSO instance, use `--sso-start-url` and `--sso-region`.
+To explicitly set the Identity Center instance, use `--sso-start-url` and `--sso-region`.
 If you're using `aws-sso-util run-as`, you're probably in a situation where you shouldn't assume anything about the configuration of the system it's running on.
 
-However, because it uses the same instance resolution procedure as other commands, if both values are not provided explicitly, there is a search for the AWS SSO instance.
+However, because it uses the same instance resolution procedure as other commands, if both values are not provided explicitly, there is a search for the Identity Center instance.
 Here are the details of of how the instance is determined:
 1. The start URL and regions are looked for in the following CLI parameters and environment variables, stopping if either are found:
     1. `--sso-start-url` and `--sso-region`
     2. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
-3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
+3. If not, all the profiles containing Identity Center config are loaded. All Identity Center instances found in the config are then filtered:
     * If a start URL was found in step 1 and it begins with `http`, it will ignore all other instances.
     * If a start URL was found in step 1 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
     * If a region was found in step 1, instances must match this region.
@@ -81,7 +81,7 @@ Here are the details of of how the instance is determined:
 ## Required
 
 * `--account-id`: The AWS account.
-* `--role-name`: The SSO role (also the Permission Set name) to assume in account.
+* `--role-name`: The Identity Center role (also the Permission Set name) to assume in account.
 
 ## Optional
 

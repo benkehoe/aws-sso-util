@@ -93,10 +93,10 @@ def get_destination(path: Optional[str]=None, region: Optional[str]=None, overri
     return url
 
 @click.command("launch")
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", metavar="ACCOUNT_ID", help="The AWS account", required=True)
-@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The SSO role to assume in account", required=True)
+@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The Identity Center role to assume in account", required=True)
 @click.option("--region", metavar="REGION", help="The AWS region", envvar="AWS_CONSOLE_DEFAULT_REGION")
 @click.option("--destination", "destination_path", metavar="PATH", help="Console URL path to go to", envvar="AWS_CONSOLE_DEFAULT_DESTINATION")
 @click.option("--override-region-in-destination/--keep-region-in-destination", default=False)
@@ -104,7 +104,7 @@ def get_destination(path: Optional[str]=None, region: Optional[str]=None, overri
 @click.option("--print/--no-print", "-p", "print_url", default=None, help="Print the login URL")
 @click.option("--duration", metavar="MINUTES", type=click.IntRange(15, 720), help="The session duration in minutes")
 @click.option("--logout-first/--no-logout-first", "-l", default=None, help="Open a logout page first")
-@click.option("--force-refresh", is_flag=True, help="Re-login to AWS SSO")
+@click.option("--force-refresh", is_flag=True, help="Re-login to Identity Center")
 @click.option("--verbose", "-v", count=True)
 def launch(
         sso_start_url,
@@ -197,10 +197,10 @@ def from_token_key(token_key):
     return token_key
 
 @click.command("get-config-token")
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", metavar="ACCOUNT_ID", help="The AWS account")
-@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The SSO role to assume in account")
+@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The Identity Center role to assume in account")
 @click.option("--region", metavar="REGION", help="The AWS region")
 @click.option("--destination", "destination_path", metavar="PATH", help="Console URL path to go to")
 @click.option("--override-region-in-destination/--keep-region-in-destination", default=False)
@@ -270,11 +270,11 @@ def get_config_token(
 @click.command("launch-from-config")
 @click.option("--config-token", "-t", metavar="TOKEN", help="The config token", required=True)
 @click.option("--account-id", "-a", metavar="ACCOUNT_ID", help="The AWS account")
-@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The SSO role to assume in account")
+@click.option("--role-name", "-r", metavar="ROLE_NAME", help="The Identity Center role to assume in account")
 @click.option("--open/--no-open", "-o", "open_url", default=None, help="Open the login URL in a browser (the default)")
 @click.option("--print/--no-print", "-p", "print_url", default=None, help="Print the login URL")
 @click.option("--logout-first/--no-logout-first", "-l", default=None, help="Open a logout page first")
-@click.option("--force-refresh", is_flag=True, help="Re-login to AWS SSO")
+@click.option("--force-refresh", is_flag=True, help="Re-login to Identity Center")
 @click.option("--verbose", "-v", count=True)
 def launch_from_config(
         config_token,

@@ -88,7 +88,7 @@ def get_target_filter(values):
 
 @click.option("--lookup-names/--no-lookup-names", default=True, help="Look up names for principals, permission sets, and accounts")
 
-@click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
+@click.option("--show-id/--hide-id", default=False, help="Print Identity Center instance/identity store id being used")
 @click.option("--separator", "--sep", default=",", metavar="SEP", help="Field separator for output")
 @click.option("--header/--no-header", default=True, help="Include or supress the header row")
 @click.option("--arn-style", type=click.Choice(["arn", "id"]), default="arn", envvar="AWS_SSO_UTIL_ASSIGNMENTS_ARN_STYLE", help="Full ARN or only ID")
@@ -109,7 +109,7 @@ def assignments(
         header,
         arn_style,
         verbose):
-    """Retrieve assignments from AWS SSO
+    """Retrieve assignments from Identity Center
 
     You can filter by principal, permission set, and target."""
 

@@ -1,12 +1,12 @@
 # `aws-sso-util configure` and `aws-sso-util roles`
 
-The AWS CLI and most AWS SDKs support AWS SSO configuration in `~/.aws/config`; each profile specifies the account and SSO role to use.
-A profile configured for AWS SSO looks like this:
+The AWS CLI and most AWS SDKs support Identity Center configuration in `~/.aws/config`; each profile specifies the Identity Center account and role (the *Identity Center* role, also known as a Permission Set, which is distinct from the corresponding IAM role within the given account) to use.
+A profile configured for Identity Center looks like this:
 
 ```ini
 [profile my-sso-profile]
 sso_start_url = https://example.awsapps.com/start
-sso_region = us-east-1 # the region AWS SSO is configured in
+sso_region = us-east-1 # the region Identity Center is configured in
 sso_account_id = 123456789012
 sso_role_name = MyRoleName
 region = us-east-2 # the region to use for AWS API calls
@@ -16,7 +16,7 @@ You can view the roles you have available to you with `aws-sso-util roles`, whic
 
 `aws-sso-util configure` has two subcommands, `aws-sso-util configure profile` for configuring a single profile, and `aws-sso-util configure populate` to add _all_ your permissions as profiles, in whatever region(s) you want (with highly configurable profile names).
 
-You probably want to set the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`, which will inform these commands of your start url and SSO region (that is, the region that you've configured AWS SSO in), so that you don't have to pass them in as parameters every time.
+You probably want to set the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`, which will inform these commands of your Identity Center start url and region (that is, the region that you've configured Identity Center in), so that you don't have to pass them in as parameters every time.
 
 `aws-sso-util configure profile` takes a profile name and prompts you with the accounts and roles you have access to, to configure that profile.
 
@@ -28,8 +28,8 @@ The profile names are completely customizable.
 `aws-sso-util roles` prints out a table of the accounts and roles you have access to.
 This table contains the following columns: account ID, account name, role name.
 
-An AWS SSO instance must be specified when using `aws-sso-util roles`.
-If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
+An Identity Center instance must be specified when using `aws-sso-util roles`.
+If you're working with a single Identity Center instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 Otherwise, see below for the full resolution algorithm.
 
@@ -50,12 +50,12 @@ Otherwise, see below for the full resolution algorithm.
 
 # `aws-sso-util configure` common options
 
-## AWS SSO instance
-For both commands, an AWS SSO instance must be specified.
-This consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
+## Identity Center instance
+For both commands, an Identity Center instance must be specified.
+This consists of a start URL and the region the Identity Center instance is in (which is separate from whatever region you might be accessing).
 However, `aws-sso-util configure` tries to be smart about finding this value.
 
-If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
+If you're working with a single Identity Center instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
 `aws-sso-util configure` uses the following algorithm to determine these values:
@@ -64,13 +64,13 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
     2. `AWS_CONFIGURE_SSO_DEFAULT_SSO_START_URL` and `AWS_CONFIGURE_DEFAULT_SSO_REGION`
     3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
-3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
+3. If not, all the profiles containing Identity Center config are loaded. All Identity Center instances found in the config are then filtered:
     * If a start URL was found in step 1 and it begins with `http`, it will ignore all other instances.
     * If a start URL was found in step 1 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
     * If a region was found in step 1, instances must match this region.
 4. The resulting filtered list of instances must contain exactly one entry.
 
-In general: if you've got multiple AWS SSO instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
+In general: if you've got multiple Identity Center instances you're using, you should set the environment variables listed above with your most-used instance, and then use a substring with `--sso-start-url`/`-u` to select among them.
 
 For example, if you're using `https://foo.awsapps.com/start` (region `us-east-2`) and `https://bar.awsapps.com/start` (`ap-northeast-1`), and the first is your more used one, you'd set:
 ```
@@ -98,16 +98,16 @@ To disable this, set `--no-credential-process` or the environment variable `AWS_
 
 # `aws-sso-util configure profile`
 
-`aws-sso-util configure profile` allows you to configure a single profile for use with AWS SSO.
+`aws-sso-util configure profile` allows you to configure a single profile for use with Identity Center.
 You can set all the options for a profile, or let it prompt you interactively to select from available accounts and roles.
 
 A complete profile has the following required information, and you can set them with the listed parameters/environment variables:
-* AWS SSO start URL
+* Identity Center start URL
     * See above for how to set this
     * `--sso-start-url`
     * `AWS_CONFIGURE_DEFAULT_SSO_START_URL`
     * `AWS_DEFAULT_SSO_START_URL`
-* AWS SSO region
+* Identity Center region
     * `--sso-region`
     * `AWS_CONFIGURE_DEFAULT_SSO_REGION`
     * `AWS_DEFAULT_SSO_REGION`
@@ -154,8 +154,8 @@ aws s3 ls --profile my-sso-profile
 
 # `aws-sso-util configure populate`
 
-`aws-sso-util configure populate` allows you to configure profiles for all the access you have through AWS SSO.
-You specify one or more regions, and a profile is created for every account, role, and region you have access to through AWS SSO (note that if access to a region is prohibited by an IAM policy, this does not suppress creation of the profile).
+`aws-sso-util configure populate` allows you to configure profiles for all the access you have through Identity Center.
+You specify one or more regions, and a profile is created for every account, role, and region you have access to through Identity Center (note that if access to a region is prohibited by an IAM policy, this does not suppress creation of the profile).
 
 You can provide regions through the `--region`/`-r` flag (multiple regions like `-r REGION1 -r REGION2`), or by setting the `AWS_CONFIGURE_DEFAULT_REGION` environment variable (this is ignored if any regions are specified on the command line).
 

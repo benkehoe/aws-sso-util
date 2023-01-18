@@ -18,6 +18,7 @@ from botocore.exceptions import SSOError
 
 class PendingAuthorizationExpiredError(SSOError):
     fmt = (
-        "The pending authorization to retrieve an SSO token has expired. The "
-        "device authorization flow to retrieve an SSO token must be restarted."
+        "The pending authorization to retrieve an Identity Center token has expired."
+        "The device authorization flow to retrieve an Identity Center token must be "
+        "restarted."
     )

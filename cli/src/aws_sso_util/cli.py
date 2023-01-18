@@ -59,7 +59,7 @@ console.add_command(launch_from_config)
 
 @cli.group()
 def admin():
-    """Commands for AWS SSO administration."""
+    """Commands for IAM Identity Center administration."""
     pass
 
 admin.add_command(lookup)

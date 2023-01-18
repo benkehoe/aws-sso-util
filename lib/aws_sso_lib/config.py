@@ -229,7 +229,7 @@ def find_instances(
 
     if specifier:
         parts = [
-            f"Using AWS SSO instance specifier"
+            f"Using Identity Center instance specifier"
         ]
         if specifier.start_url:
             parts.extend([
@@ -246,7 +246,7 @@ def find_instances(
             ])
         LOGGER.info(" ".join(parts))
     else:
-        LOGGER.debug("No AWS SSO instance specifier found")
+        LOGGER.debug("No Identity Center instance specifier found")
 
     if specifier.start_url and specifier.region and specifier.start_url.startswith("http"):
         LOGGER.debug("Specifier has literal start URL and region, not searching for instances")

@@ -86,13 +86,13 @@ def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_
     if not instances:
         if all_instances:
             raise GetInstanceError(
-                f"No AWS SSO instance matched {specifier.to_str(region=True)} " +
+                f"No Identity Center instance matched {specifier.to_str(region=True)} " +
                 f"from {SSOInstance.to_strs(all_instances)}")
         else:
-            raise GetInstanceError("No AWS SSO instance found")
+            raise GetInstanceError("No Identity Center instance found")
 
     if len(instances) > 1:
-        raise GetInstanceError(f"Found {len(instances)} SSO instances, please specify one: {SSOInstance.to_strs(instances)}")
+        raise GetInstanceError(f"Found {len(instances)} Identity Center instances, please specify one: {SSOInstance.to_strs(instances)}")
 
     return instances[0]
 

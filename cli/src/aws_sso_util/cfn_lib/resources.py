@@ -379,7 +379,7 @@ ResourceCollection = namedtuple("ResourceCollection", ["num_resources", "assignm
 
 def get_resources_from_config(config: Config, assignment_metadata=None, ou_fetcher=None) -> ResourceCollection:
     if config.instance is None:
-        raise ValueError("SSO instance is not set on config")
+        raise ValueError("Identity Center instance is not set on config")
 
     if config.assignment_group_name:
         if assignment_metadata is None:

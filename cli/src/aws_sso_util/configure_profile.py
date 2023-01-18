@@ -43,11 +43,11 @@ SET_CREDENTIAL_PROCESS_DEFAULT = True
 
 @click.command("profile")
 @click.argument("profile", metavar="PROFILE_NAME")
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", "account", metavar="ACCOUNT_ID", help="The AWS account for the profile")
 @click.option("--account", "account", hidden=True)
-@click.option("--role-name", "-r", "role", metavar="ROLE_NAME", help="The SSO role (also the Permission Set name) to assume in account")
+@click.option("--role-name", "-r", "role", metavar="ROLE_NAME", help="The Identity Center role (also the Permission Set name) to assume in account")
 @click.option("--region", metavar="REGION", help="The AWS region the profile will use")
 @click.option("--output", "-o", metavar="CLI_OUTPUT_FORMAT", help="Set the CLI output format for the profile")
 @click.option("--config-default", "-c", metavar="KEY=VALUE", multiple=True, help="Additional config field to set, can provide multiple times")
@@ -187,7 +187,7 @@ def configure_profile(
         if cli_version.startswith("1."):
             LOGGER.warn(textwrap.dedent(f"""\
             Your profile has been written, but is not complete.
-            You have the AWS CLI version {cli_version}, which does not support AWS SSO.
+            You have the AWS CLI version {cli_version}, which does not support Identity Center.
             If you install the AWS CLI v2, aws-sso-util configure profile can interactively
             prompt you for the necessary fields. Details here:
             https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html"""))

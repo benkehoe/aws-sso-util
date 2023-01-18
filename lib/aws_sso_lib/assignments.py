@@ -359,11 +359,11 @@ def list_assignments(
         get_permission_set_names=False,
         get_target_names=False,
         ou_recursive=False):
-    """Iterate over AWS SSO assignments.
+    """Iterate over Identity Center assignments.
 
     Args:
         session (boto3.Session): boto3 session to use
-        instance_arn (str): The SSO instance to use, or it will be looked up using ListInstances
+        instance_arn (str): The Identity Center instance to use, or it will be looked up using ListInstances
         identity_store_id (str): The identity store to use if principal names are being retrieved
             or it will be looked up using ListInstances
         principal: A principal specification or list of principal specifications.

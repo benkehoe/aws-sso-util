@@ -1,29 +1,31 @@
-# AWS SSO primer
+# AWS IAM Identity Center primer
 
-AWS SSO is a service for integrating authentication and authorization in a common way across your AWS footprint.
+AWS IAM Identity Center is a service for integrating authentication and authorization in a common way across your AWS footprint.
 It can also  function as a single sign-on provider, but we will set that aside here.
 
-You can use AWS SSO either with an external identity provider (IdP) like Okta, Ping, OneLogin, and ActiveDirectory (replacing SAML federation with STS), or with an AWS SSO-managed identity store (replacing IAM users).
+You can use Identity Center either with an external identity provider (IdP) like Okta, Ping, OneLogin, and ActiveDirectory (replacing SAML federation with STS), or with an Identity Center-managed identity store (replacing IAM users).
 
-Note that only the AWS CLI v2 supports signing in to AWS SSO; [installation docs are here](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
+Note that only the AWS CLI v2 supports signing in to Identity Center; [installation docs are here](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
+
+AWS IAM Identity Center was formerly called AWS SSO, so you will see "SSO" featured in many field names in configuration and APIs.
 
 ## Concepts
 
-There is an AWS SSO **instance**; currently, only one instance is allowed, but this seems likely to change in the future (the API is [*ListInstances*](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html)).
-An AWS SSO instance is associated with an identity store, and has two identifiers: an *instance ARN*, which is used by administrators, and a **start URL**, which is the entry point for signing in, and the identifier used by users.
+There is an Identity Center **instance**; currently, only one instance is allowed, but this seems likely to change in the future (the API is [*ListInstances*](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html)).
+An Identity Center instance is associated with an identity store, and has two identifiers: an *instance ARN*, which is used by administrators, and a **start URL**, which is the entry point for signing in, and the identifier used by users.
 An instance exists in a particular AWS region, and this region must be known by users as it is needed as part of the sign-in process.
 
 Adminstrators create [**permission sets**](https://docs.aws.amazon.com/singlesignon/latest/userguide/permissionsetsconcept.html); each permission set is a collection of IAM policies (currently, AWS managed policies and a single inline policy).
 
 Administrators create [**assignments**](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_CreateAccountAssignment.html); each assignment is the combination of a *principal* (a user or group from the IdP), a permission set, and a *target* (an AWS account).
-A assignment means that principal is entitled use those permissions within that account. An assignment is [*provisioned*](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ProvisionPermissionSet.html) into an AWS SSO-managed IAM role in that account.
+A assignment means that principal is entitled use those permissions within that account. An assignment is [*provisioned*](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ProvisionPermissionSet.html) into an Identity Center-managed IAM role in that account.
 
 Users interact with "role names", using familiar terminology, but these are in fact permission set names.
 The provisioned IAM roles use mangled names that are not shown to users.
 
 ## Signing in
 
-When a user signs in, they first authenticate with AWS SSO, which, if it is configured to use an external IdP, involves a redirection to the IdP.
+When a user signs in, they first authenticate with Identity Center, which, if it is configured to use an external IdP, involves a redirection to the IdP.
 This authentication results in an OAuth access token that represents the user's session.
 Note that this is *not* AWS credentials, because the user may have access to many accounts and roles (provisioned permission sets), but they only need to sign in once.
 
@@ -38,13 +40,13 @@ When using the AWS CLI and `aws-sso-util`/`aws-sso-lib`, this token is cached in
 Subsequently, this OAuth access token can be used to determine the user's access, and to get AWS credentials for a specific account and role (i.e., an IAM role provisioned for a permission set).
 
 This is mainly done by configuring profiles in `~/.aws/config`.
-Each profile specifies the account and SSO role to use.
-A profile configured for AWS SSO looks like this:
+Each profile specifies the account and Identity Center role to use.
+A profile configured for Identity Center looks like this:
 
 ```ini
 [profile my-sso-profile]
 sso_start_url = https://example.awsapps.com/start
-sso_region = us-east-1 # the region AWS SSO is configured in
+sso_region = us-east-1 # the region Identity Center is configured in
 sso_account_id = 123456789012
 sso_role_name = MyRoleName
 region = us-east-2 # the region to use for AWS API calls
@@ -58,6 +60,6 @@ Programmatic access in Python for an account and role using the cached token is 
 
 ## Administration
 
-Administering AWS SSO is done through the [`sso-admin`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/welcome.html) and [`identitystore`](https://docs.aws.amazon.com/singlesignon/latest/IdentityStoreAPIReference/welcome.html) APIs, which are accessed using AWS credentials.
+Administering Identity Center is done through the [`sso-admin`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/welcome.html) and [`identitystore`](https://docs.aws.amazon.com/singlesignon/latest/IdentityStoreAPIReference/welcome.html) APIs, which are accessed using AWS credentials.
 
-Note that a) these APIs cannot be used directly with the OAuth access token resulting from signing in, and b) the AWS credentials used to access them do not need to come from a role linked to AWS SSO (otherwise, how would you set it up?).
+Note that a) these APIs cannot be used directly with the OAuth access token resulting from signing in, and b) the AWS credentials used to access them do not need to come from a role linked to Identity Center (otherwise, how would you set it up?).

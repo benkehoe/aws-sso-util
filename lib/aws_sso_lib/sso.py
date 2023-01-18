@@ -183,13 +183,13 @@ def get_boto3_session(
     """Get a boto3 session with the input configuration.
 
     Args:
-        start_url (str): The start URL for the AWS SSO instance.
-        sso_region (str): The AWS region for the AWS SSO instance.
+        start_url (str): The start URL for the Identity Center instance.
+        sso_region (str): The AWS region for the Identity Center instance.
         account_id (str): The AWS account ID to use.
-        role_name (str): The AWS SSO role (aka Permission Set) name to use.
+        role_name (str): The Identity Center role (aka Permission Set) name to use.
         region (str): The AWS region for the boto3 session.
-        login (bool): Interactively log in the user if their AWS SSO credentials have expired.
-        sso_cache: A dict-like object for AWS SSO credential caching to replace
+        login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        sso_cache: A dict-like object for Identity Center credential caching to replace
             the default file cache in ~/.aws/sso/cache .
         credential_cache: A dict-like object to cache the role credentials in to
             replace the default in-memory cache.
@@ -221,7 +221,7 @@ def login(
         outfile: typing.Union[typing.TextIO, bool]=None,
         user_auth_handler=None,
         sso_cache=None,) -> typing.Dict:
-    """Interactively log in the user if their AWS SSO credentials have expired.
+    """Interactively log in the user if their Identity Center credentials have expired.
 
     If the user is not logged in or force_refresh is True, it will attempt to log in.
     If the user is logged in and force_refresh is False, no action is taken.
@@ -236,8 +236,8 @@ def login(
     The message can be suppressed by setting message to False.
 
     Args:
-        start_url (str): The start URL for the AWS SSO instance.
-        sso_region (str): The AWS region for the AWS SSO instance.
+        start_url (str): The start URL for the Identity Center instance.
+        sso_region (str): The AWS region for the Identity Center instance.
         force_refresh (bool): Always go through the authentication process.
         expiry_window: A datetime.timedelta (or number of seconds),
             or callable returning such, specifying the minimum duration
@@ -255,7 +255,7 @@ def login(
             type them in; verificationUriComplete has the userCode embedded in it,
             suitable for copying or browser popup. This function must return
             promptly or it will block the login process.
-        sso_cache: A dict-like object for AWS SSO credential caching to replace
+        sso_cache: A dict-like object for Identity Center credential caching to replace
             the default file cache in ~/.aws/sso/cache .
 
     Returns:
@@ -304,12 +304,12 @@ def logout(
         sso_region: str,
         *,
         sso_cache=None):
-    """Log out of the given AWS SSO instance.
+    """Log out of the given Identity Center instance.
 
     Args:
-        start_url (str): The start URL for the AWS SSO instance.
-        sso_region (str): The AWS region for the AWS SSO instance.
-        sso_cache: A dict-like object for AWS SSO credential caching.
+        start_url (str): The start URL for the Identity Center instance.
+        sso_region (str): The AWS region for the Identity Center instance.
+        sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
         Never raises.
@@ -355,13 +355,13 @@ def list_available_accounts(
         *,
         login: bool=False,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str]]:
-    """Iterate over the available accounts the user has access to through AWS SSO.
+    """Iterate over the available accounts the user has access to through Identity Center.
 
     Args:
-        start_url (str): The start URL for the AWS SSO instance.
-        sso_region (str): The AWS region for the AWS SSO instance.
-        login (bool): Interactively log in the user if their AWS SSO credentials have expired.
-        sso_cache: A dict-like object for AWS SSO credential caching.
+        start_url (str): The start URL for the Identity Center instance.
+        sso_region (str): The AWS region for the Identity Center instance.
+        login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
         An iterator that yields account id and account name.
@@ -401,15 +401,15 @@ def list_available_roles(
         *,
         login: bool=False,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str, str]]:
-    """Iterate over the available accounts and roles the user has access to through AWS SSO.
+    """Iterate over the available accounts and roles the user has access to through Identity Center.
 
     Args:
-        start_url (str): The start URL for the AWS SSO instance.
-        sso_region (str): The AWS region for the AWS SSO instance.
+        start_url (str): The start URL for the Identity Center instance.
+        sso_region (str): The AWS region for the Identity Center instance.
         account_id: Optional account id or list of account ids to check.
             If not set, all accounts available to the user are listed.
-        login (bool): Interactively log in the user if their AWS SSO credentials have expired.
-        sso_cache: A dict-like object for AWS SSO credential caching.
+        login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
         An iterator that yields account id, account name, and role name.

@@ -42,8 +42,8 @@ LOCAL_TIME_FORMAT = "%Y-%m-%d %H:%M %Z"
 @click.command()
 @click.argument("sso_start_url", required=False)
 @click.argument("sso_region", required=False)
-@click.option("--profile", metavar="PROFILE_NAME", help="Use a profile to specify AWS SSO instance")
-@click.option("--all", "login_all", is_flag=True, default=None, help="Log in to all AWS SSO instances if multiple are found")
+@click.option("--profile", metavar="PROFILE_NAME", help="Use a profile to specify Identity Center instance")
+@click.option("--all", "login_all", is_flag=True, default=None, help="Log in to all Identity Center instances if multiple are found")
 @click.option("--force-refresh", "force", is_flag=True, help="Force re-authentication")
 @click.option("--headless", is_flag=True, default=None, help="Never open a browser window")
 @click.option("--verbose", "-v", count=True)
@@ -61,19 +61,19 @@ def login(
         alternate_sso_start_url,
         alternate_sso_region,
         alternate_force):
-    """Log in to an AWS SSO instance.
+    """Log in to an Identity Center instance.
 
-    Note this only needs to be done once for a given SSO instance (i.e., start URL),
+    Note this only needs to be done once for a given Identity Center instance (i.e., start URL),
     as all profiles sharing the same start URL will share the same login.
 
-    If only one SSO instance/start URL exists in your AWS config file,
+    If only one Identity Center instance/start URL exists in your AWS config file,
     or you've set the environment variables AWS_DEFAULT_SSO_START_URL and AWS_DEFAULT_SSO_REGION,
     you don't need to provide a start URL or region.
 
     Otherwise, you can provide a full start URL, or a regex for the start URL (usually a substring will work),
     and if this uniquely identifies a start URL in your config, that will suffice.
 
-    You can also provide a profile name with --profile to use the SSO instance from a specific profile.
+    You can also provide a profile name with --profile to use the Identity Center instance from a specific profile.
     """
     sso_start_url = sso_start_url or alternate_sso_start_url
     sso_region = sso_region or alternate_sso_region
@@ -104,14 +104,14 @@ def login(
         if not instances:
             if all_instances:
                 LOGGER.fatal((
-                    f"No AWS SSO config matched {specifier.to_str(region=True)} " +
+                    f"No Identity Center config matched {specifier.to_str(region=True)} " +
                     f"from {SSOInstance.to_strs(all_instances)}"))
             else:
-                LOGGER.fatal("No AWS SSO config found")
+                LOGGER.fatal("No Identity Center config found")
             sys.exit(1)
 
         if len(instances) > 1:
-            LOGGER.fatal(f"Found {len(instances)} SSO configs, please specify one or use --all: {SSOInstance.to_strs(instances)}")
+            LOGGER.fatal(f"Found {len(instances)} Identity Center configs, please specify one or use --all: {SSOInstance.to_strs(instances)}")
             sys.exit(1)
 
     LOGGER.debug(f"Instances: {SSOInstance.to_strs(instances)}")
@@ -127,7 +127,7 @@ def login(
         token_fetchers[region] = get_token_fetcher(session, region, interactive=True, disable_browser=headless)
 
     if len(instances) > 1:
-        LOGGER.info(f"Logging in {len(instances)} AWS SSO instances")
+        LOGGER.info(f"Logging in {len(instances)} Identity Center instances")
     for instance in instances:
         LOGGER.info(f"Logging in {instance.start_url}")
         token_fetcher = token_fetchers[instance.region]

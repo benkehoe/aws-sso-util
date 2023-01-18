@@ -1,9 +1,9 @@
 # aws-sso-util CloudFormation support
 
-`aws-sso-util` helps patch over the lack of support in AWS SSO, and therefore in AWS SSO's CloudFormation resources, for managing assignments as groups.
+`aws-sso-util` helps patch over the lack of support in Identity Center, and therefore in Identity Center's CloudFormation resources, for managing assignments as groups.
 
-AWS SSO's CloudFormation support currently only includes [`AWS::SSO::Assignment`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sso-assignment.html), which means for every combination of principal (group or user), permission set, and target (AWS account), you need a separate CloudFormation resource.
-Additionally, AWS SSO does not support OUs as targets, so you need to specify every account separately.
+Identity Center's CloudFormation support currently only includes [`AWS::SSO::Assignment`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sso-assignment.html), which means for every combination of principal (group or user), permission set, and target (AWS account), you need a separate CloudFormation resource.
+Additionally, Identity Center does not support OUs as targets, so you need to specify every account separately.
 
 Obviously, this gets verbose, and even an organization of moderate size is likely to have tens of thousands of assignments.
 `aws-sso-util` provides two mechanisms to make this concise, a [CloudFormation Macro](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-macros.html) for cloud-side processing, or client-side generation using `aws-sso-util admin cfn`.
@@ -139,7 +139,7 @@ Add the `--assignments-csv-only` flag to suppress creation of the templates and 
 
 ## Options for both template and config files
 
-The AWS SSO instance can be provided using `--sso-instance`/`--ins`, either as the ARN or the id.
+The Identity Center instance can be provided using `--sso-instance`/`--ins`, either as the ARN or the id.
 It is an error to provide a value that conflicts with an instance given in a template or config file.
 If no instance is provided and it is not specified in the template or config file, the instance will be retrieved from [`sso-admin:ListInstances`](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListInstances.html).
 

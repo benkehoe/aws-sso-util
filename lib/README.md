@@ -1,14 +1,14 @@
 # `aws-sso-lib`
 
-`aws-sso-lib` allows you to programmatically interact with AWS SSO.
+`aws-sso-lib` allows you to programmatically interact with AWS IAM Identity Center (formerly AWS SSO).
 
 The primary functions that will be of interest are available at the package level:
 * `get_boto3_session`: Get a boto3 session for a specific account and role.
-* `login`: ensure the user is logged in to AWS SSO, with dispatch to the browser.
+* `login`: ensure the user is logged in to Identity Center, with dispatch to the browser.
 * `list_available_accounts` and `list_available_roles`: discover the access the user has.
-* `list_assignments`: for admin purposes, iterate over all assignments in AWS SSO, which is currently hard to do through the API.
+* `list_assignments`: for admin purposes, iterate over all assignments in Identity Center, which is currently hard to do through the API.
 
-`aws-sso-util` is a command-line utility built on `aws-sso-lib` for interacting with AWS SSO; see the details of that project [here](https://github.com/benkehoe/aws-sso-util).
+`aws-sso-util` is a command-line utility built on `aws-sso-lib` for interacting with Identity Center; see the details of that project [here](https://github.com/benkehoe/aws-sso-util).
 
 ## Install
 
@@ -30,13 +30,13 @@ get_boto3_session(start_url, sso_region, account_id, role_name, *, region,
     credential_cache=None)
 ```
 
-* `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
-* `sso_region`: [REQUIRED] The AWS region for the AWS SSO instance.
+* `start_url`: [REQUIRED] The start URL for the Identity Center instance.
+* `sso_region`: [REQUIRED] The AWS region for the Identity Center instance.
 * `account_id`: [REQUIRED] The AWS account ID to use.
-* `role_name`: [REQUIRED] The AWS SSO role (aka PermissionSet) name to use.
+* `role_name`: [REQUIRED] The Identity Center role (aka PermissionSet) name to use.
 * `region`: [REQUIRED] The AWS region for the boto3 session (note, required but keyword-only).
-* `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
-* `sso_cache`: A dict or dict-like object for AWS SSO credential caching to replace the default file cache in `~/.aws/sso/cache`.
+* `login`: Set to `True` to interactively log in the user if their Identity Center credentials have expired.
+* `sso_cache`: A dict or dict-like object for Identity Center credential caching to replace the default file cache in `~/.aws/sso/cache`.
 * `credential_cache`: A dict or dict-like object to cache the role credentials in to replace the default in-memory cache.
 * Returns a [boto3 Session object](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html) configured for the account and role.
 
@@ -70,20 +70,20 @@ login(start_url, sso_region, *,
     sso_cache=None)
 ```
 
-* `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
-* `sso_region`: [REQUIRED] The AWS region for the AWS SSO instance.
+* `start_url`: [REQUIRED] The start URL for the Identity Center instance.
+* `sso_region`: [REQUIRED] The AWS region for the Identity Center instance.
 * `force_refresh`: Set to `True` to always go through the authentication process.
 * `expiry_window`: A datetime.timedelta (or number of seconds), or callable returning such, specifying the minimum duration any existing token must be valid for.
 * `disable_browser`: Set to `True` to skip the browser popup and only print a message with the URL and code.
 * `message`: A message template to print with the fallback URL and code, or `False` to suppress the message.
 * `outfile`: The file-like object to print the message to (stderr by default)
 * `user_auth_handler`: override browser popup and message printing and use the given function instead.
-* `sso_cache`: A dict or dict-like object for AWS SSO credential caching, to override the default file cache in `~/.aws/sso/cache`.
+* `sso_cache`: A dict or dict-like object for Identity Center credential caching, to override the default file cache in `~/.aws/sso/cache`.
 * Returns the token dict as returned by [sso-oidc:CreateToken](https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html), which contains the actual authorization token, as well as the expiration.
 
 ## `list_available_accounts` and `list_available_roles`
 
-AWS SSO provides programmatic access to the permissions that a user has.
+Identity Center provides programmatic access to the permissions that a user has.
 You can access this through `list_available_accounts()` and `list_available_roles()`.
 
 With both, you can set `login=True` to interactively log in the user if they are not already logged in.
@@ -95,25 +95,25 @@ You can always get a list by, for example, `list(list_available_roles(...))`.
 list_available_accounts(start_url, sso_region, *, login=False)
 ```
 
-* `start_url`: The start URL for the AWS SSO instance.
-* `sso_region`: The AWS region for the AWS SSO instance.
-* `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
+* `start_url`: The start URL for the Identity Center instance.
+* `sso_region`: The AWS region for the Identity Center instance.
+* `login`: Set to `True` to interactively log in the user if their Identity Center credentials have expired.
 * Returns an iterator that yields account id and account name.
 
 ```python
 list_available_roles(start_url, sso_region, account_id=None, *, login=False)
 ```
 
-* `start_url`: [REQUIRED] The start URL for the AWS SSO instance.
-* `sso_region`: [REQUIRED] The AWS region for the AWS SSO instance.
+* `start_url`: [REQUIRED] The start URL for the Identity Center instance.
+* `sso_region`: [REQUIRED] The AWS region for the Identity Center instance.
 * `account_id`: Optional account id or list of account ids to check.
   * If not set, all accounts available to the user are used.
-* `login`: Set to `True` to interactively log in the user if their AWS SSO credentials have expired.
+* `login`: Set to `True` to interactively log in the user if their Identity Center credentials have expired.
 * Returns an iterator that yields account id, account name, and role name.
 
 ## `list_assignments`
 
-The AWS SSO API only allows you to [list assignments for a specific account _and_ permission set](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
+The Identity Center API only allows you to [list assignments for a specific account _and_ permission set](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
 To find all your assignments, you need to iterate over all accounts, and then interate over all permission sets.
 `list_assignments()` does this work for you.
 
@@ -159,7 +159,7 @@ list_assignments(
 ```
 
 * `session`: [REQUIRED] boto3 session to use
-* `instance_arn`: The SSO instance to use, or it will be looked up using ListInstances
+* `instance_arn`: The Identity Center instance to use, or it will be looked up using ListInstances
 * `identity_store_id`: The identity store to use if principal names are being retrieved or it will be looked up using ListInstances
 * `principal`: A principal specification or list of principal specifications.
     * A principal specification is a principal id or a 2-tuple of principal type and id.

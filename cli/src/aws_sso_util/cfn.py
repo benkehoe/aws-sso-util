@@ -66,7 +66,7 @@ def param_loader(ctx, param, value):
 
 @click.option("--macro", is_flag=True, help="Process templates with macro")
 
-@click.option("--profile", metavar="NAME", help="AWS profile to use to retrieve SSO instance and/or accounts from OUs")
+@click.option("--profile", metavar="NAME", help="AWS profile to use to retrieve Identity Center instance and/or accounts from OUs")
 @click.option("--sso-instance", "--ins", metavar="ARN", help="If not provided, will be retrieved from your account")
 
 @click.option("--template-file-suffix", metavar="SUFFIX", help="Output template suffix")
@@ -106,7 +106,7 @@ def generate_template(
         assignments_csv,
         assignments_csv_only,
         verbose):
-    """Generate CloudFormation templates with AWS SSO assignments."""
+    """Generate CloudFormation templates with Identity Center assignments."""
 
     configure_logging(LOGGER, verbose)
 

@@ -68,14 +68,14 @@ def extract_error(e, e_type):
     return None
 
 @click.command()
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", "account", metavar="ACCOUNT_ID", help="Check for access to a particular account")
 @click.option("--account", hidden=True)
 @click.option("--role-name", "-r", metavar="ROLE_NAME", help="Check for access to a particular role")
-@click.option("--check-profile", metavar="PROFILE_NAME", help="Use SSO config from the given profile")
+@click.option("--check-profile", metavar="PROFILE_NAME", help="Use Identity Center config from the given profile")
 @click.option("--command", type=click.Choice(["default", "configure", "login"]), default="default")
-@click.option("--instance-details", is_flag=True, default=None, help="Display details of the AWS SSO instance")
+@click.option("--instance-details", is_flag=True, default=None, help="Display details of the Identity Center instance")
 @click.option("--skip-token-check", is_flag=True, help="When not checking an account and/or role, do not check token validity")
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--quiet", "-q", is_flag=True)
@@ -92,7 +92,7 @@ def check(
         force_refresh,
         quiet,
         verbose):
-    """Debug AWS SSO configuration and access.
+    """Debug Identity Center configuration and access.
     """
 
     if quiet:
@@ -169,7 +169,7 @@ def check(
     if not instances:
         if not all_instances:
             parts = [
-                "Did not find AWS SSO instance"
+                "Did not find Identity Center instance"
             ]
             if specifier:
                 parts.append("(with specifier")
@@ -179,7 +179,7 @@ def check(
             sys.exit(101)
         else:
             parts = [
-                "Did not find AWS SSO instance matching specifier"
+                "Did not find Identity Center instance matching specifier"
             ]
             parts.extend(get_specifier_parts(specifier))
             parts.append(f"from instances {SSOInstance.to_strs(all_instances, region=True)}")
@@ -188,7 +188,7 @@ def check(
 
     if len(instances) > 1:
         parts = [
-            f"Did not find unique AWS SSO instance. Found {len(instances)} instances"
+            f"Did not find unique Identity Center instance. Found {len(instances)} instances"
         ]
         if not specifier:
             parts.append("with no specifier:")
@@ -204,7 +204,7 @@ def check(
 
     if instance_details:
         parts = [
-            f"AWS SSO instance",
+            f"Identity Center instance",
             f"start URL {instance.start_url} from {instance.start_url_source}",
             f"and",
             f"region {instance.region} from {instance.region_source}"
@@ -228,7 +228,7 @@ def check(
             parts.append(f", from instances {SSOInstance.to_strs(all_instances, region=True)}")
         LOGGER.info(join_parts(parts))
     else:
-        LOGGER.info(f"AWS SSO instance: {instance.start_url} ({instance.region})")
+        LOGGER.info(f"Identity Center instance: {instance.start_url} ({instance.region})")
 
     if not account and not role_name and skip_token_check:
         return
@@ -250,14 +250,14 @@ def check(
             token = token_fetcher.get_token_from_cache(instance.start_url)
             if not token:
                 message = (
-                    "No valid AWS SSO token found in the cache. Logging in may fix this. "
+                    "No valid Identity Center token found in the cache. Logging in may fix this. "
                     + f"Log in with `aws-sso-util login {instance.start_url} {instance.region}` or use the --force-refresh option."
                 )
                 LOGGER.error(message)
                 sys.exit(201)
             elif token_fetcher.is_token_expired(token):
                 message = (
-                    "Cached AWS SSO token is expired. "
+                    "Cached Identity Center token is expired. "
                     + f"Log in again with `aws-sso-util login {instance.start_url} {instance.region}` or use the --force-refresh option."
                 )
                 LOGGER.error(message)
@@ -278,16 +278,16 @@ def check(
                         pass
                 else:
                     msg = f"located in {SSO_TOKEN_DIR} by default"
-                LOGGER.error(f"The SSO cache file ({msg}) may have the wrong permissions{coda}")
+                LOGGER.error(f"The Identity Center cache file ({msg}) may have the wrong permissions{coda}")
                 sys.exit(201)
 
             LOGGER.error(f"Exception in loading token: {e}")
             os_error = extract_error(e, OSError)
             if os_error and os_error.filename:
-                LOGGER.error(f"The SSO cache file is located at {os_error.filename}")
+                LOGGER.error(f"The Identity Center cache file is located at {os_error.filename}")
             sys.exit(201)
 
-    token_info_str = f"AWS SSO token cache entry is valid until {token['expiresAt']}"
+    token_info_str = f"Identity Center token cache entry is valid until {token['expiresAt']}"
     if "receivedAt" in token:
         token_info_str += f" (cached at {token['receivedAt']})"
     LOGGER.info(token_info_str)
@@ -304,7 +304,7 @@ def check(
                 This may indicate the cache expiration is not in sync with the token expiration.
                 You can try using the `--force-refresh` option or separately running
                 `aws-sso-util login --force {instance.start_url} {instance.region}`
-                If this works, it may indicate an issue with the AWS SSO Portal service giving out invalid expirations.
+                If this works, it may indicate an issue with the Identity Center Access Portal service giving out invalid expirations.
                 """)
             if verbose:
                 err_msg = err_msg.replace("\n", " ")

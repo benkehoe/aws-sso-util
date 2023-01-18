@@ -33,7 +33,7 @@ LOGGER = logging.getLogger(__name__)
 @click.command()
 @click.option("--verbose", "-v", "--debug", count=True)
 def logout(verbose):
-    """Log out of all AWS SSO sessions"""
+    """Log out of all Identity Center sessions"""
     configure_logging(LOGGER, verbose)
     session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),

@@ -44,7 +44,7 @@ IDS_CACHE_DIR = os.path.expanduser(
 
 @click.option("--error-if-not-found", "-e", is_flag=True, help="Do not continue if an entity is not found")
 
-@click.option("--show-id/--hide-id", default=False, help="Print SSO instance/identity store id being used")
+@click.option("--show-id/--hide-id", default=False, help="Print Identity Center instance/identity store id being used")
 @click.option("--separator", "--sep", metavar="SEP", help="Field separator for output")
 @click.option("--header/--no-header", help="Include or supress the header row")
 
@@ -62,7 +62,7 @@ def lookup(
         header,
         permission_set_style,
         verbose):
-    """Look up names and ids in AWS SSO"""
+    """Look up names and ids in Identity Center"""
     configure_logging(LOGGER, verbose)
 
     session = boto3.Session(profile_name=profile)

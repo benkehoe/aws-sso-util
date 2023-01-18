@@ -184,8 +184,8 @@ def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
 @click.command("populate")
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 
 @click.option("--region", "-r", "regions", metavar="REGION", multiple=True, help="AWS region for the profiles, can provide multiple times")
 

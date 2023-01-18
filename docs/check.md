@@ -1,24 +1,24 @@
 # `aws-sso-util check`
 
-`aws-sso-util check` helps in debugging issues with `aws-sso-util` and AWS SSO.
-It can help you validate where the AWS SSO instance configuration is (or isn't) getting picked up.
+`aws-sso-util check` helps in debugging issues with `aws-sso-util` and Identity Center.
+It can help you validate where the Identity Center instance configuration is (or isn't) getting picked up.
 It can help you validate whether or not you have access to a specific account and/or role.
 
 ## Quiet mode
 
 For use in shell scripts, the `--quiet`/`-q` flag can be specified, which will suppress all output, allowing for shell script conditionals to check the return code.
 
-## AWS SSO instance configuration check
+## Identity Center instance configuration check
 
-To use `aws-sso-util` commands (not including `aws-sso-util admin` commands), an AWS SSO instance must be specified.
+To use `aws-sso-util` commands (not including `aws-sso-util admin` commands), an Identity Center instance must be specified.
 `aws-sso-util check` always determines if a valid instance is configured.
 
 ### Overview
 
-The AWS SSO instance consists of a start URL and the region the AWS SSO instance is in (which is separate from whatever region you might be accessing).
+The Identity Center instance consists of a start URL and the region the Identity Center instance is in (which is separate from whatever region you might be accessing).
 However, `aws-sso-util` tries to be smart about finding this value.
 
-If you're working with a single AWS SSO instance, and you've already got a profile configured for it, it should just work.
+If you're working with a single Identity Center instance, and you've already got a profile configured for it, it should just work.
 You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION` in your environment (e.g., your `.bashrc` or `.profile`), which will make it explicit.
 
 `aws-sso-util check` uses the following algorithm to determine these values:
@@ -29,27 +29,27 @@ You should consider setting the environment variables `AWS_DEFAULT_SSO_START_URL
         * If `--command` is `login`: `AWS_LOGIN_SSO_DEFAULT_SSO_START_URL` and `AWS_LOGIN_DEFAULT_SSO_REGION`
     3. `AWS_DEFAULT_SSO_START_URL` and `AWS_DEFAULT_SSO_REGION`
 2. If both the start URL and region are found, and the start URL is a full URL beginning wth `http`, these values are used.
-3. If not, all the profiles containing AWS SSO config are loaded. All AWS SSO instances found in the config are then filtered:
+3. If not, all the profiles containing Identity Center config are loaded. All Identity Center instances found in the config are then filtered:
     * If a start URL was found in step 1 and it begins with `http`, it will ignore all other instances.
     * If a start URL was found in step 1 and it does not begin with `http`, it is treated as a regex pattern that instance start URLs must match.
     * If a region was found in step 1, instances must match this region.
 4. The resulting filtered list of instances must contain exactly one entry.
 
 ### Instance check
-If `aws-sso-util check` cannot find a unique AWS SSO instance, it will return an error and a description of what it did find.
+If `aws-sso-util check` cannot find a unique Identity Center instance, it will return an error and a description of what it did find.
 
-* If no AWS SSO instances were found at all, it will print that and exit with return code 101.
-* If at least one AWS SSO instance was found, but the specifier filtered all of them, it will print the specifier and the entire set of instances, and exit with return code 102.
-* If no unique AWS SSO intance was found, either because no specifier was found or because the specifier matched more than one of them, it will print all matched instances, the specifier, and the entire set of instances, and exit with return code 103.
+* If no Identity Center instances were found at all, it will print that and exit with return code 101.
+* If at least one Identity Center instance was found, but the specifier filtered all of them, it will print the specifier and the entire set of instances, and exit with return code 102.
+* If no unique Identity Center intance was found, either because no specifier was found or because the specifier matched more than one of them, it will print all matched instances, the specifier, and the entire set of instances, and exit with return code 103.
 
 If `aws-sso-util check` finds a unique instance, and neither `--account-id` nor `--role-name` are given, it will print the details of the instance, the specifier, and the entire set of instances, and exit with return code 0 (success).
 To print out these details when also checking access to an account and/or role, use the `--instance-details` flag.
 
-If you provide the flag `-vvv` (which turns the logging level of `aws_sso_lib` to `DEBUG`), the details of the AWS SSO instance collection and filtering process will be printed.
+If you provide the flag `-vvv` (which turns the logging level of `aws_sso_lib` to `DEBUG`), the details of the Identity Center instance collection and filtering process will be printed.
 
-## AWS SSO token check
+## Identity Center token check
 
-`aws-sso-util check` attempts to load the user's AWS SSO token.
+`aws-sso-util check` attempts to load the user's Identity Center token.
 If `--force-refresh` is provided, it goes through the login process.
 Otherwise, it attempts to load the cached token.
 Either way, on successful retrieval of the token, the expiration is printed; on failure, it will exit with code 201.
@@ -57,7 +57,7 @@ To skip this step when not checking access to an account or role (which requires
 
 `aws-sso-util check` attempts to identify common problems with cached tokens, including permissions errors.
 
-## AWS SSO access check
+## Identity Center access check
 
 `aws-sso-util` can check if the user has access to a particular account and/or role using the `--account-id` and `--role-name` options.
 

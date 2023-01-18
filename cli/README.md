@@ -1,7 +1,7 @@
 # aws-sso-util
-## Making life with AWS SSO a little easier
+## Making life with Identity Center a little easier
 
-[AWS SSO](https://aws.amazon.com/single-sign-on/) has some rough edges, and `aws-sso-util` is here to smooth them out, hopefully temporarily until AWS makes it better.
+[AWS IAM Identity Center](https://aws.amazon.com/single-sign-on/) (formerly AWS SSO) has some rough edges, and `aws-sso-util` is here to smooth them out, hopefully temporarily until AWS makes it better.
 
 `aws-sso-util` contains utilities for the following:
 * Configuring `.aws/config`
@@ -10,7 +10,7 @@
 * Looking up identifiers
 * CloudFormation
 
-The underlying Python library for AWS SSO authentication is [`aws-sso-lib`](https://pypi.org/project/aws-sso-lib/), which has useful functions like interactive login, creating a boto3 session for specific a account and role, and the programmatic versions of the `lookup` functions in `aws-sso-util`.
+The underlying Python library for Identity Center authentication is [`aws-sso-lib`](https://pypi.org/project/aws-sso-lib/), which has useful functions like interactive login, creating a boto3 session for specific a account and role, and the programmatic versions of the `lookup` functions in `aws-sso-util`.
 
 `aws-sso-util` supersedes `aws-sso-credential-process`, which is still available in its original form [here](https://github.com/benkehoe/aws-sso-credential-process).
 Read the updated docs for `aws-sso-util credential-process` [here](docs/credential-process.md).

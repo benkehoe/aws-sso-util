@@ -29,10 +29,10 @@ LOGGER = logging.getLogger(__name__)
 @click.command("run-as", context_settings=dict(
     ignore_unknown_options=True,
 ))
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your AWS SSO start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your AWS SSO instance is deployed in")
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
 @click.option("--account-id", "-a", "account", metavar="ACCOUNT_ID", help="The AWS account", required=True)
-@click.option("--role-name", "-r", "role", metavar="ROLE_NAME", help="The SSO role to assume in account", required=True)
+@click.option("--role-name", "-r", "role", metavar="ROLE_NAME", help="The Identity Center role to assume in account", required=True)
 @click.option("--region", metavar="REGION", help="The AWS region")
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
