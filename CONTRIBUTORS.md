@@ -6,3 +6,4 @@
 * [Geordam](https://github.com/Geordam)
 * [Imran](https://github.com/fai555)
 * [O'Shaughnessy Evans](https://github.com/oshaughnessy)
+* [Anthony Engelstad](https://github.com/anton0)

@@ -105,7 +105,8 @@ def process_template(template,
     ou_fetcher = lambda ou, recursive: lookup.lookup_accounts_for_ou(session, ou,
             recursive=recursive,
             cache=ou_accounts_cache,
-            exclude_org_mgmt_acct=True)
+            exclude_org_mgmt_acct=True,
+            exclude_inactive_accts=True)
 
     for resource_name, config in configs.items():
         resource_collection = resources.get_resources_from_config(
