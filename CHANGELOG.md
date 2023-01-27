@@ -1,11 +1,15 @@
 # Changelog
 
-`aws-sso-util` and `aws-sso-lib` use [monotonic versioning](blog.appliedcompscilab.com/monotonic_versioning_manifesto/).
+`aws-sso-util` and `aws-sso-lib` use [monotonic versioning](https://github.com/benkehoe/monotonic-versioning-manifesto).
 
 * [`aws-sso-util`](#aws-sso-util)
 * [`aws-sso-lib`](#aws-sso-lib)
 
 ## `aws-sso-util`
+
+### CLI v4.31
+* CloudFormation functionality now excludes suspended accounts from OU traversal ([#80](https://github.com/benkehoe/aws-sso-util/issues/80) via [#81](https://github.com/benkehoe/aws-sso-util/pull/81)).
+* Upgrade to `click` 8 ([#85](https://github.com/benkehoe/aws-sso-util/issues/85)).
 
 ### CLI v4.30
 * `aws-sso-util login` adds `receivedAt` time to token cache entry.
@@ -58,6 +62,9 @@
 * Fix name fetching error with `!Ref` principal or target
 
 ## `aws-sso-lib`
+
+### lib v1.14
+* Add `exclude_inactive_accts` parameter to `lookup_accounts_for_ou()` ([#80](https://github.com/benkehoe/aws-sso-util/issues/80) via [#81](https://github.com/benkehoe/aws-sso-util/pull/81)).
 
 ### lib v1.13
 * `login()` adds `receivedAt` timestamp to token dict.
