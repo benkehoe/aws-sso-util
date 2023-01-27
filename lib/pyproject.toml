@@ -21,7 +21,7 @@ classifiers = [
 python = "^3.7"
 # botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
 boto3 = ">=1.24.60, <2.0.0"
-aws-error-utils = "^1.0.4"
+aws-error-utils = "^2.4"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.5.2"
