@@ -238,7 +238,7 @@ def check(
             token = login(instance.start_url, instance.region, force_refresh=True)
         except Exception as e:
             LOGGER.debug(traceback.format_exc())
-            LOGGER.error(f"Exception during login: {e}")
+            LOGGER.error(f"Exception during login: {e.__class__.__name__} {e}")
             sys.exit(201)
     else:
         try:
@@ -254,6 +254,9 @@ def check(
                     + f"Log in with `aws-sso-util login {instance.start_url} {instance.region}` or use the --force-refresh option."
                 )
                 LOGGER.error(message)
+                sys.exit(201)
+            elif 'expiresAt' not in token:
+                LOGGER.error("The token is missing the 'expiresAt' key, which should always be present.")
                 sys.exit(201)
             elif token_fetcher.is_token_expired(token):
                 message = (
@@ -281,7 +284,7 @@ def check(
                 LOGGER.error(f"The Identity Center cache file ({msg}) may have the wrong permissions{coda}")
                 sys.exit(201)
 
-            LOGGER.error(f"Exception in loading token: {e}")
+            LOGGER.error(f"Exception in loading token: {e.__class__.__name__} {e}")
             os_error = extract_error(e, OSError)
             if os_error and os_error.filename:
                 LOGGER.error(f"The Identity Center cache file is located at {os_error.filename}")
@@ -310,7 +313,7 @@ def check(
                 err_msg = err_msg.replace("\n", " ")
             LOGGER.error(err_msg)
         except Exception as e:
-            LOGGER.error(f"Exception using token: {e}")
+            LOGGER.error(f"Exception using token: {e.__class__.__name__} {e}")
         return
     elif not account:
         accounts = {}
