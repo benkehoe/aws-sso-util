@@ -96,6 +96,8 @@ class SSOTokenFetcher(object):
         return dateutil.parser.parse(value)
 
     def _is_expired(self, response):
+        if 'expiresAt' not in response:
+            return True
         end_time = self._parse_if_needed(response['expiresAt'])
         seconds = total_seconds(end_time - self._time_fetcher())
         if callable(self._expiry_window):
