@@ -545,7 +545,7 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None,
             for account in response["Accounts"]:
                 cache[ou_accounts_key].append(account)
                 if exclude_inactive_accts and account["Status"] != "ACTIVE":
-                    LOGGER.debug(f"Skipping {account['Status']} account {account['Id']}")
+                    LOGGER.debug(f"Skipping account {account['Id']}: {account['Status']}")
                     continue
                 if org_mgmt_acct and account["Id"] == org_mgmt_acct:
                     continue
