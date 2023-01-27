@@ -51,6 +51,8 @@ from botocore.utils import (
 
 from .exceptions import PendingAuthorizationExpiredError
 
+logger = logging.getLogger(__name__)
+
 class SSOTokenFetcher(object):
     # The device flow RFC defines the slow down delay to be an additional
     # 5 seconds:
@@ -96,6 +98,9 @@ class SSOTokenFetcher(object):
         return dateutil.parser.parse(value)
 
     def _is_expired(self, response):
+        if 'expiresAt' not in response:
+            logger.debug("expiresAt missing from token cache entry, treating as expired")
+            return True
         end_time = self._parse_if_needed(response['expiresAt'])
         seconds = total_seconds(end_time - self._time_fetcher())
         if callable(self._expiry_window):
