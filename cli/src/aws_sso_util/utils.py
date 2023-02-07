@@ -15,7 +15,7 @@ import logging
 import logging.handlers
 import sys
 
-from aws_sso_lib.config import find_instances, SSOInstance
+# from aws_sso_lib.config import find_instances, SSOInstance
 
 class StdoutFilter(logging.Filter):
     def filter(self, rec):
@@ -71,30 +71,30 @@ def configure_logging(logger, verbose, **config_args):
 class GetInstanceError(Exception):
     pass
 
-def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_vars=None):
-    instances, specifier, all_instances = find_instances(
-        profile_name=None,
-        profile_source=None,
-        start_url=sso_start_url,
-        start_url_source="CLI input",
-        region=sso_region,
-        region_source="CLI input",
-        start_url_vars=sso_start_url_vars,
-        region_vars=sso_region_vars
-    )
+# def get_instance(sso_start_url, sso_region, sso_start_url_vars=None, sso_region_vars=None):
+#     instances, specifier, all_instances = find_instances(
+#         profile_name=None,
+#         profile_source=None,
+#         start_url=sso_start_url,
+#         start_url_source="CLI input",
+#         region=sso_region,
+#         region_source="CLI input",
+#         start_url_vars=sso_start_url_vars,
+#         region_vars=sso_region_vars
+#     )
 
-    if not instances:
-        if all_instances:
-            raise GetInstanceError(
-                f"No Identity Center instance matched {specifier.to_str(region=True)} " +
-                f"from {SSOInstance.to_strs(all_instances)}")
-        else:
-            raise GetInstanceError("No Identity Center instance found")
+#     if not instances:
+#         if all_instances:
+#             raise GetInstanceError(
+#                 f"No Identity Center instance matched {specifier.to_str(region=True)} " +
+#                 f"from {SSOInstance.to_strs(all_instances)}")
+#         else:
+#             raise GetInstanceError("No Identity Center instance found")
 
-    if len(instances) > 1:
-        raise GetInstanceError(f"Found {len(instances)} Identity Center instances, please specify one: {SSOInstance.to_strs(instances)}")
+#     if len(instances) > 1:
+#         raise GetInstanceError(f"Found {len(instances)} Identity Center instances, please specify one: {SSOInstance.to_strs(instances)}")
 
-    return instances[0]
+#     return instances[0]
 
 class Printer:
     def __init__(self, *,

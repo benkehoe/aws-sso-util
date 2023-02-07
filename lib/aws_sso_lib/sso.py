@@ -214,6 +214,8 @@ def login(
         start_url: str,
         sso_region: str,
         *,
+        registration_scopes: typing.Optional[list[str]]=None,
+        session_name: typing.Optional[str]=None,
         force_refresh: bool=False,
         expiry_window=None,
         disable_browser: bool=None,
@@ -238,6 +240,8 @@ def login(
     Args:
         start_url (str): The start URL for the Identity Center instance.
         sso_region (str): The AWS region for the Identity Center instance.
+        registration_scopes (list[str]): A list of OAuth scopes.
+        session_name (str): The session name to use for caching the token.
         force_refresh (bool): Always go through the authentication process.
         expiry_window: A datetime.timedelta (or number of seconds),
             or callable returning such, specifying the minimum duration
@@ -289,7 +293,9 @@ def login(
 
     token = token_fetcher.fetch_token(
         start_url=start_url,
-        force_refresh=force_refresh
+        force_refresh=force_refresh,
+        registration_scopes=registration_scopes,
+        session_name=session_name
     )
     token['expiresAt'] = _serialize_utc_timestamp(token['expiresAt'])
     if 'receivedAt' in token:
@@ -303,11 +309,13 @@ def logout(
         start_url: str,
         sso_region: str,
         *,
+        session_name: typing.Optional[str]=None,
         sso_cache=None):
     """Log out of the given Identity Center instance.
 
     Args:
         start_url (str): The start URL for the Identity Center instance.
+        session_name (str): The session name the token is cached under.
         sso_region (str): The AWS region for the Identity Center instance.
         sso_cache: A dict-like object for Identity Center credential caching.
 
@@ -331,7 +339,8 @@ def logout(
 
     try:
         token = token_fetcher.pop_token_from_cache(
-            start_url=start_url
+            start_url=start_url,
+            session_name=session_name
         )
 
         if not token:
@@ -353,19 +362,26 @@ def list_available_accounts(
         start_url: str,
         sso_region: str,
         *,
+        session_name: typing.Optional[str]=None,
         login: bool=False,
+        registration_scopes: typing.Optional[list[str]]=None,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str]]:
     """Iterate over the available accounts the user has access to through Identity Center.
 
     Args:
         start_url (str): The start URL for the Identity Center instance.
         sso_region (str): The AWS region for the Identity Center instance.
+        session_name (str): The session name the token is cached under.
         login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        registration_scopes (list[str]): A list of OAuth scopes to use for login.
         sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
         An iterator that yields account id and account name.
     """
+    if registration_scopes is not None and not login:
+        raise ValueError("registration scopes can only be provided with login=True")
+
     session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
@@ -373,7 +389,11 @@ def list_available_accounts(
 
     token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
-    token = token_fetcher.fetch_token(start_url)
+    token = token_fetcher.fetch_token(
+        start_url=start_url,
+        session_name=session_name,
+        registration_scopes=registration_scopes
+    )
 
     config = botocore.config.Config(
         region_name=sso_region,
@@ -399,7 +419,9 @@ def list_available_roles(
         sso_region: str,
         account_id: typing.Union[str, int, typing.Iterable[typing.Union[str, int]]]=None,
         *,
+        session_name: typing.Optional[str]=None,
         login: bool=False,
+        registration_scopes: typing.Optional[list[str]]=None,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str, str]]:
     """Iterate over the available accounts and roles the user has access to through Identity Center.
 
@@ -408,7 +430,9 @@ def list_available_roles(
         sso_region (str): The AWS region for the Identity Center instance.
         account_id: Optional account id or list of account ids to check.
             If not set, all accounts available to the user are listed.
+        session_name (str): The session name the token is cached under.
         login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        registration_scopes (list[str]): A list of OAuth scopes to use for login.
         sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
@@ -423,6 +447,9 @@ def list_available_roles(
     else:
         account_id_list = None
 
+    if registration_scopes is not None and not login:
+        raise ValueError("registration scopes can only be provided with login=True")
+
     session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
@@ -430,7 +457,11 @@ def list_available_roles(
 
     token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
-    token = token_fetcher.fetch_token(start_url)
+    token = token_fetcher.fetch_token(
+        start_url=start_url,
+        session_name=session_name,
+        registration_scopes=registration_scopes
+    )
 
     config = botocore.config.Config(
         region_name=sso_region,
