@@ -28,8 +28,8 @@ pyyaml = ">=6.0.1, <7.0.0"
 jsonschema = "^4.0.1"
 aws-error-utils = "^2.4"
 python-dateutil = "^2.8.1"
-aws-sso-lib = "^1.13.0"
-# aws-sso-lib = { path = "../lib", develop = true }
+# aws-sso-lib = "^1.13.0"
+aws-sso-lib = { path = "../lib", develop = true }
 requests = "^2.26.0"
 
 [tool.poetry.dev-dependencies]

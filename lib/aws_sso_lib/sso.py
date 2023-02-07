@@ -24,11 +24,14 @@ import uuid
 import numbers
 import typing
 import json
+import dataclasses
+import hashlib
 
 import boto3
 import botocore
 from botocore.credentials import JSONFileCache
 from botocore.credentials import SSOCredentialFetcher
+from botocore.tokens import SSOTokenProvider
 
 from .format import format_account_id
 
@@ -57,9 +60,65 @@ def _serialize_utc_timestamp(obj):
 def _sso_json_dumps(obj):
     return json.dumps(obj, default=_serialize_utc_timestamp)
 
-def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
-                     on_pending_authorization=None, message=None, outfile=None,
-                     disable_browser=None, expiry_window=None):
+def _get_session_name(*, start_url, sso_region, registration_scopes):
+    args = {
+        'startUrl': start_url,
+        'region': sso_region,
+        'scopes': registration_scopes,
+    }
+    cache_args = json.dumps(args, sort_keys=True).encode('utf-8')
+    return "aws-sso-lib-" + hashlib.sha1(cache_args).hexdigest()[:8]
+
+def _get_config(
+        *,
+        start_url,
+        sso_region,
+        account_id,
+        role_name,
+        registration_scopes=None):
+    session_config = {
+        "sso_start_url": start_url,
+        "sso_region": sso_region,
+    }
+    if registration_scopes is not None:
+        session_config["sso_registration_scopes"] = ",".join(registration_scopes)
+    
+    session_name = _get_session_name(
+        start_url=start_url,
+        sso_region=sso_region,
+        registration_scopes=registration_scopes
+    )
+    
+    profile_config = {
+        "sso_session": session_name,
+        "sso_account_id": account_id,
+        "sso_role_name": role_name,
+    }
+
+    profile_name = uuid.uuid4().hex
+    
+    config = {
+        "profiles": {
+            profile_name: profile_config
+        },
+        "sso-sessions": {
+            session_name: session_config
+        }
+    }
+
+    return profile_name, config
+
+def get_token_fetcher(
+        session,
+        sso_region,
+        *,
+        interactive=False,
+        sso_cache=None,
+        on_pending_authorization=None,
+        message=None,
+        outfile=None,
+        disable_browser=None,
+        expiry_window=None):
     if hasattr(session, "_session"): #boto3 Session
         session = session._session
 
@@ -85,11 +144,18 @@ def get_token_fetcher(session, sso_region, *, interactive=False, sso_cache=None,
     )
     return token_fetcher
 
-def _get_token_loader_from_token_fetcher(token_fetcher, force_refresh=False):
+def _get_token_loader_from_token_fetcher(
+        token_fetcher,
+        *,
+        registration_scopes=None,
+        session_name=None,
+        force_refresh=False):
     def token_loader(start_url):
         token_response = token_fetcher.fetch_token(
             start_url=start_url,
-            force_refresh=force_refresh
+            force_refresh=force_refresh,
+            registration_scopes=registration_scopes,
+            session_name=session_name
         )
         LOGGER.debug("TOKEN: {}".format(token_response))
         return token_response
@@ -104,7 +170,7 @@ def get_credentials(session, start_url, sso_region, account_id, role_name, *,
         credential_cache=None):
     """Return credentials for the given role.
 
-    The return value is a dict containing the assumed role credentials.
+    The return value is a dict containing the credentials.
 
     You probably want to use get_boto3_session() instead, which returns
     a boto3 session that caches its credentials and automatically refreshes them.
@@ -114,7 +180,9 @@ def get_credentials(session, start_url, sso_region, account_id, role_name, *,
     if not token_fetcher:
         token_fetcher = get_token_fetcher(session, sso_region, sso_cache=sso_cache)
 
-    token_loader = _get_token_loader_from_token_fetcher(token_fetcher=token_fetcher, force_refresh=force_refresh)
+    token_loader = _get_token_loader_from_token_fetcher(
+        token_fetcher=token_fetcher,
+        force_refresh=force_refresh)
 
     if credential_cache is None:
         credential_cache = JSONFileCache(CREDENTIALS_CACHE_DIR)
@@ -136,31 +204,39 @@ def _get_botocore_session(
         sso_region,
         account_id,
         role_name,
+        session_name,
+        registration_scopes=None,
         credential_cache=None,
-        sso_cache=None,
-        ):
+        sso_cache=None):
     profile_name = str(uuid.uuid4())
+    
     botocore_session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
         # 'region': (None, None, None, None), # allow region to be set by env var
     })
 
-    load_config = lambda: {
-        "profiles": {
-            profile_name: {
-                "sso_start_url": start_url,
-                "sso_region": sso_region,
-                "sso_account_id": account_id,
-                "sso_role_name": role_name,
-            }
-        }
-    }
+    profile_name, config = _get_config(
+        start_url=start_url,
+        sso_region=sso_region,
+        account_id=account_id,
+        role_name=role_name,
+        registration_scopes=registration_scopes
+    )
+    
+    load_config = lambda: config
+
+    token_provider = SSOTokenProvider(
+        session=botocore_session,
+        cache=sso_cache
+    )
+    
     sso_provider = botocore.credentials.SSOProvider(
         load_config=load_config,
         client_creator=botocore_session.create_client,
         profile_name=profile_name,
         cache=credential_cache,
         token_cache=sso_cache,
+        token_provider=token_provider
     )
 
     botocore_session.register_component(
@@ -170,6 +246,21 @@ def _get_botocore_session(
 
     return botocore_session
 
+@dataclasses.dataclass
+class LoginParams:
+    enabled: bool=True
+    registration_scopes: typing.Optional[list[str]]=None
+
+    def __bool__(self):
+        return self.enabled
+    
+    @classmethod
+    def _convert(cls, value):
+        if isinstance(value, cls):
+            return value
+        else:
+            return cls(enabled=bool(value))
+
 def get_boto3_session(
         start_url: str,
         sso_region: str,
@@ -177,7 +268,8 @@ def get_boto3_session(
         role_name: str,
         *,
         region: str,
-        login: bool=False,
+        registration_scopes: typing.Optional[list[str]]=None,
+        login: typing.Union[bool, LoginParams]=False,
         sso_cache=None,
         credential_cache=None) -> boto3.Session:
     """Get a boto3 session with the input configuration.
@@ -188,6 +280,7 @@ def get_boto3_session(
         account_id (str): The AWS account ID to use.
         role_name (str): The Identity Center role (aka Permission Set) name to use.
         region (str): The AWS region for the boto3 session.
+        registration_scopes (list[str]): The registration scopes to use.
         login (bool): Interactively log in the user if their Identity Center credentials have expired.
         sso_cache: A dict-like object for Identity Center credential caching to replace
             the default file cache in ~/.aws/sso/cache .
@@ -200,9 +293,10 @@ def get_boto3_session(
     account_id = format_account_id(account_id)
 
     if login:
-        _login(start_url, sso_region, sso_cache=sso_cache)
+        _login(start_url, sso_region, registration_scopes=registration_scopes, sso_cache=sso_cache)
 
     botocore_session = _get_botocore_session(start_url, sso_region, account_id, role_name,
+        registration_scopes=registration_scopes,
         credential_cache=credential_cache,
         sso_cache=sso_cache)
 
@@ -214,6 +308,7 @@ def login(
         start_url: str,
         sso_region: str,
         *,
+        registration_scopes: typing.Optional[list[str]]=None,
         force_refresh: bool=False,
         expiry_window=None,
         disable_browser: bool=None,
@@ -238,6 +333,8 @@ def login(
     Args:
         start_url (str): The start URL for the Identity Center instance.
         sso_region (str): The AWS region for the Identity Center instance.
+        registration_scopes (list[str]): A list of OAuth scopes.
+        session_name (str): The session name to use for caching the token.
         force_refresh (bool): Always go through the authentication process.
         expiry_window: A datetime.timedelta (or number of seconds),
             or callable returning such, specifying the minimum duration
@@ -267,6 +364,12 @@ def login(
         'region': (None, None, None, None),
     })
 
+    session_name = _get_session_name(
+        start_url=start_url,
+        sso_region=sso_region,
+        registration_scopes=registration_scopes
+    )
+
     on_pending_authorization = None
     if user_auth_handler:
         def on_pending_authorization(**kwargs):
@@ -289,7 +392,9 @@ def login(
 
     token = token_fetcher.fetch_token(
         start_url=start_url,
-        force_refresh=force_refresh
+        force_refresh=force_refresh,
+        registration_scopes=registration_scopes,
+        session_name=session_name
     )
     token['expiresAt'] = _serialize_utc_timestamp(token['expiresAt'])
     if 'receivedAt' in token:
@@ -303,11 +408,13 @@ def logout(
         start_url: str,
         sso_region: str,
         *,
+        session_name: typing.Optional[str]=None,
         sso_cache=None):
     """Log out of the given Identity Center instance.
 
     Args:
         start_url (str): The start URL for the Identity Center instance.
+        session_name (str): The session name the token is cached under.
         sso_region (str): The AWS region for the Identity Center instance.
         sso_cache: A dict-like object for Identity Center credential caching.
 
@@ -331,7 +438,8 @@ def logout(
 
     try:
         token = token_fetcher.pop_token_from_cache(
-            start_url=start_url
+            start_url=start_url,
+            session_name=session_name
         )
 
         if not token:
@@ -353,19 +461,26 @@ def list_available_accounts(
         start_url: str,
         sso_region: str,
         *,
+        session_name: typing.Optional[str]=None,
         login: bool=False,
+        registration_scopes: typing.Optional[list[str]]=None,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str]]:
     """Iterate over the available accounts the user has access to through Identity Center.
 
     Args:
         start_url (str): The start URL for the Identity Center instance.
         sso_region (str): The AWS region for the Identity Center instance.
+        session_name (str): The session name the token is cached under.
         login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        registration_scopes (list[str]): A list of OAuth scopes to use for login.
         sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
         An iterator that yields account id and account name.
     """
+    if registration_scopes is not None and not login:
+        raise ValueError("registration scopes can only be provided with login=True")
+
     session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
@@ -373,7 +488,11 @@ def list_available_accounts(
 
     token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
 
-    token = token_fetcher.fetch_token(start_url)
+    token = token_fetcher.fetch_token(
+        start_url=start_url,
+        session_name=session_name,
+        registration_scopes=registration_scopes
+    )
 
     config = botocore.config.Config(
         region_name=sso_region,
@@ -399,7 +518,7 @@ def list_available_roles(
         sso_region: str,
         account_id: typing.Union[str, int, typing.Iterable[typing.Union[str, int]]]=None,
         *,
-        login: bool=False,
+        login: typing.Union[bool, LoginParams]=False,
         sso_cache=None) -> typing.Iterator[typing.Tuple[str, str, str]]:
     """Iterate over the available accounts and roles the user has access to through Identity Center.
 
@@ -408,7 +527,9 @@ def list_available_roles(
         sso_region (str): The AWS region for the Identity Center instance.
         account_id: Optional account id or list of account ids to check.
             If not set, all accounts available to the user are listed.
+        session_name (str): The session name the token is cached under.
         login (bool): Interactively log in the user if their Identity Center credentials have expired.
+        registration_scopes (list[str]): A list of OAuth scopes to use for login.
         sso_cache: A dict-like object for Identity Center credential caching.
 
     Returns:
@@ -422,21 +543,33 @@ def list_available_roles(
             account_id_list = [format_account_id(v) for v in account_id] # type: ignore
     else:
         account_id_list = None
+    
+    login_params = LoginParams._convert(login)
 
-    session = botocore.session.Session(session_vars={
+    session_name = _get_session_name(
+        start_url=start_url,
+        sso_region=sso_region,
+        registration_scopes=login_params.registration_scopes
+    )
+
+    botocore_session = botocore.session.Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
     })
 
-    token_fetcher = get_token_fetcher(session, sso_region, interactive=login, sso_cache=sso_cache)
+    token_fetcher = get_token_fetcher(botocore_session, sso_region, interactive=login_params.enabled, sso_cache=sso_cache)
 
-    token = token_fetcher.fetch_token(start_url)
+    token = token_fetcher.fetch_token(
+        start_url=start_url,
+        session_name=session_name,
+        registration_scopes=login_params.registration_scopes
+    )
 
     config = botocore.config.Config(
         region_name=sso_region,
         signature_version=botocore.UNSIGNED,
     )
-    client = session.create_client("sso", config=config)
+    client = botocore_session.create_client("sso", config=config)
 
     if account_id_list:
         def account_iterator():

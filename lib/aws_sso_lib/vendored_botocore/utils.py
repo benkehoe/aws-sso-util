@@ -12,7 +12,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
-# this is the new content of botocore.utils in the v2 branch
+# partial content of botocore.utils in the v2 branch of awscli
 
 import time
 import datetime
@@ -53,6 +53,17 @@ from .exceptions import PendingAuthorizationExpiredError
 
 logger = logging.getLogger(__name__)
 
+def _serialize_datetimes(obj, iso=False):
+    if isinstance(obj, datetime.datetime):
+        if iso:
+            return obj.isoformat()
+        return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+    if isinstance(obj, (list, tuple)):
+        return list(_serialize_datetimes(v, iso=iso) for v in obj)
+    if isinstance(obj, dict):
+        return {key: _serialize_datetimes(value, iso=iso) for key, value in obj.items()}
+    return obj
+
 class SSOTokenFetcher(object):
     # The device flow RFC defines the slow down delay to be an additional
     # 5 seconds:
@@ -65,9 +76,14 @@ class SSOTokenFetcher(object):
     _GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
 
     def __init__(
-            self, sso_region, client_creator, cache=None,
-            on_pending_authorization=None, time_fetcher=None,
-            sleep=None, expiry_window=None,
+            self,
+            sso_region,
+            client_creator,
+            cache=None,
+            on_pending_authorization=None,
+            time_fetcher=None,
+            sleep=None,
+            expiry_window=None,
     ):
         self._sso_region = sso_region
         self._client_creator = client_creator
@@ -119,14 +135,18 @@ class SSOTokenFetcher(object):
         )
         return self._client_creator('sso-oidc', config=config)
 
-    def _register_client(self):
+    def _register_client(self, session_name, scopes):
         timestamp = self._time_fetcher()
-        response = self._client.register_client(
-            # NOTE: As far as I know client name will never be returned to the
-            # user. For now we'll just use botocore-client with the timestamp.
-            clientName='botocore-client-%s' % int(datetime2timestamp(timestamp)),
-            clientType=self._CLIENT_REGISTRATION_TYPE,
-        )
+        if session_name is None:
+            # Use a timestamp for the session name for legacy configuration
+            session_name = f"anonymous-{timestamp.strftime('%Y%m%dT%H%M%S%Z')}"
+        register_kwargs = {
+            'clientName': f'aws-sso-util-{session_name}',
+            'clientType': self._CLIENT_REGISTRATION_TYPE,
+        }
+        if scopes:
+            register_kwargs['scopes'] = scopes
+        response = self._client.register_client(**register_kwargs)
         expires_at = response['clientSecretExpiresAt']
         expires_at = datetime.datetime.fromtimestamp(expires_at, tzutc())
         registration = {
@@ -135,19 +155,46 @@ class SSOTokenFetcher(object):
             'expiresAt': expires_at,
             'receivedAt': timestamp,
         }
+        if scopes:
+            registration['scopes'] = scopes
+        registration = _serialize_datetimes(registration)
         return registration
 
-    def _registration(self):
-        # Registration with the OIDC endpoint is regional, is good for roughly
-        # 90 days, and can be shared. This is currently scoped to individual
-        # tools and as such each tool has their own cached client id.
-        cache_key = 'botocore-client-id-%s' % self._sso_region
-        if cache_key in self._cache:
+    def _registration_cache_key(self, start_url, session_name, scopes):
+        # Registration is unique based on the following properties to ensure
+        # modifications to the registration do not affect the permissions of
+        # tokens derived for other start URLs.
+        args = {
+            'tool': 'botocore',
+            'startUrl': start_url,
+            'region': self._sso_region,
+            'scopes': scopes,
+            'session_name': session_name,
+        }
+        cache_args = json.dumps(args, sort_keys=True).encode('utf-8')
+        return hashlib.sha1(cache_args).hexdigest()
+
+    def _registration(
+        self,
+        start_url,
+        session_name,
+        scopes,
+        force_refresh=False,
+    ):
+        cache_key = self._registration_cache_key(
+            start_url,
+            session_name,
+            scopes,
+        )
+        if not force_refresh and cache_key in self._cache:
             registration = self._cache[cache_key]
             if not self._is_expired(registration):
                 return registration
 
-        registration = self._register_client()
+        registration = self._register_client(
+            session_name,
+            scopes,
+        )
         self._cache[cache_key] = registration
         return registration
 
@@ -173,9 +220,25 @@ class SSOTokenFetcher(object):
             authorization['interval'] = response['interval']
         return authorization
 
-    def _poll_for_token(self, start_url):
-        registration = self._registration()
+    def _poll_for_token(self, start_url, session_name, registration_scopes):
+        registration = self._registration(
+            start_url,
+            session_name,
+            registration_scopes,
+        )
         authorization = self._authorize_client(start_url, registration)
+
+        interval = authorization.get('interval', self._DEFAULT_INTERVAL)
+
+        # In some circumstances the client may be pre-authorized to generate a
+        # token and it's not necessary to display the authorization message. We
+        # do a single create token attempt before displaying the message and
+        # falling back to the polling loop.
+        interval, token = self._create_token_attempt(
+            start_url, registration, authorization, interval
+        )
+        if token is not None:
+            return token
 
         if self._on_pending_authorization:
             # This callback can display the user code / verification URI
@@ -183,67 +246,110 @@ class SSOTokenFetcher(object):
             # back could even be used to auto open a browser.
             self._on_pending_authorization(**authorization)
 
-        interval = authorization.get('interval', self._DEFAULT_INTERVAL)
         # NOTE: This loop currently relies on the service to either return
         # a valid token or a ExpiredTokenException to break the loop. If this
         # proves to be problematic it may be worth adding an additional
         # mechanism to control timing this loop out.
         while True:
-            try:
-                response = self._client.create_token(
-                    grantType=self._GRANT_TYPE,
-                    clientId=registration['clientId'],
-                    clientSecret=registration['clientSecret'],
-                    deviceCode=authorization['deviceCode'],
-                )
-                expires_in = datetime.timedelta(seconds=response['expiresIn'])
-                timestamp = self._time_fetcher()
-                token = {
-                    'startUrl': start_url,
-                    'region': self._sso_region,
-                    'accessToken': response['accessToken'],
-                    'expiresAt': timestamp + expires_in,
-                    'receivedAt': timestamp,
-                }
+            interval, token = self._create_token_attempt(
+                start_url, registration, authorization, interval
+            )
+            if token is not None:
                 return token
-            except self._client.exceptions.SlowDownException:
-                interval += self._SLOW_DOWN_DELAY
-            except self._client.exceptions.AuthorizationPendingException:
-                pass
-            except self._client.exceptions.ExpiredTokenException:
-                raise PendingAuthorizationExpiredError()
             self._sleep(interval)
 
-    def _cache_key(self, start_url):
-        return hashlib.sha1(start_url.encode('utf-8')).hexdigest()
+    def _create_token_attempt(
+        self, start_url, registration, authorization, interval,
+    ):
+        try:
+            response = self._client.create_token(
+                grantType=self._GRANT_TYPE,
+                clientId=registration['clientId'],
+                clientSecret=registration['clientSecret'],
+                deviceCode=authorization['deviceCode'],
+            )
+            expires_in = datetime.timedelta(seconds=response['expiresIn'])
+            timestamp = self._time_fetcher()
+            token = {
+                'startUrl': start_url,
+                'region': self._sso_region,
+                'accessToken': response['accessToken'],
+                'expiresAt': timestamp + expires_in,
+                'receivedAt': timestamp,
+                # Cache the registration alongside the token
+                'clientId': registration['clientId'],
+                'clientSecret': registration['clientSecret'],
+                'registrationExpiresAt': registration['expiresAt'],
+            }
+            if 'refreshToken' in response:
+                token['refreshToken'] = response['refreshToken']
+            token = _serialize_datetimes(token)
+            return interval, token
+        except self._client.exceptions.SlowDownException:
+            interval += self._SLOW_DOWN_DELAY
+        except self._client.exceptions.AuthorizationPendingException:
+            pass
+        except self._client.exceptions.ExpiredTokenException:
+            raise PendingAuthorizationExpiredError()
+        return interval, None
 
-    def _token(self, start_url, force_refresh):
-        cache_key = self._cache_key(start_url)
+    def _token_cache_key(self, start_url, session_name):
+        input_str = start_url
+        if session_name is not None:
+            input_str = session_name
+        return hashlib.sha1(input_str.encode('utf-8')).hexdigest()
+
+    def _token(
+        self,
+        start_url,
+        force_refresh,
+        registration_scopes,
+        session_name,
+    ):
+        cache_key = self._token_cache_key(start_url, session_name)
         # Only obey the token cache if we are not forcing a refresh.
         if not force_refresh and cache_key in self._cache:
+            #TODO: use token provider here?
+
+
             token = self._cache[cache_key]
+            # TODO: Should probably try to refresh token here
             if not self._is_expired(token):
                 return token
+            
+            # TODO: attempt to refresh 
 
-        token = self._poll_for_token(start_url)
+        token = self._poll_for_token(
+            start_url,
+            session_name,
+            registration_scopes,
+        )
         self._cache[cache_key] = token
         return token
 
-    def fetch_token(self, start_url, force_refresh=False):
-        return self._token(start_url, force_refresh)
+    def fetch_token(
+        self,
+        start_url,
+        force_refresh=False,
+        registration_scopes=None,
+        session_name=None,
+    ):
+        return self._token(
+            start_url,
+            force_refresh,
+            registration_scopes,
+            session_name,
+        )
 
-    def get_token_from_cache(self, start_url):
-        cache_key = self._cache_key(start_url)
+    def get_token_from_cache(self, start_url, session_name=None):
+        cache_key = self._token_cache_key(start_url, session_name)
         if cache_key in self._cache:
             token = self._cache[cache_key]
             return token
         return None
 
-    def is_token_expired(self, token):
-        return self._is_expired(token)
-
-    def pop_token_from_cache(self, start_url):
-        cache_key = self._cache_key(start_url)
+    def pop_token_from_cache(self, start_url, session_name=None):
+        cache_key = self._cache_key(start_url, session_name)
         # Only obey the token cache if we are not forcing a refresh.
         if cache_key in self._cache:
             token = self._cache[cache_key]
@@ -254,3 +360,6 @@ class SSOTokenFetcher(object):
             return token
         else:
             return None
+    
+    def is_token_expired(self, token):
+        return self._is_expired(token)

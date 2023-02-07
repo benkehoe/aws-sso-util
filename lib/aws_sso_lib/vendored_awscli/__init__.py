@@ -10,9 +10,3 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-
-__version__ = '1.14.0' # change in pyproject.toml too
-
-# from .sso import get_boto3_session, login, list_available_accounts, list_available_roles, LoginParams
-from .sso2 import SSOSession, get_boto3_session, login, list_available_roles
-from .assignments import Assignment, list_assignments

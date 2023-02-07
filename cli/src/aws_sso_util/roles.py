@@ -14,13 +14,13 @@
 import logging
 import re
 import sys
+import json
 from collections import namedtuple
 
 import click
 
-from aws_sso_lib.sso import list_available_roles, login
-
-from .utils import configure_logging, get_instance, GetInstanceError, Printer
+from .utils import configure_logging, get_specifier, GetSpecifierError, get_session, GetSessionError, Printer
+from .sso import login, list_available_roles
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ HEADER_FIELDS = {
 }
 
 @click.command()
-@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
-@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
+@click.option("--session", "session_param", metavar="SESSION_SPECIFIER", help="The specifier for selecting an Identity Center session")
 @click.option("--account-id", "-a", "account_values", metavar="ACCOUNT_ID", multiple=True, default=[], help="List roles for a specific account ID, can be specified multiple times")
 @click.option("--account", "account_values", multiple=True, hidden=True)
 @click.option("--role-name", "-r", "role_name_patterns", metavar="REGEX", multiple=True, default=[], help="Filter roles by a regular expression, can be specified multiple times")
@@ -41,16 +40,21 @@ HEADER_FIELDS = {
 @click.option("--sort-by", type=click.Choice(["id,role", "name,role", "role,id", "role,name"]), default=None, help="Specify how the output is sorted")
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
+@click.option("--sso-session", "alternate_session_param", hidden=True)
+@click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL", hidden=True)
+@click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in", hidden=True)
 def roles(
-        sso_start_url,
-        sso_region,
+        session_param,
         account_values,
         role_name_patterns,
         separator,
         header,
         sort_by,
         force_refresh,
-        verbose):
+        verbose,
+        alternate_session_param,
+        sso_start_url,
+        sso_region):
     """List your available accounts and roles.
 
     --sso-start-url and --sso-region are not needed if a single value can be found for them in your ~/.aws/config
@@ -59,6 +63,7 @@ def roles(
     You can filter the list by providing account IDs and role name patterns.
 
     """
+    session_param = session_param or alternate_session_param
 
     configure_logging(LOGGER, verbose)
 
@@ -102,15 +107,22 @@ def roles(
         sort_key = None
 
     try:
-        instance = get_instance(
-            sso_start_url,
-            sso_region,
+        specifier = get_specifier(
+            session_param=session_param,
+            sso_start_url=sso_start_url,
+            sso_region=sso_region
         )
-    except GetInstanceError as e:
+    except GetSpecifierError as e:
+        LOGGER.fatal(str(e))
+        sys.exit(1)
+    
+    try:
+        session = get_session(specifier=specifier)
+    except GetSessionError as e:
         LOGGER.fatal(str(e))
         sys.exit(1)
 
-    login(instance.start_url, instance.region, force_refresh=force_refresh)
+    login(session, force_refresh=force_refresh)
 
     printer = Printer(
         separator=separator,
@@ -122,7 +134,7 @@ def roles(
     )
     printer.print_header_before()
 
-    for account_id, account_name, role_name in list_available_roles(instance.start_url, instance.region, account_id=account_ids):
+    for account_id, account_name, role_name in list_available_roles(session, account_id=account_ids):
         if not account_filter(account_id, account_name):
             continue
         if role_name_patterns:

@@ -14,8 +14,13 @@
 import logging
 import logging.handlers
 import sys
+import json
+import typing
 
-from aws_sso_lib.config import find_instances, SSOInstance
+import click
+
+from aws_sso_lib.config import Session, find_all_sessions, Specifier, Source, InlineSessionError, get_specifier as lib_get_specifier
+from aws_sso_lib.sso import login as lib_login
 
 class StdoutFilter(logging.Filter):
     def filter(self, rec):
@@ -67,6 +72,99 @@ def configure_logging(logger, verbose, **config_args):
         aws_sso_util_logger.setLevel(logging.DEBUG)
         aws_sso_lib_logger.setLevel(logging.DEBUG)
         root_logger.setLevel(logging.DEBUG)
+
+class GetSpecifierError(Exception):
+    pass
+
+def get_specifier(session_param: str, sso_start_url: str, sso_region: str) -> typing.Optional[Specifier]:
+    if session_param and sso_start_url:
+        raise click.BadParameter("Can't use both --session and --sso-start-url")
+    if session_param and sso_region:
+        raise click.BadParameter("Can't use both --session and --sso-region")
+    if sso_region and not sso_start_url:
+        raise click.BadParameter("Must use --sso-start-url with --sso-region")
+    if sso_region and not sso_start_url.startswith("http"):
+        raise click.BadParameter("Must use a full start URL for --sso-start-url with --sso-region")
+    
+    specifier = None
+    if session_param:
+        try:
+            specifier = Specifier(
+                value=session_param,
+                source=Source(
+                    type="CLI parameter",
+                    name="--session"
+                )
+            )
+        except InlineSessionError as e:
+            raise click.BadOptionUsage("--session", str(e))
+    elif sso_region: # checks above guarantee correct sso_start_url
+        specifier = Specifier(
+            value=json.dumps({
+                "sso_start_url": sso_start_url,
+                "sso_region": sso_region
+            }),
+            source=Source(
+                type="CLI parameter",
+                name="--sso-start-url and --sso-region"
+            )
+        )
+    elif sso_start_url:
+        try:
+            specifier = Specifier(
+                value=session_param,
+                source=Source(
+                    type="CLI parameter",
+                    name="--sso-start-url"
+                )
+            )
+        except InlineSessionError as e:
+            raise click.BadOptionUsage("--sso-start-url", str(e))
+    else:
+        try:
+            specifier = lib_get_specifier()
+        except InlineSessionError as e:
+            raise GetSpecifierError(str(e))
+    
+    return specifier
+
+class GetSessionError(Exception):
+    pass
+
+def get_session(specifier: typing.Optional[Specifier]) -> Session:
+    if specifier and specifier.session:
+        return specifier.session
+    all_sessions = find_all_sessions()
+    
+    if not all_sessions.unique_sessions:
+        message = f"No Identity Center sessions matched specifier {specifier} from {Session.to_strs(all_sessions, region=True, registration_scopes=True)}"
+        if all_sessions.malformed_session_errors:
+            message = (
+                message
+                + ", "
+                + f"but {len(all_sessions.malformed_session_errors)} invalid sessions were found"
+                + ": "
+                + "; ".join(str(e) for e in all_sessions.malformed_session_errors)
+            )
+        raise GetSessionError(message)
+    
+    if specifier:
+        sessions = all_sessions.filter(specifier)
+        if not sessions:
+            raise GetSessionError(
+                f"No Identity Center session matched {specifier} " +
+                f"from {Session.to_strs(all_sessions.unique_sessions, region=True, registration_scopes=True)}"
+            )
+    else:
+        sessions = all_sessions.unique_sessions
+    
+    if len(sessions) > 1:
+        if specifier:
+            raise GetSessionError(f"Found {len(sessions)} Identity Center sessions matching {specifier}, please refine to select one: {Session.to_strs(sessions)}")
+        else:
+            raise GetSessionError(f"Found {len(sessions)} Identity Center sessions, please specify one: {Session.to_strs(sessions)}")
+    
+    return sessions[0]
 
 class GetInstanceError(Exception):
     pass
