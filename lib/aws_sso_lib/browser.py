@@ -24,22 +24,16 @@ Attempting to open the authorization page in your default browser.
 If the browser does not open or you wish to use a different device to
 authorize this request, open the following URL:
 
-{url}
+{url}?user_code={code}
 
-Then enter the code:
-
-{code}
 """)
 
 DEFAULT_NO_BROWSER_MESSAGE = textwrap.dedent("""\
 Identity Center login required.
 Open the following URL in a browser:
 
-{url}
+{url}?user_code={code}
 
-Then enter the code:
-
-{code}
 """)
 
 class OpenBrowserHandler(object):
