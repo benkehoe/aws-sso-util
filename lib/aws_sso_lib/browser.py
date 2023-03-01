@@ -29,6 +29,9 @@ authorize this request, open the following URL:
 Then enter the code:
 
 {code}
+
+Alternatively, you may visit the following URL which will autofill the code upon loading:
+{urlWithCode}
 """)
 
 DEFAULT_NO_BROWSER_MESSAGE = textwrap.dedent("""\
@@ -40,6 +43,9 @@ Open the following URL in a browser:
 Then enter the code:
 
 {code}
+
+Alternatively, you may visit the following URL which will autofill the code upon loading:
+{urlWithCode}
 """)
 
 class OpenBrowserHandler(object):
@@ -71,7 +77,9 @@ class OpenBrowserHandler(object):
                 url=verificationUri,
                 code=userCode,
                 verificationUri=verificationUri,
-                userCode=userCode
+                userCode=userCode,
+                urlWithCode=verificationUriComplete,
+                verificationUriComplete=verificationUriComplete
             )
 
             print(message, file=self._outfile)
