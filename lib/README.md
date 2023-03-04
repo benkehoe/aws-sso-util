@@ -51,7 +51,7 @@ If the user is logged in and `force_refresh` is `False`, no action is taken.
 
 Normally, it will attempt to automatically open the user's browser to log in, as well as printing the URL and code to stderr as a fallback. However, if `disable_browser` is `True`, or if `disable_browser` is `None` (the default) and the environment variable `AWS_SSO_DISABLE_BROWSER` is set to `1` or `true`, only the message with the URL and code will be printed.
 
-A custom message can be printed by setting message to a template string using any or all of {url}, {code}, and {urlWithCode} as placeholders.
+A custom message can be printed by setting message to a template string using any or all of `{url}`, `{code}`, and `{urlWithCode}` as placeholders.
 The message can be suppressed by setting `message` to `False`.
 
 To fully control the communication with the user, use the `user_auth_handler` parameter.
