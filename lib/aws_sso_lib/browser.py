@@ -31,6 +31,7 @@ Then enter the code:
 {code}
 
 Alternatively, you may visit the following URL which will autofill the code upon loading:
+
 {urlWithCode}
 """)
 
@@ -45,6 +46,7 @@ Then enter the code:
 {code}
 
 Alternatively, you may visit the following URL which will autofill the code upon loading:
+
 {urlWithCode}
 """)
 
