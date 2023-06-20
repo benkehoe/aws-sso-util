@@ -50,15 +50,15 @@ aws-sso-util --help
 
 4. Autocomplete
 
-`aws-sso-util` uses [click](https://click.palletsprojects.com/en/7.x/), which supports autocompletion.
-The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/7.x/bashcomplete/)), but here is an example for `.bashrc` that updates the completion script in the background.
+`aws-sso-util` uses [click](https://click.palletsprojects.com/en/8.0.x/), which supports autocompletion.
+The details of enabling shell completion with click vary by shell ([instructions here](https://click.palletsprojects.com/en/8.0.x/shell-completion/)), but here is an example for `.bashrc` that updates the completion script in the background.
 
 ```bash
 _AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR=~/.local/share/aws-sso-util
 _AWS_SSO_UTIL_COMPLETE_SCRIPT=$_AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR/complete.sh
 if which aws-sso-util > /dev/null; then
   mkdir -p $_AWS_SSO_UTIL_COMPLETE_SCRIPT_DIR
-  ({ _AWS_SSO_UTIL_COMPLETE=source_bash aws-sso-util > $_AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp ;
+  ({ _AWS_SSO_UTIL_COMPLETE=bash_source aws-sso-util > $_AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp ;
     mv $_AWS_SSO_UTIL_COMPLETE_SCRIPT.tmp $_AWS_SSO_UTIL_COMPLETE_SCRIPT; } &)
   if [ -f $_AWS_SSO_UTIL_COMPLETE_SCRIPT ]; then
     source $_AWS_SSO_UTIL_COMPLETE_SCRIPT
