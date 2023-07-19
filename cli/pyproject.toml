@@ -29,7 +29,7 @@ jsonschema = "^3.2.0"
 aws-error-utils = "^2.4"
 python-dateutil = "^2.8.1"
 aws-sso-lib = "^1.13.0"
-# aws-sso-lib = { path = "../lib" }
+# aws-sso-lib = { path = "../lib", develop = true }
 requests = "^2.26.0"
 
 [tool.poetry.dev-dependencies]
