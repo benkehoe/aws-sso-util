@@ -24,7 +24,7 @@ python = "^3.7"
 # botocore = {git = "https://github.com/boto/botocore.git", rev = "v2"}
 click = ">=8.0.0, < 9.0.0"
 boto3 = ">=1.24.60, <2.0.0"
-pyyaml = "^5.3.1"
+PyYAML = "^6.0"
 jsonschema = "^3.2.0"
 aws-error-utils = "^2.4"
 python-dateutil = "^2.8.1"
