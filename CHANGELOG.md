@@ -7,6 +7,11 @@
 
 ## `aws-sso-util`
 
+### CLI v4.32
+* Update to PyYAML 6.0.1 for Cython issue ([#104](https://github.com/benkehoe/aws-sso-util/issues/104) (see https://github.com/yaml/pyyaml/issues/601)).
+* Update login text to match AWS CLI, provide inputs for custom login text to use `verificationUriComplete` ([#92](https://github.com/benkehoe/aws-sso-util/issues/)).
+* Error handling for missing expiration in cached token.
+
 ### CLI v4.31
 * CloudFormation functionality now excludes suspended accounts from OU traversal ([#80](https://github.com/benkehoe/aws-sso-util/issues/80) via [#81](https://github.com/benkehoe/aws-sso-util/pull/81)).
 * Upgrade to `click` 8 ([#85](https://github.com/benkehoe/aws-sso-util/issues/85)).
