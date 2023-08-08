@@ -253,19 +253,22 @@ def lookup_group_by_name(session: boto3.Session, ids: Ids, group_name, *, cache=
     LOGGER.debug(f"Looking up group {group_name}")
 
     identity_store = session.client('identitystore')
-    filters=[{'AttributePath': 'DisplayName', 'AttributeValue': group_name}]
-    response = identity_store.list_groups(IdentityStoreId=ids.identity_store_id, Filters=filters)
+    paginator = identity_store.get_paginator('list_groups')
+    operation_parameters = { 'IdentityStoreId': ids.identity_store_id }
+    page_iterator = paginator.paginate(**operation_parameters)
 
-    if len(response['Groups']) == 0:
-        err = LookupError("No group named {} found".format(group_name))
+    has_group = {}
+    for page in page_iterator:
+        for group_dict in page['Groups']:
+            if group_name == group_dict['DisplayName']:
+                has_group = group_dict
+                break
+    if not has_group:
+        err = LookupError("{} groups named {} found".format(len(page['Groups']), group_name))
         cache[cache_key_name] = err
         raise err
-    elif len(response['Groups']) > 1:
-        err = LookupError("{} groups named {} found".format(len(response['Groups']), group_name))
-        cache[cache_key_name] = err
-        raise err
-    group = response['Groups'][0]
-    group_id = group['GroupId']
+    group = has_group
+    group_id = has_group['GroupId']
 
     cache_key_id = f"{_CACHE_KEY_PREFIX_GROUP_ID}{group_id}"
     cache[cache_key_id] = group
@@ -323,20 +326,32 @@ def lookup_user_by_name(session: boto3.Session, ids: Ids, user_name, *, cache=No
     LOGGER.debug(f"Looking up user {user_name}")
 
     identity_store = session.client('identitystore')
-    filters=[{'AttributePath': 'UserName', 'AttributeValue': user_name}]
-    response = identity_store.list_users(IdentityStoreId=ids.identity_store_id, Filters=filters)
+    # FIX - botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the ListUsers operation: Filter is deprecated, please remove filter from request.
+    # filters=[{'AttributePath': 'UserName', 'AttributeValue': user_name}]
+    paginator = identity_store.get_paginator('list_users')
+    operation_parameters = { 'IdentityStoreId': ids.identity_store_id }
+    page_iterator = paginator.paginate(**operation_parameters)
 
-    if len(response['Users']) == 0:
+    has_user = {}
+
+    # FIX - botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the ListUsers operation: Filter is deprecated, please remove filter from request.
+    # response = identity_store.list_users(IdentityStoreId=ids.identity_store_id, Filters=filters)
+
+    for page in page_iterator:
+        for user_dict in page['Users']:
+            if user_name == user_dict['UserName']:
+                has_user = user_dict
+                break
+    if not has_user:
         err = LookupError("No user named {} found".format(user_name))
         cache[cache_key_name] = err
         raise err
-    elif len(response['Users']) > 1:
-        err = LookupError("{} users named {} found".format(len(response['Users']), user_name))
-        cache[cache_key_name] = err
-        raise err
+    user = has_user
+    user_id = has_user['UserId']
 
-    user = response['Users'][0]
-    user_id = user["UserId"]
+
+    user = has_user
+    user_id = has_user["UserId"]
 
     cache_key_id = f"{_CACHE_KEY_PREFIX_USER_ID}{user_id}"
     cache[cache_key_id] = user
