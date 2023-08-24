@@ -183,6 +183,8 @@ def get_name_case_formatter(account_name_transform, role_name_transform, formatt
 def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
+@click.option("--exclude-role-name", metavar="ROLE_NAME", help="Role name to be excluded from profile creation")
+@click.option("--include-role-name", metavar="ROLE_NAME", help="Only create profiles for the specified role name.")
 @click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
 @click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
@@ -228,7 +230,9 @@ def populate_profiles(
         safe_account_names,
         credential_process,
         force_refresh,
-        verbose):
+        verbose,
+	    exclude_role_name,
+        include_role_name,):
     """Configure profiles for all accounts and roles.
 
     Writes a profile to your AWS config file (~/.aws/config) for every account and role you have access to,
@@ -342,6 +346,10 @@ def populate_profiles(
             response = client.list_account_roles(**list_role_args)
 
             for role in response["roleList"]:
+                if role["roleName"] == exclude_role_name:
+                    continue
+                if include_role_name and role["roleName"] != include_role_name:
+                    continue
                 for i, region in enumerate(regions):
                     if safe_account_names:
                         account_name_for_profile = get_safe_account_name(account["accountName"])
@@ -357,7 +365,6 @@ def populate_profiles(
                     if profile_name == "SKIP":
                         continue
                     configs.append(ConfigParams(profile_name, account["accountName"], account["accountId"], role["roleName"], region))
-
             next_token = response.get("nextToken")
             if not next_token:
                 break
