@@ -183,8 +183,6 @@ def get_name_case_formatter(account_name_transform, role_name_transform, formatt
 def get_safe_account_name(name):
     return re.sub(r"[\s\[\]]+", "-", name).strip("-")
 
-@click.option("--exclude-role-name", metavar="ROLE_NAME", help="Role name to be excluded from profile creation")
-@click.option("--include-role-name", metavar="ROLE_NAME", help="Only create profiles for the specified role name.")
 @click.command("populate")
 @click.option("--sso-start-url", "-u", metavar="URL", help="Your Identity Center start URL")
 @click.option("--sso-region", metavar="REGION", help="The AWS region your Identity Center instance is deployed in")
@@ -211,6 +209,8 @@ def get_safe_account_name(name):
 
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
+@click.option("--exclude-role-name", metavar="ROLE_NAME", multiple=True, help="Role names to be excluded from profile creation, can provide multiple times")
+@click.option("--include-role-name", metavar="ROLE_NAME", multiple=True, help="Only create profiles for the specified role names, can provide multiple times")
 def populate_profiles(
         sso_start_url,
         sso_region,
@@ -344,11 +344,12 @@ def populate_profiles(
         num_regions = len(regions)
         while True:
             response = client.list_account_roles(**list_role_args)
-
+           
             for role in response["roleList"]:
-                if role["roleName"] == exclude_role_name:
+                role_name = role["roleName"] 
+                if role_name in exclude_role_name:
                     continue
-                if include_role_name and role["roleName"] != include_role_name:
+                if include_role_name and role_name not in include_role_name:
                     continue
                 for i, region in enumerate(regions):
                     if safe_account_names:
