@@ -108,7 +108,7 @@ Read the full docs for `aws-sso-util run-as` [here](docs/run-as.md).
 
 In general, in the Identity Center world, you shouldn't be trying to manually set credentials in an environment, nor thinking about "logging in" to a particular account and role.
 You log in to *Identity Center* once, and then *use* accounts and roles with that session.
-You should orient yourself around configuration profiles—use [`aws-sso-util configure populate`](configure.md) to set up profiles for every account and role you have access to, and then use either the `--profile` argument to tell a command to use a specific profile, or set the `AWS_PROFILE` environment variable to have all commands your shell use a particular profile unless they are told otherwise ([here's a shell function to help manage that env var](https://gist.github.com/benkehoe/0d2985e56059437e489314d021be3fbe)).
+You should orient yourself around configuration profiles—use [`aws-sso-util configure populate`](docs/configure.md) to set up profiles for every account and role you have access to, and then use either the `--profile` argument to tell a command to use a specific profile, or set the `AWS_PROFILE` environment variable to have all commands your shell use a particular profile unless they are told otherwise ([here's a shell function to help manage that env var](https://gist.github.com/benkehoe/0d2985e56059437e489314d021be3fbe)).
 
 However, there are times when it's useful to be able to run a command as a specific account and role, without needing a profile configured for it—or without knowing the profile name corresponding to the account and role.
 For this purpose, there's `aws-sso-util run-as`.
