@@ -7,6 +7,9 @@
 
 ## `aws-sso-util`
 
+### CLI v4.33
+* Update to jsonschema major version 4 for issue [#117](https://github.com/benkehoe/aws-sso-util/issues/117).
+
 ### CLI v4.32
 * Update to PyYAML 6.0.1 for Cython issue ([#104](https://github.com/benkehoe/aws-sso-util/issues/104) (see https://github.com/yaml/pyyaml/issues/601)).
 * Update login text to match AWS CLI, provide inputs for custom login text to use `verificationUriComplete` ([#92](https://github.com/benkehoe/aws-sso-util/issues/)).
