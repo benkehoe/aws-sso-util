@@ -209,6 +209,9 @@ def get_safe_account_name(name):
 
 @click.option("--force-refresh", is_flag=True, help="Re-login")
 @click.option("--verbose", "-v", count=True)
+@click.option("--exclude-role-name", metavar="ROLE_NAME", multiple=True, help="Role names to be excluded from profile creation, can provide multiple times")
+@click.option("--include-role-name", metavar="ROLE_NAME", multiple=True, help="Only create profiles for the specified role names, can provide multiple times")
+@click.option('--remove-role', is_flag=True, help="Remove the role name from the profile name")
 def populate_profiles(
         sso_start_url,
         sso_region,
@@ -228,7 +231,10 @@ def populate_profiles(
         safe_account_names,
         credential_process,
         force_refresh,
-        verbose):
+        verbose,
+	    exclude_role_name,
+        include_role_name,
+        remove_role):
     """Configure profiles for all accounts and roles.
 
     Writes a profile to your AWS config file (~/.aws/config) for every account and role you have access to,
@@ -266,7 +272,7 @@ def populate_profiles(
         config_default = dict(v.split("=", 1) for v in config_default)
     else:
         config_default = {}
-
+        
     if not profile_name_separator:
         profile_name_separator = os.environ.get("AWS_CONFIGURE_SSO_DEFAULT_PROFILE_NAME_SEPARATOR") or DEFAULT_SEPARATOR
 
@@ -281,7 +287,6 @@ def populate_profiles(
             profile_name_formatter = get_trim_formatter(profile_name_trim_account_name_patterns, profile_name_trim_role_name_patterns, profile_name_formatter)
         if profile_name_account_name_case_transform or profile_name_role_name_case_transform:
             profile_name_formatter = get_name_case_formatter(profile_name_account_name_case_transform, profile_name_role_name_case_transform, profile_name_formatter)
-
     try:
         profile_name_formatter(0, 1, account_name="foo", account_id="bar", role_name="baz", region="us-east-1")
     except Exception as e:
@@ -340,8 +345,13 @@ def populate_profiles(
         num_regions = len(regions)
         while True:
             response = client.list_account_roles(**list_role_args)
-
+           
             for role in response["roleList"]:
+                role_name = role["roleName"] 
+                if role_name in exclude_role_name:
+                    continue
+                if include_role_name and role_name not in include_role_name:
+                    continue
                 for i, region in enumerate(regions):
                     if safe_account_names:
                         account_name_for_profile = get_safe_account_name(account["accountName"])
@@ -351,13 +361,16 @@ def populate_profiles(
                     profile_name = profile_name_formatter(i, num_regions,
                         account_name=account_name_for_profile,
                         account_id=account["accountId"],
-                        role_name=role["roleName"],
+                        role_name=role_name,
                         region=region,
                     )
+                    if remove_role:
+                        profile_parts = profile_name.split('.')
+                        profile_parts = [part for part in profile_parts if part != role_name]
+                        profile_name = '.'.join(profile_parts).rstrip('.')
                     if profile_name == "SKIP":
                         continue
                     configs.append(ConfigParams(profile_name, account["accountName"], account["accountId"], role["roleName"], region))
-
             next_token = response.get("nextToken")
             if not next_token:
                 break
