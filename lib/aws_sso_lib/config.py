@@ -11,13 +11,15 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 
+import json
 import os
 import logging
 import re
 from collections import namedtuple
-from typing import Optional
+from typing import Callable, Dict, List, NoReturn, Optional
 
-import botocore
+from aws_sso_lib.exceptions import InvalidSSOConfigError
+from botocore.session import Session
 from botocore.exceptions import ProfileNotFound
 
 LOGGER = logging.getLogger(__name__)
@@ -55,9 +57,86 @@ class SSOInstance(namedtuple("SSOInstance", ["start_url", "region", "start_url_s
     def to_strs(cls, instances, region=None):
         return ", ".join(i.to_str(region=region) for i in instances)
 
-def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=False) -> Optional[SSOInstance]:
-    start_url = scoped_config.get("sso_start_url")
-    region = scoped_config.get("sso_region")
+class SSOValidatedConfig(namedtuple("SSOValidatedConfig", ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"])):
+    sso_start_url: str
+    sso_region: str
+    sso_account_id: str
+    sso_role_name: str
+
+    REQUIRED_VARS = ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"]
+
+    def __str__(self) -> str:
+        return json.dumps(self._asdict())
+
+class SSOConfig(namedtuple("SSOConfig", ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"])):
+    """
+    The SSO configuration for a profile. It resolves the sso_session indirection.
+    """
+    sso_start_url: Optional[str]
+    sso_region: Optional[str]
+    sso_account_id: Optional[str]
+    sso_role_name: Optional[str]
+
+    def missing_vars(self):
+        d = self._asdict()
+        return [var for var in SSOValidatedConfig.REQUIRED_VARS if d[var] is None]
+
+    def validate(self, raise_missing_vars_error: Optional[Callable[[List[str]], NoReturn]]) -> SSOValidatedConfig:
+        missing_vars = self.missing_vars()
+        if missing_vars:
+            if raise_missing_vars_error:
+                raise_missing_vars_error(missing_vars)
+            else:
+                raise InvalidSSOConfigError(f"Missing {', '.join(missing_vars)}")
+        return SSOValidatedConfig(
+            sso_start_url=self.sso_start_url,
+            sso_region=self.sso_region,
+            sso_account_id=self.sso_account_id,
+            sso_role_name=self.sso_role_name,
+        )
+
+    def __str__(self) -> str:
+        return json.dumps(self._asdict())
+
+def get_sso_config(
+        profile_config: dict,
+        sso_sessions: dict,
+        arg_config: Optional[Dict[str, str]] = None) -> SSOConfig:
+    """
+    Get the SSO configuration for a profile.
+    It resolves the sso_session indirection.
+
+    :param profile_config: The profile configuration
+    :param sso_sessions: The sso_session configurations
+    :param arg_config: The configuration from CLI, which overrides the profile configuration
+    """
+    sso_session_name = profile_config.get("sso_session")
+    configs: List[dict] = []
+    # in order of precedence
+    if arg_config is not None:
+        configs.append(arg_config)
+    configs.append(profile_config)
+    if sso_session_name is not None:
+        sso_session = sso_sessions.get(sso_session_name)
+        if isinstance(sso_session, dict):
+            configs.append(sso_session)
+    def get_value(name: str) -> Optional[str]:
+        return next((config[name] for config in configs if isinstance(config.get(name), str)), None)
+    return SSOConfig(
+        sso_start_url=get_value("sso_start_url"),
+        sso_region=get_value("sso_region"),
+        sso_account_id=get_value("sso_account_id"),
+        sso_role_name=get_value("sso_role_name"),
+    )
+
+def _get_instance_from_profile(
+        profile_name: str,
+        scoped_config: dict,
+        sso_sessions: dict,
+        missing_ok=False) -> Optional[SSOInstance]:
+    sso_config = get_sso_config(scoped_config, sso_sessions)
+    start_url = sso_config.sso_start_url
+    region = sso_config.sso_region
     if not (start_url and region):
         if not missing_ok:
             LOGGER.debug(f"Did not find config in profile {profile_name}")
@@ -69,7 +148,12 @@ def _get_instance_from_profile(profile_name, scoped_config: dict, missing_ok=Fal
 def _get_all_instances_from_config(full_config: dict):
     instances: dict = {}
     for profile_name, scoped_config in full_config.get("profiles", {}).items():
-        instance = _get_instance_from_profile(profile_name, scoped_config, missing_ok=True)
+        instance = _get_instance_from_profile(
+            profile_name,
+            scoped_config,
+            full_config.get("sso_sessions", {}),
+            missing_ok=True
+        )
         if not instance:
             continue
         if instance.start_url in instances and instance.region != instances[instance.start_url].region:
@@ -96,13 +180,16 @@ def _find_instance_from_profile(
         region=None,
         region_source=None):
     try:
-        session = botocore.session.Session(profile=profile_name)
-        instance = _get_instance_from_profile(profile_name, session.get_scoped_config())
+        session = Session(profile=profile_name)
+        instance = _get_instance_from_profile(
+            profile_name,
+            session.get_scoped_config(),
+            session.full_config.get("sso_sessions", {}),
+        )
     except ProfileNotFound:
         return None
-    if not instance:
-        return None
-    _validate_instance(instance, profile_source, start_url, start_url_source, region, region_source)
+    if instance:
+        _validate_instance(instance, profile_source, start_url, start_url_source, region, region_source)
     return instance
 
 def _get_specifier(
@@ -178,7 +265,7 @@ def find_all_instances(
         unique_instances.append(specifier)
         all_instances.append(specifier)
 
-    session = botocore.session.Session(session_vars={
+    session = Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
     })
@@ -252,7 +339,7 @@ def find_instances(
         LOGGER.debug("Specifier has literal start URL and region, not searching for instances")
         return [specifier], specifier, [specifier]
 
-    session = botocore.session.Session(session_vars={
+    session = Session(session_vars={
         'profile': (None, None, None, None),
         'region': (None, None, None, None),
     })
