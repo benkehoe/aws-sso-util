@@ -37,12 +37,20 @@ from .vendored_botocore.utils import SSOTokenFetcher
 from .exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError
 from .browser import OpenBrowserHandler, non_interactive_auth_raiser
 
-SSO_TOKEN_DIR = os.path.expanduser(
-    os.path.join("~", ".aws", "sso", "cache")
+AWS_CREDENTIALS_DIR = (
+    os.path.dirname(os.environ.get("AWS_SHARED_CREDENTIALS_FILE", "")) or 
+    os.path.dirname(os.environ.get("AWS_CONFIG_FILE", "")) or
+    os.path.expanduser(os.path.join("~", ".aws"))
 )
 
-CREDENTIALS_CACHE_DIR = os.path.expanduser(
-    os.path.join("~", ".aws", "cli", "cache")
+SSO_TOKEN_DIR = (
+    os.environ.get("AWS_SSO_UTIL_SSO_TOKEN_DIR") or
+    os.path.join(AWS_CREDENTIALS_DIR, "sso", "cache")
+)
+
+CREDENTIALS_CACHE_DIR = (
+    os.environ.get("AWS_SSO_UTIL_CREDENTIALS_CACHE_DIR") or
+    os.path.join(AWS_CREDENTIALS_DIR, "cli", "cache")
 )
 
 LOGGER = logging.getLogger(__name__)
