@@ -557,6 +557,9 @@ def lookup_accounts_for_ou(session, ou, *, recursive, refresh=False, cache=None,
         else:
             LOGGER.debug(f"Loaded cached accounts for {ou_type} {ou}: (empty list)")
         for account in cache[ou_accounts_key]:
+            if exclude_inactive_accts and account["Status"] != "ACTIVE":
+                LOGGER.debug(f"Skipping account {account['Id']}: {account['Status']}")
+                continue
             if org_mgmt_acct and account["Id"] == org_mgmt_acct:
                 continue
             yield account
