@@ -52,7 +52,7 @@ This should be able to be a [SAR app](https://aws.amazon.com/serverless/serverle
 git clone https://github.com/benkehoe/aws-sso-util
 cd aws-sso-util/macro
 sam build --use-container
-sam deploy --capabilities "CAPABILITY_IAM,CAPABILITY_NAMED_IAM" --guided
+sam deploy --capabilities CAPABILITY_AUTO_EXPAND CAPABILITY_IAM CAPABILITY_NAMED_IAM --stack-name aws-sso-util-cf-macro --guided
 ```
 
 The macro template has the following parameters (note that for the values that can be set in the `Metadata` section of the template, as noted below, the template values take precedence for that template's generation):
