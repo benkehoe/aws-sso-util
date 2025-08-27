@@ -15,12 +15,12 @@
 # This code is based on the code for the AWS CLI v2"s `aws sso login` functionality
 # https://github.com/aws/aws-cli/tree/v2/awscli/customizations/sso
 
-import argparse
 import os
 import sys
 import json
 import logging
 import datetime
+from typing import Dict, List, Optional
 
 from botocore.session import Session
 from botocore.exceptions import ClientError
@@ -28,6 +28,7 @@ from botocore.exceptions import ClientError
 import click
 
 from aws_sso_lib.sso import get_credentials
+from aws_sso_lib.config import get_sso_config
 from aws_sso_lib.exceptions import InvalidSSOConfigError, AuthDispatchError, AuthenticationNeededError, UnauthorizedSSOTokenError
 
 LOG_FILE = os.path.expanduser(
@@ -36,34 +37,12 @@ LOG_FILE = os.path.expanduser(
 
 LOGGER = logging.getLogger(__name__)
 
-CONFIG_VARS = [
-    ("start url", "sso_start_url"),
-    ("SSO region", "sso_region"),
-    ("account", "sso_account_id"),
-    ("role", "sso_role_name")
-]
-
-def get_config(arg_config, profile_config):
-    sso_config = {}
-    missing_vars = []
-    for friendly_name, config_var_name in CONFIG_VARS:
-        if arg_config.get(config_var_name):
-            sso_config[config_var_name] = arg_config[config_var_name]
-        elif config_var_name not in profile_config:
-            missing_vars.append((friendly_name, config_var_name))
-            sso_config[config_var_name] = None
-        else:
-            sso_config[config_var_name] = profile_config[config_var_name]
-
-    required_vars = ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"]
-
-    missing_requred_vars = [v[0] for v in missing_vars if v[1] in required_vars]
-    if missing_requred_vars:
-        raise InvalidSSOConfigError(
-            "Missing " + ", ".join(missing_requred_vars)
-        )
-    return sso_config
-
+REQUIRED_VAR_MAP: Dict[str, str] = {
+    "sso_start_url": "start url",
+    "sso_region": "SSO region",
+    "sso_account_id": "account",
+    "sso_role_name": "role"
+}
 
 @click.command("credential-process")
 @click.option("--profile", help="Extract settings from the given profile")
@@ -75,13 +54,13 @@ def get_config(arg_config, profile_config):
 @click.option("--force-refresh", is_flag=True, help="Do not reuse cached Identity Center token")
 @click.option( "--verbose", "-v", "--debug", count=True, help="Write to the debugging log file")
 def credential_process(
-        profile,
-        start_url,
-        region,
-        account_id,
-        role_name,
-        force_refresh,
-        verbose):
+        profile: Optional[str],
+        start_url: Optional[str],
+        region: Optional[str],
+        account_id: Optional[str],
+        role_name: Optional[str],
+        force_refresh: bool,
+        verbose: int):
     """Helper for AWS SDKs that don't yet support Identity Center.
 
     This is not a command you use directly.
@@ -125,12 +104,15 @@ def credential_process(
     if profile:
         session_kwargs["profile"] = profile
 
-    arg_config = {
-        "sso_start_url": start_url,
-        "sso_region": region,
-        "sso_role_name": role_name,
-        "sso_account_id": account_id,
-    }
+    arg_config: Dict[str, str] = {}
+    if start_url:
+        arg_config["sso_start_url"] = start_url
+    if region:
+        arg_config["sso_region"] = region
+    if role_name:
+        arg_config["sso_role_name"] = role_name
+    if account_id:
+        arg_config["sso_account_id"] = account_id
 
     LOGGER.info("CONFIG FROM ARGS: {}".format(json.dumps(arg_config)))
 
@@ -143,25 +125,28 @@ def credential_process(
         else:
             profile_config = {}
 
-        config = get_config(arg_config, profile_config)
+        sso_sessions = session.full_config.get("sso_sessions", {})
+        def raise_missing_vars_error(missing_vars: List[str]) -> str:
+            message = f"Missing {', '.join([REQUIRED_VAR_MAP[var] for var in missing_vars])}"
+            raise InvalidSSOConfigError(message)
+        config = get_sso_config(profile_config, sso_sessions, arg_config).validate(
+            raise_missing_vars_error=raise_missing_vars_error
+        )
 
-        LOGGER.info("CONFIG: {}".format(json.dumps(config)))
+        LOGGER.info("CONFIG: %s", config)
 
-        if (config.get("sso_interactive_auth") or "").lower() == "true":
-            raise InvalidSSOConfigError("Interactive auth has been removed. See https://github.com/benkehoe/aws-sso-credential-process/issues/4")
-
-        if not config["sso_account_id"]:
+        if not config.sso_account_id:
             raise InvalidSSOConfigError("Missing account id")
 
-        if not config["sso_role_name"]:
+        if not config.sso_role_name:
             raise InvalidSSOConfigError("Missing role")
 
         credentials = get_credentials(
             session=session,
-            start_url=config["sso_start_url"],
-            sso_region=config["sso_region"],
-            account_id=config["sso_account_id"],
-            role_name=config["sso_role_name"],
+            start_url=config.sso_start_url,
+            sso_region=config.sso_region,
+            account_id=config.sso_account_id,
+            role_name=config.sso_role_name,
             force_refresh=force_refresh,
         )
 

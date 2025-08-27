@@ -19,17 +19,17 @@ import getpass
 import traceback
 import datetime
 import textwrap
-import json
+from typing import List
 
-import botocore
+from botocore.session import Session
 import click
 
 from aws_error_utils import catch_aws_error
 
-from aws_sso_lib.sso import get_boto3_session, list_available_accounts, list_available_roles, login, get_token_fetcher, SSO_TOKEN_DIR
-from aws_sso_lib.config import find_instances, SSOInstance
+from aws_sso_lib.sso import list_available_accounts, list_available_roles, login, get_token_fetcher, SSO_TOKEN_DIR
+from aws_sso_lib.config import find_instances, SSOInstance, get_sso_config
 
-from .utils import configure_logging, GetInstanceError
+from .utils import configure_logging
 
 from .login import LOGIN_DEFAULT_START_URL_VARS, LOGIN_DEFAULT_SSO_REGION_VARS
 from .configure_profile import CONFIGURE_DEFAULT_START_URL_VARS, CONFIGURE_DEFAULT_SSO_REGION_VARS
@@ -128,27 +128,24 @@ def check(
     if check_profile:
         if (sso_start_url or sso_region or account or role_name):
             raise click.UsageError("Cannot specify --sso-start-url, --sso-region, --account-id, or --role-name with --check-profile")
-        config_session = botocore.session.Session(profile=check_profile)
-        missing = []
-        profile_config = {}
-        for key in ["sso_start_url", "sso_region", "sso_account_id", "sso_role_name"]:
-            value = config_session.get_scoped_config().get(key)
-            if not value:
-                missing.append(key)
-            else:
-                profile_config[key] = value
-        if missing:
-            raise click.UsageError(f"Profile {check_profile} is missing config fields {', '.join(missing)}")
+        config_session = Session(profile=check_profile)
+        def raise_missing_vars_error(missing: List[str]):
+            message = f"Profile {check_profile} is missing config fields {', '.join(missing)}"
+            raise click.UsageError(message)
+        sso_config = get_sso_config(
+            profile_config=config_session.get_scoped_config(),
+            sso_sessions=config_session.full_config.get("sso_sessions", {}),
+        ).validate(raise_missing_vars_error=raise_missing_vars_error)
 
         start_url_source = f"CLI-specified profile {check_profile}"
         region_source = f"CLI-specified profile {check_profile}"
 
-        sso_start_url = profile_config["sso_start_url"]
-        sso_region = profile_config["sso_region"]
-        account = profile_config["sso_account_id"]
-        role_name = profile_config["sso_role_name"]
+        sso_start_url = sso_config.sso_start_url
+        sso_region = sso_config.sso_region
+        account = sso_config.sso_account_id
+        role_name = sso_config.sso_role_name
         if verbose:
-            LOGGER.info(f"Configuration for profile {check_profile}: {json.dumps(profile_config)}")
+            LOGGER.info("Configuration for profile %s: %s", check_profile, sso_config)
         else:
             LOGGER.info(textwrap.dedent(f"""\
             Configuration for profile {check_profile}:
@@ -242,7 +239,7 @@ def check(
             sys.exit(201)
     else:
         try:
-            session = botocore.session.Session(session_vars={
+            session = Session(session_vars={
                 'profile': (None, None, None, None),
                 'region': (None, None, None, None),
             })
