@@ -18,6 +18,8 @@ classifiers = [
 
 [tool.poetry.scripts]
 aws-sso-util = 'aws_sso_util.cli:cli'
+test = 'pytest:main'
+tests = 'pytest:main'
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -32,8 +34,59 @@ aws-sso-lib = "^1.13.0"
 # aws-sso-lib = { path = "../lib", develop = true }
 requests = "^2.26.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pylint = "^2.5.2"
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.11.1"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--verbose",
+    "-ra",
+    "--cov=aws_sso_util",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml"
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow tests"
+]
+
+[tool.coverage.run]
+source = ["src/aws_sso_util"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    "*/vendored_botocore/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:"
+]
+show_missing = true
+precision = 2
+# fail_under = 80
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

@@ -19,6 +19,31 @@ __pycache__
 samconfig.toml
 
 dist
-poetry.lock
 *.egg-info
 .python-version
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.py,cover
+.hypothesis/
+pytest_cache/
+.tox/
+.nox/
+.coverage.*
+
+# Claude
+.claude/*
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+*.iml
+*.iws
