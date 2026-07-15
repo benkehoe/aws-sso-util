@@ -14,6 +14,7 @@
 import re
 from collections import namedtuple
 import logging
+import pathlib
 
 import boto3
 import aws_error_utils
@@ -187,7 +188,11 @@ def assignments(
 
     if visualize_file:
         num_written = write_access_graph(assignments_for_graph, visualize_file)
-        LOGGER.info("Wrote access graph with %s assignments to %s", num_written, visualize_file)
+        graph_uri = pathlib.Path(visualize_file).resolve().as_uri()
+        click.secho(
+            "Wrote access graph with {} assignments to {}".format(num_written, visualize_file),
+            fg="green", err=True)
+        click.secho("Open it: {}".format(graph_uri), fg="green", err=True)
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
