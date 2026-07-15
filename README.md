@@ -154,6 +154,7 @@ These identifiers aren't readily available through the console, and the principa
 There is no simple API for retrieving all assignments or even a decent subset.
 The current best you can do is [list all the users with a particular PermissionSet on a particular account](https://docs.aws.amazon.com/singlesignon/latest/APIReference/API_ListAccountAssignments.html).
 `aws-sso-util admin assignments` takes the effort out of looping over the necessary APIs.
+With `--visualize FILE.html` it can also write the results as a self-contained interactive access graph, which is much easier to review than the raw CSV; see [the docs](docs/lookup.md#visualizing-assignments).
 
 ## Administrators: CloudFormation support
 

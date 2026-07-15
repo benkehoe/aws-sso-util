@@ -93,3 +93,25 @@ You can control the field separator
 By default, the names for every principal, permission set, and target are looked up.
 To eliminate this step from the process, use `--no-lookup-names`.
 Names for accounts will still appear if you have not specified specific accounts, because the names are available when enumerating accounts in Organizations anyway.
+
+## Visualizing assignments
+
+The CSV output is complete but hard to read once an organization has more than a handful of accounts.
+`aws-sso-util admin assignments` can additionally write the same results as an interactive HTML page:
+
+```
+aws-sso-util admin assignments --visualize
+```
+
+This writes `access-graph.html` in the current directory. Pass a filename to change that, for example `--visualize my-org.html`.
+
+The page shows principals, permission sets, and accounts as three columns, with a line for every assignment.
+Hover a node to preview its access, click it to pin the full paths, search by name or account id, or switch to a plain table view.
+Any filters you pass to the command (`--group`, `--permission-set`, `--ou`, and so on) apply to the graph as well, and the normal CSV output is still printed.
+
+The file is fully self-contained: no external scripts, no styles fetched from anywhere, no network calls.
+Your assignment data is embedded in the file and never leaves it, so treat the file with the same care as the CSV output.
+
+![Access graph with a group selected, showing its accounts and permission sets](images/access-graph.png)
+
+The screenshot uses made up example data.
