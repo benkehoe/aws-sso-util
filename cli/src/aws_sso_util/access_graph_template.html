@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity Center Access Graph</title>
+<style>
+  :root {
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --band: #f3f2ef;
+    --ink-1: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --edge: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --c-principal: #2a78d6;
+    --c-pset: #1baf7a;
+    --c-account: #eb6834;
+    --hl: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --band: #211f1e;
+      --ink-1: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-muted: #898781;
+      --grid: #2c2c2a;
+      --edge: #4a4a46;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --c-principal: #3987e5;
+      --c-pset: #199e70;
+      --c-account: #d95926;
+      --hl: #3987e5;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page);
+    color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 28px 32px 48px;
+  }
+  header h1 { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  header p { color: var(--ink-2); margin-top: 2px; font-size: 13px; }
+
+  .kpis { display: flex; gap: 12px; margin: 18px 0 16px; flex-wrap: wrap; }
+  .kpi {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px 12px; min-width: 128px; text-align: left;
+    font: inherit; color: inherit; cursor: default;
+  }
+  .kpi .v { font-size: 26px; font-weight: 650; }
+  .kpi .k { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .kpi .k .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .kpi .k .ring { width: 7px; height: 7px; border-radius: 50%; display: inline-block; border: 2px solid; background: none; }
+
+  .controls { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; flex-wrap: wrap; }
+  .search-wrap { position: relative; }
+  .controls input[type="search"] {
+    background: var(--surface-1); color: var(--ink-1);
+    border: 1px solid var(--baseline); border-radius: 8px;
+    padding: 7px 12px; font: inherit; width: 320px;
+  }
+  .controls input[type="search"]:focus { outline: 2px solid var(--hl); outline-offset: 1px; }
+  .search-results {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+    width: 380px; max-height: 320px; overflow-y: auto; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16); padding: 4px;
+  }
+  .search-results.open { display: block; }
+  .search-results button {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: none; border: none; font: inherit; color: var(--ink-1);
+    padding: 7px 10px; border-radius: 7px; cursor: pointer; text-align: left;
+  }
+  .search-results button:hover, .search-results button.active { background: var(--band); }
+  .search-results .r-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+  .search-results .r-ring { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 6px; border: 2px solid; background: none; }
+  .search-results .r-name { flex: 1 1 auto; overflow-wrap: anywhere; }
+  .search-results .r-type { color: var(--ink-muted); font-size: 11px; flex: 0 0 auto; }
+  .search-results .r-none { color: var(--ink-muted); font-size: 12.5px; padding: 8px 10px; }
+  .seg { display: inline-flex; border: 1px solid var(--baseline); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    background: var(--surface-1); color: var(--ink-2); border: none;
+    padding: 7px 14px; font: inherit; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--hl); color: #fff; }
+  .btn-clear {
+    background: none; border: none; color: var(--ink-2); font: inherit;
+    cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    display: none;
+  }
+  .btn-clear.on { display: inline; }
+
+  .howto { color: var(--ink-muted); font-size: 12.5px; margin-bottom: 12px; }
+  .howto b { color: var(--ink-2); font-weight: 600; }
+
+  .layout { display: flex; gap: 16px; align-items: flex-start; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; overflow-x: auto; flex: 1 1 auto; min-width: 0;
+  }
+  aside.panel {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; width: 310px; flex: 0 0 310px;
+    position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  aside.panel .hint { color: var(--ink-muted); font-size: 13px; }
+  aside.panel .typechip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--ink-2); margin-bottom: 6px;
+  }
+  aside.panel .typechip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  aside.panel h2 { font-size: 15px; font-weight: 650; margin-bottom: 2px; overflow-wrap: anywhere; }
+  aside.panel .sub { color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
+  aside.panel h3 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-muted); margin: 14px 0 4px;
+  }
+  aside.panel h3 button, aside.panel li button {
+    background: none; border: none; font: inherit; color: inherit; padding: 0;
+    cursor: pointer; text-align: left; overflow-wrap: anywhere;
+  }
+  aside.panel h3 button:hover, aside.panel li button:hover { color: var(--hl); text-decoration: underline; text-underline-offset: 3px; }
+  aside.panel ul { list-style: none; padding: 0; }
+  aside.panel li { padding: 3px 0 3px 14px; font-size: 13px; position: relative; }
+  aside.panel li::before {
+    content: ""; position: absolute; left: 0; top: 10px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--target-dot, var(--grid));
+  }
+  aside.panel .jump-note { color: var(--ink-muted); font-size: 11.5px; margin-top: 12px; }
+
+  svg { display: block; }
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink-1); }
+  .band { fill: var(--band); }
+  .colhead { font-size: 11.5px; font-weight: 650; letter-spacing: 0.06em; fill: var(--ink-1); }
+  .colsub { font-size: 10.5px; fill: var(--ink-muted); }
+  .edge { fill: none; stroke: var(--edge); transition: stroke 0.12s, opacity 0.12s; }
+  .nodelabel { font-size: 12.5px; }
+  .nodecount { font-size: 11px; fill: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .badge { font-size: 9.5px; fill: var(--ink-muted); letter-spacing: 0.04em; }
+  .pslabel { paint-order: stroke; stroke: var(--band); stroke-width: 4px; }
+  .node { cursor: pointer; }
+  .node:focus { outline: none; }
+  .node:focus .hitring { stroke: var(--hl); }
+  .hit { fill: transparent; stroke: none; }
+  .hitring { fill: none; stroke: transparent; stroke-width: 1.5px; }
+
+  g.dim { opacity: 0.2; }
+  path.dim { opacity: 0.18; }
+  path.lit { stroke: var(--hl); }
+  g.sel .selring { stroke: var(--hl); }
+  .selring { fill: none; stroke: transparent; stroke-width: 1.5px; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); color: var(--ink-1);
+    border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+    padding: 8px 11px; font-size: 12.5px; max-width: 320px;
+  }
+  #tooltip .t-name { font-weight: 650; overflow-wrap: anywhere; }
+  #tooltip .t-type { color: var(--ink-2); font-size: 11.5px; margin-bottom: 3px; }
+  #tooltip .t-row { color: var(--ink-2); }
+  #tooltip .t-row b { color: var(--ink-1); font-weight: 650; }
+
+  #tableview { display: none; }
+  #tableview table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #tableview th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-muted); font-weight: 600; padding: 6px 10px;
+    border-bottom: 1px solid var(--baseline); position: sticky; top: 0; background: var(--surface-1);
+  }
+  #tableview td { padding: 5px 10px; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
+  #tableview td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #tableview .tag { font-size: 11px; color: var(--ink-2); }
+  .count-note { color: var(--ink-muted); font-size: 12px; margin: 8px 2px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Identity Center Access Graph</h1>
+  <p>Who can reach what: principals → permission sets → AWS accounts. Source: <code>aws-sso-util admin assignments</code>, snapshot <span id="snapshot-date">/*DATE*/</span>.</p>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="controls">
+  <span class="search-wrap">
+    <input type="search" id="search" placeholder="Search groups, users, accounts…" aria-label="Search nodes" autocomplete="off">
+    <div class="search-results" id="search-results" role="listbox"></div>
+  </span>
+  <span class="seg" role="group" aria-label="View">
+    <button id="btn-graph" aria-pressed="true">Graph</button>
+    <button id="btn-table" aria-pressed="false">Table</button>
+  </span>
+  <button class="btn-clear" id="btn-clear">Clear selection</button>
+</div>
+
+<p class="howto"><b>How to read it:</b> follow a line left to right — <span style="color:var(--c-principal)">■</span> who → <span style="color:var(--c-pset)">■</span> at what level → <span style="color:var(--c-account)">■</span> in which account. Hover to preview, <b>click to pin</b>, then click names in the side panel to jump around. Line weight = number of assignments.</p>
+
+<div class="layout">
+  <div style="flex:1 1 auto; min-width:0;">
+    <div class="card" id="graphview"></div>
+    <div class="card" id="tableview">
+      <table aria-label="All assignments">
+        <thead><tr><th>Principal</th><th>Type</th><th>Permission set</th><th>Account</th><th>Account ID</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p class="count-note" id="tcount"></p>
+    </div>
+  </div>
+  <aside class="panel" id="panel">
+    <p class="hint">Click any group, user, permission set, or account to see its full access paths here.</p>
+  </aside>
+</div>
+
+<div id="tooltip" role="status"></div>
+
+<script>
+const DATA = /*DATA*/[];
+// rows: [principal_type, principal_name, permission_set, account_id, account_name]
+
+const ADMIN_PS = /Administrator|OrganizationsFullAccess|SuperAdmin/;
+
+// ---------- model ----------
+const nodes = new Map();
+function nkey(kind, name) { return kind + "|" + name; }
+// stable keys: principals by type+name, accounts by account ID (names are not unique)
+function pkeyOf(r) { return nkey("P", r[0] + ":" + r[1]); }
+function akeyOf(r) { return nkey("A", r[3]); }
+for (const r of DATA) {
+  const [ptype, pname, ps, aid, aname] = r;
+  const pk = pkeyOf(r), sk = nkey("S", ps), ak = akeyOf(r);
+  if (!nodes.has(pk)) nodes.set(pk, { key: pk, kind: "P", type: ptype, name: pname, rows: [] });
+  if (!nodes.has(sk)) nodes.set(sk, { key: sk, kind: "S", name: ps, admin: ADMIN_PS.test(ps), rows: [] });
+  if (!nodes.has(ak)) nodes.set(ak, { key: ak, kind: "A", name: aname || aid, id: aid, rows: [] });
+  nodes.get(pk).rows.push(r); nodes.get(sk).rows.push(r); nodes.get(ak).rows.push(r);
+}
+const principals = [...nodes.values()].filter(n => n.kind === "P").sort((a,b) => b.rows.length - a.rows.length || a.name.localeCompare(b.name));
+const psets      = [...nodes.values()].filter(n => n.kind === "S").sort((a,b) => b.rows.length - a.rows.length || a.name.localeCompare(b.name));
+const accounts   = [...nodes.values()].filter(n => n.kind === "A").sort((a,b) => b.rows.length - a.rows.length || a.name.localeCompare(b.name));
+
+const eLeft = new Map(), eRight = new Map();
+for (const r of DATA) {
+  const pk = pkeyOf(r), sk = nkey("S", r[2]), ak = akeyOf(r);
+  const lk = pk + "→" + sk, rk = sk + "→" + ak;
+  eLeft.set(lk, (eLeft.get(lk) || { a: pk, b: sk, n: 0 }));  eLeft.get(lk).n++;
+  eRight.set(rk, (eRight.get(rk) || { a: sk, b: ak, n: 0 })); eRight.get(rk).n++;
+}
+
+// ---------- KPIs ----------
+const kpis = [
+  [DATA.length, "assignments", null, "dot"],
+  [principals.filter(p => p.type === "GROUP").length, "groups", "var(--c-principal)", "dot"],
+  [principals.filter(p => p.type === "USER").length, "users", "var(--c-principal)", "ring"],
+  [psets.length, "permission sets", "var(--c-pset)", "dot"],
+  [accounts.length, "AWS accounts", "var(--c-account)", "dot"],
+];
+const kpiRoot = document.getElementById("kpis");
+for (const [v, k, c, style] of kpis) {
+  const d = document.createElement("div"); d.className = "kpi";
+  const dv = document.createElement("div"); dv.className = "v"; dv.textContent = String(v);
+  const dk = document.createElement("div"); dk.className = "k";
+  if (c) {
+    const dot = document.createElement("span"); dot.className = style;
+    if (style === "ring") dot.style.borderColor = c; else dot.style.background = c;
+    dk.append(dot);
+  }
+  dk.append(document.createTextNode(k));
+  d.append(dv, dk); kpiRoot.append(d);
+}
+
+// ---------- graph geometry ----------
+const ROW = 24, PAD_TOP = 64, PAD_BOT = 20;
+const H = PAD_TOP + Math.max(principals.length, psets.length, accounts.length) * ROW + PAD_BOT;
+const LABEL_W = 320;
+const XP = 366, XS = 680, XA = 990, W = 1340;
+// column bands
+const BANDS = [
+  { x: 12,        w: XP + 24 - 12,  title: "PRINCIPALS",      sub: "who has access",   color: "var(--c-principal)", tx: XP + 10, anchor: "end" },
+  { x: XS - 110,  w: 220,           title: "PERMISSION SETS", sub: "at what level",    color: "var(--c-pset)",      tx: XS,      anchor: "middle" },
+  { x: XA - 24,   w: W - (XA - 24) - 12, title: "AWS ACCOUNTS", sub: "which accounts", color: "var(--c-account)",   tx: XA - 10, anchor: "start" },
+];
+function colY(list, i) {
+  const span = H - PAD_TOP - PAD_BOT;
+  const step = span / list.length;
+  return PAD_TOP + step * (i + 0.5);
+}
+principals.forEach((n, i) => { n.x = XP; n.y = PAD_TOP + ROW * (i + 0.5); });
+psets.forEach((n, i)      => { n.x = XS; n.y = colY(psets, i); });
+accounts.forEach((n, i)   => { n.x = XA; n.y = colY(accounts, i); });
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", "aria-label": "Access graph" });
+svg.style.minWidth = "1100px";
+document.getElementById("graphview").append(svg);
+
+// bands + headers
+for (const b of BANDS) {
+  svg.append(el("rect", { x: b.x, y: 8, width: b.w, height: H - 16, rx: 10, class: "band" }));
+  const cx = b.anchor === "end" ? b.tx - 4 : b.anchor === "start" ? b.tx + 4 : b.tx;
+  const head = el("text", { x: cx, y: 30, "text-anchor": b.anchor, class: "colhead" });
+  head.textContent = b.title;
+  const sub = el("text", { x: cx, y: 45, "text-anchor": b.anchor, class: "colsub" });
+  sub.textContent = b.sub;
+  svg.append(head, sub);
+}
+
+// edges (under nodes, over bands)
+const edgeLayer = el("g", {}); svg.append(edgeLayer);
+const edgeEls = new Map();
+function curve(x1, y1, x2, y2) {
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+function drawEdges(map) {
+  for (const [k, e] of map) {
+    const a = nodes.get(e.a), b = nodes.get(e.b);
+    const p = el("path", {
+      d: curve(a.x + 9, a.y, b.x - 9, b.y),
+      class: "edge", "stroke-width": Math.min(1 + Math.sqrt(e.n) * 0.55, 4).toFixed(2),
+    });
+    edgeLayer.append(p); edgeEls.set(k, p);
+  }
+}
+drawEdges(eLeft);
+drawEdges(eRight);
+
+// nodes
+const nodeEls = new Map();
+const tooltip = document.getElementById("tooltip");
+function nodeColor(n) { return n.kind === "P" ? "var(--c-principal)" : n.kind === "S" ? "var(--c-pset)" : "var(--c-account)"; }
+const measureCtx = document.createElement("canvas").getContext("2d");
+measureCtx.font = "12.5px system-ui, -apple-system, 'Segoe UI', sans-serif";
+function trimTo(text, maxW) {
+  let t = text;
+  while (measureCtx.measureText(t).width > maxW && t.length > 4) t = t.slice(0, -2);
+  return t === text ? t : t + "…";
+}
+
+function makeNode(n) {
+  const g = el("g", { class: "node", tabindex: "0", role: "button" });
+  g.setAttribute("aria-label",
+    (n.kind === "P" ? (n.type === "USER" ? "User " : "Group ") : n.kind === "S" ? "Permission set " : "AWS account ") + n.name);
+  if (n.kind === "P" && n.type === "USER") {
+    g.append(el("circle", { cx: n.x, cy: n.y, r: 4.5, fill: "var(--band)", stroke: nodeColor(n), "stroke-width": 2 }));
+  } else {
+    g.append(el("circle", { cx: n.x, cy: n.y, r: 5, fill: nodeColor(n) }));
+  }
+  g.append(el("circle", { cx: n.x, cy: n.y, r: 9, class: "hitring" }));
+  g.append(el("circle", { cx: n.x, cy: n.y, r: 9, class: "selring" }));
+
+  const label = el("text", { y: n.y + 4, class: "nodelabel" });
+  if (n.kind === "P") {
+    const t = trimTo(n.name, LABEL_W);
+    label.setAttribute("x", n.x - 14); label.setAttribute("text-anchor", "end");
+    label.textContent = t;
+    const count = el("text", { x: n.x - 14 - Math.min(measureCtx.measureText(t).width, LABEL_W) - 8, y: n.y + 4, class: "nodecount", "text-anchor": "end" });
+    count.textContent = String(n.rows.length);
+    g.append(count);
+  } else if (n.kind === "A") {
+    label.setAttribute("x", n.x + 14); label.setAttribute("text-anchor", "start");
+    label.textContent = n.name;
+    const w = measureCtx.measureText(n.name).width;
+    const count = el("text", { x: n.x + 14 + Math.min(w, LABEL_W) + 8, y: n.y + 4, class: "nodecount", "text-anchor": "start" });
+    count.textContent = String(n.rows.length);
+    g.append(count);
+  } else {
+    label.setAttribute("x", n.x); label.setAttribute("text-anchor", "middle");
+    label.setAttribute("y", n.y - 11);
+    label.classList.add("pslabel");
+    label.textContent = n.name;
+    if (n.admin) {
+      const b = el("text", { x: n.x, y: n.y + 17, "text-anchor": "middle", class: "badge pslabel" });
+      b.textContent = "ADMIN-LEVEL";
+      g.append(b);
+    }
+  }
+  g.append(label);
+  const hx = n.kind === "P" ? n.x - LABEL_W - 40 : n.kind === "A" ? n.x - 12 : n.x - 105;
+  const hw = n.kind === "S" ? 210 : LABEL_W + 52;
+  g.append(el("rect", { x: hx, y: n.y - ROW / 2, width: hw, height: ROW, class: "hit" }));
+
+  g.addEventListener("pointerenter", ev => { hoverNode(n); showTip(n, ev); });
+  g.addEventListener("pointermove", ev => positionTip(ev.clientX, ev.clientY));
+  g.addEventListener("pointerleave", () => { unhover(); hideTip(); });
+  g.addEventListener("focus", () => { hoverNode(n); const r = g.getBoundingClientRect(); showTipAt(n, r.right, r.top); });
+  g.addEventListener("blur", () => { unhover(); hideTip(); });
+  g.addEventListener("click", ev => { ev.stopPropagation(); select(n); });
+  g.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); select(n); } });
+
+  svg.append(g);
+  nodeEls.set(n.key, g);
+}
+principals.forEach(makeNode); psets.forEach(makeNode); accounts.forEach(makeNode);
+
+// ---------- highlight logic ----------
+let selected = null;
+function litSets(n) {
+  const lit = { nodes: new Set(n.kind === "M" ? n.matches.map(m => m.key) : [n.key]), edges: new Set() };
+  for (const r of n.rows) {
+    const pk = pkeyOf(r), sk = nkey("S", r[2]), ak = akeyOf(r);
+    lit.nodes.add(pk); lit.nodes.add(sk); lit.nodes.add(ak);
+    lit.edges.add(pk + "→" + sk); lit.edges.add(sk + "→" + ak);
+  }
+  return lit;
+}
+function applyLit(lit) {
+  for (const [k, g] of nodeEls) g.classList.toggle("dim", !lit.nodes.has(k));
+  for (const [k, p] of edgeEls) {
+    const on = lit.edges.has(k);
+    p.classList.toggle("lit", on);
+    p.classList.toggle("dim", !on);
+  }
+}
+function clearLit() {
+  for (const g of nodeEls.values()) g.classList.remove("dim");
+  for (const p of edgeEls.values()) { p.classList.remove("lit"); p.classList.remove("dim"); }
+}
+function hoverNode(n) { if (!selected) applyLit(litSets(n)); }
+function unhover() { if (!selected) clearLit(); else applyLit(litSets(selected)); }
+function select(n) {
+  if (selected) nodeEls.get(selected.key)?.classList.remove("sel");
+  selected = n;
+  nodeEls.get(n.key)?.classList.add("sel");
+  applyLit(litSets(n));
+  renderPanel(n);
+  document.getElementById("btn-clear").classList.add("on");
+}
+function deselect() {
+  if (selected) nodeEls.get(selected.key)?.classList.remove("sel");
+  selected = null; clearLit();
+  const panel = document.getElementById("panel");
+  panel.replaceChildren();
+  const p = document.createElement("p"); p.className = "hint";
+  p.textContent = "Click any group, user, permission set, or account to see its full access paths here.";
+  panel.append(p);
+  document.getElementById("btn-clear").classList.remove("on");
+}
+svg.addEventListener("click", ev => {
+  if (ev.target === svg || ev.target.classList.contains("band")) deselect();
+});
+document.getElementById("btn-clear").addEventListener("click", deselect);
+
+// ---------- tooltip ----------
+function tipRows(n) {
+  const uniq = (i) => new Set(n.rows.map(r => r[i])).size;
+  if (n.kind === "P") return [["Reaches", uniq(4) + " accounts"], ["Via", uniq(2) + " permission sets"], ["Assignments", String(n.rows.length)]];
+  if (n.kind === "S") return [["Granted to", uniq(1) + " principals"], ["On", uniq(4) + " accounts"], ["Assignments", String(n.rows.length)]];
+  return [["Account ID", n.id], ["Reachable by", uniq(1) + " principals"], ["Via", uniq(2) + " permission sets"]];
+}
+function showTip(n, ev) { buildTip(n); positionTip(ev.clientX, ev.clientY); }
+function showTipAt(n, x, y) { buildTip(n); positionTip(x, y); }
+function buildTip(n) {
+  tooltip.replaceChildren();
+  const t = document.createElement("div"); t.className = "t-name"; t.textContent = n.name;
+  const ty = document.createElement("div"); ty.className = "t-type";
+  ty.textContent = n.kind === "P" ? (n.type === "USER" ? "User" : "Group") : n.kind === "S" ? (n.admin ? "Permission set · admin-level" : "Permission set") : "AWS account";
+  tooltip.append(t, ty);
+  for (const [k, v] of tipRows(n)) {
+    const r = document.createElement("div"); r.className = "t-row";
+    const b = document.createElement("b"); b.textContent = v;
+    r.append(document.createTextNode(k + " "), b);
+    tooltip.append(r);
+  }
+  tooltip.style.display = "block";
+}
+function positionTip(x, y) {
+  const pad = 14;
+  const r = tooltip.getBoundingClientRect();
+  let tx = x + pad, ty = y + pad;
+  if (tx + r.width > innerWidth - 8) tx = x - r.width - pad;
+  if (ty + r.height > innerHeight - 8) ty = y - r.height - pad;
+  tooltip.style.left = tx + "px"; tooltip.style.top = ty + "px";
+}
+function hideTip() { tooltip.style.display = "none"; }
+
+// ---------- details panel (click-through navigation) ----------
+function jumpButton(key, label) {
+  const btn = document.createElement("button");
+  btn.textContent = label;
+  btn.addEventListener("click", () => {
+    const n = nodes.get(key);
+    if (n) select(n);
+  });
+  return btn;
+}
+function renderPanel(n) {
+  const panel = document.getElementById("panel");
+  panel.replaceChildren();
+
+  if (n.kind === "M") { renderPanelMulti(n, panel); return; }
+
+  const chip = document.createElement("div"); chip.className = "typechip";
+  const cdot = document.createElement("span"); cdot.className = "dot"; cdot.style.background = nodeColor(n);
+  chip.append(cdot, document.createTextNode(
+    n.kind === "P" ? (n.type === "USER" ? "User" : "Group") : n.kind === "S" ? "Permission set" : "AWS account"
+  ));
+  const h = document.createElement("h2"); h.textContent = n.name;
+  const sub = document.createElement("div"); sub.className = "sub";
+  const uniq = (i) => new Set(n.rows.map(r => r[i])).size;
+  sub.textContent = n.kind === "P" ? "Reaches " + uniq(4) + " accounts via " + uniq(2) + " permission sets · " + n.rows.length + " assignments"
+    : n.kind === "S" ? (n.admin ? "Admin-level · " : "") + uniq(1) + " principals on " + uniq(4) + " accounts"
+    : "Account " + n.id + " · reachable by " + uniq(1) + " principals";
+  panel.append(chip, h, sub);
+
+  // group rows: for P and A group by permission set; for S group by account
+  const groups = new Map();
+  for (const r of n.rows) {
+    const gk = n.kind === "S" ? akeyOf(r) : nkey("S", r[2]);
+    if (!groups.has(gk)) groups.set(gk, { label: n.kind === "S" ? (r[4] || r[3]) : r[2], rows: [] });
+    groups.get(gk).rows.push(r);
+  }
+  const sorted = [...groups.entries()].sort((a, b) => b[1].rows.length - a[1].rows.length);
+  for (const [gk, grp] of sorted) {
+    const h3 = document.createElement("h3");
+    h3.append(jumpButton(gk, grp.label));
+    h3.append(document.createTextNode(" (" + grp.rows.length + ")"));
+    panel.append(h3);
+    const ul = document.createElement("ul");
+    const itemKind = n.kind === "P" ? "A" : "P";
+    const items = new Map();
+    for (const r of grp.rows) {
+      const k = itemKind === "A" ? akeyOf(r) : pkeyOf(r);
+      if (!items.has(k)) items.set(k, itemKind === "A" ? (r[4] || r[3]) : r[1]);
+    }
+    ul.style.setProperty("--target-dot", itemKind === "A" ? "var(--c-account)" : "var(--c-principal)");
+    for (const [k, label] of [...items.entries()].sort((a, b) => a[1].localeCompare(b[1]))) {
+      const li = document.createElement("li");
+      li.append(jumpButton(k, label));
+      ul.append(li);
+    }
+    panel.append(ul);
+  }
+  const note = document.createElement("p"); note.className = "jump-note";
+  note.textContent = "Every name here is clickable. Jump to it to trace its own access.";
+  panel.append(note);
+}
+
+function renderPanelMulti(n, panel) {
+  const chip = document.createElement("div"); chip.className = "typechip";
+  const cdot = document.createElement("span"); cdot.className = "dot"; cdot.style.background = "var(--hl)";
+  chip.append(cdot, document.createTextNode("Search matches"));
+  const h = document.createElement("h2"); h.textContent = "\"" + n.name + "\": " + n.matches.length + " matches";
+  const sub = document.createElement("div"); sub.className = "sub";
+  const uniq = (i) => new Set(n.rows.map(r => r[i])).size;
+  sub.textContent = "Together: " + uniq(4) + " accounts via " + uniq(2) + " permission sets · " + n.rows.length + " assignments";
+  panel.append(chip, h, sub);
+
+  const h3 = document.createElement("h3"); h3.textContent = "All paths shown in the graph";
+  panel.append(h3);
+  const ul = document.createElement("ul");
+  ul.style.setProperty("--target-dot", "var(--grid)");
+  for (const m of n.matches) {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.textContent = m.name + "  (" + typeLabel(m) + " · " + m.rows.length + ")";
+    btn.addEventListener("click", () => select(m));
+    li.append(btn);
+    ul.append(li);
+  }
+  panel.append(ul);
+  const note = document.createElement("p"); note.className = "jump-note";
+  note.textContent = "Click a match to focus just its paths.";
+  panel.append(note);
+}
+
+// ---------- search ----------
+const searchEl = document.getElementById("search");
+const resultsEl = document.getElementById("search-results");
+let resultNodes = [];
+let fullMatches = [];
+let resultActions = [];
+let activeIdx = -1;
+
+function typeLabel(n) {
+  return n.kind === "P" ? (n.type === "USER" ? "User" : "Group") : n.kind === "S" ? "Permission set" : "AWS account";
+}
+function searchMatches(q) {
+  const hits = [...nodes.values()].filter(n =>
+    n.name.toLowerCase().includes(q) || (n.id && n.id.includes(q)));
+  // exact-prefix matches first, then by assignment volume
+  hits.sort((a, b) => {
+    const ap = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+    const bp = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+    return ap - bp || b.rows.length - a.rows.length;
+  });
+  return hits;
+}
+function renderResults(q) {
+  resultsEl.replaceChildren();
+  activeIdx = -1;
+  resultActions = [];
+  if (!q) { resultsEl.classList.remove("open"); return; }
+  fullMatches = searchMatches(q);
+  resultNodes = fullMatches.slice(0, 12);
+  if (!resultNodes.length) {
+    const d = document.createElement("div"); d.className = "r-none";
+    d.textContent = "No matches";
+    resultsEl.append(d);
+  }
+  if (fullMatches.length > 1) {
+    const all = document.createElement("button");
+    all.setAttribute("role", "option");
+    const dot = document.createElement("span"); dot.className = "r-dot"; dot.style.background = "var(--hl)";
+    const name = document.createElement("span"); name.className = "r-name";
+    name.textContent = "Trace all " + fullMatches.length + " matches together";
+    all.append(dot, name);
+    all.addEventListener("click", () => pickAll(q));
+    resultsEl.append(all);
+    resultActions.push(() => pickAll(q));
+  }
+  resultNodes.forEach((n, i) => {
+    const b = document.createElement("button");
+    b.setAttribute("role", "option");
+    const dot = document.createElement("span");
+    if (n.kind === "P" && n.type === "USER") { dot.className = "r-ring"; dot.style.borderColor = nodeColor(n); }
+    else { dot.className = "r-dot"; dot.style.background = nodeColor(n); }
+    const name = document.createElement("span"); name.className = "r-name"; name.textContent = n.name;
+    const ty = document.createElement("span"); ty.className = "r-type"; ty.textContent = typeLabel(n) + " · " + n.rows.length;
+    b.append(dot, name, ty);
+    b.addEventListener("click", () => pickResult(i));
+    resultsEl.append(b);
+    resultActions.push(() => pickResult(i));
+  });
+  resultsEl.classList.add("open");
+}
+function pickResult(i) {
+  const n = resultNodes[i];
+  if (!n) return;
+  searchEl.value = n.name;
+  resultsEl.classList.remove("open");
+  select(n);
+  renderTable(n.name.toLowerCase());
+}
+function pickAll(q) {
+  if (!fullMatches.length) return;
+  resultsEl.classList.remove("open");
+  const rows = [...new Set(fullMatches.flatMap(m => m.rows))];
+  select({ kind: "M", key: "M|" + q, name: q, rows, matches: [...fullMatches] });
+}
+function setActive(i) {
+  const opts = [...resultsEl.querySelectorAll("button")];
+  opts.forEach((o, j) => o.classList.toggle("active", j === i));
+  activeIdx = i;
+  if (opts[i]) opts[i].scrollIntoView({ block: "nearest" });
+}
+searchEl.addEventListener("input", () => {
+  const q = searchEl.value.trim().toLowerCase();
+  renderTable(q);
+  renderResults(q);
+  if (!q) { if (!selected) clearLit(); else applyLit(litSets(selected)); return; }
+  // dim non-matching nodes; light matched nodes only (pick one to trace its paths)
+  if (!fullMatches.length) { clearLit(); return; }
+  const lit = { nodes: new Set(fullMatches.map(n => n.key)), edges: new Set() };
+  applyLit(lit);
+});
+searchEl.addEventListener("keydown", ev => {
+  if (!resultsEl.classList.contains("open")) return;
+  if (ev.key === "ArrowDown") { ev.preventDefault(); setActive(Math.min(activeIdx + 1, resultActions.length - 1)); }
+  else if (ev.key === "ArrowUp") { ev.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); }
+  else if (ev.key === "Enter") {
+    ev.preventDefault();
+    if (activeIdx >= 0) { const a = resultActions[activeIdx]; if (a) a(); }
+    else if (resultNodes.length) { pickResult(0); }
+  }
+  else if (ev.key === "Escape") { resultsEl.classList.remove("open"); }
+});
+document.addEventListener("click", ev => {
+  if (!ev.target.closest(".search-wrap")) resultsEl.classList.remove("open");
+});
+
+// ---------- table view ----------
+const tbody = document.getElementById("tbody");
+function renderTable(q) {
+  tbody.replaceChildren();
+  let shown = 0;
+  for (const r of DATA) {
+    const hay = (r[1] + " " + r[2] + " " + r[3] + " " + r[4]).toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    shown++;
+    const tr = document.createElement("tr");
+    const cells = [r[1], r[0] === "USER" ? "User" : "Group", r[2], r[4], r[3]];
+    cells.forEach((c, i) => {
+      const td = document.createElement("td");
+      if (i === 1) td.className = "tag";
+      if (i === 4) td.className = "num";
+      td.textContent = c;
+      tr.append(td);
+    });
+    tbody.append(tr);
+  }
+  document.getElementById("tcount").textContent = shown + " of " + DATA.length + " assignments";
+}
+renderTable("");
+
+// ---------- view toggle ----------
+const bG = document.getElementById("btn-graph"), bT = document.getElementById("btn-table");
+function setView(graph) {
+  bG.setAttribute("aria-pressed", String(graph));
+  bT.setAttribute("aria-pressed", String(!graph));
+  document.getElementById("graphview").style.display = graph ? "block" : "none";
+  document.getElementById("tableview").style.display = graph ? "none" : "block";
+}
+bG.addEventListener("click", () => setView(true));
+bT.addEventListener("click", () => setView(false));
+</script>
+</body>
+</html>

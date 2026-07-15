@@ -14,6 +14,7 @@
 import re
 from collections import namedtuple
 import logging
+import pathlib
 
 import boto3
 import aws_error_utils
@@ -24,6 +25,7 @@ from aws_sso_lib.lookup import Ids
 from aws_sso_lib.assignments import _list_assignments, Assignment
 
 from .utils import configure_logging
+from .visualize import write_access_graph
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,6 +90,8 @@ def get_target_filter(values):
 
 @click.option("--lookup-names/--no-lookup-names", default=True, help="Look up names for principals, permission sets, and accounts")
 
+@click.option("--visualize", "visualize_file", is_flag=False, flag_value="access-graph.html", default=None, metavar="[HTML_FILE]", help="Also write an interactive HTML access graph, to HTML_FILE if given, otherwise to access-graph.html")
+
 @click.option("--show-id/--hide-id", default=False, help="Print Identity Center instance/identity store id being used")
 @click.option("--separator", "--sep", default=",", metavar="SEP", help="Field separator for output")
 @click.option("--header/--no-header", default=True, help="Include or supress the header row")
@@ -104,6 +108,7 @@ def assignments(
         ou_values,
         ou_recursive,
         lookup_names,
+        visualize_file,
         show_id,
         separator,
         header,
@@ -172,11 +177,22 @@ def assignments(
             fields[fields.index("permission_set_arn")] = "permission_set_id"
         print(separator.join(fields))
 
+    assignments_for_graph = []
     for assignment in assignments_iterator: #lookup_assignments(session, ids, principal_filter, permission_set_filter, target_filter):
+        if visualize_file:
+            assignments_for_graph.append(assignment)
         if arn_style == "id":
             assignment = assignment._replace(instance_arn=assignment.instance_arn.split("/", 1)[-1])
             assignment = assignment._replace(permission_set_arn=assignment.permission_set_arn.split("/", 2)[-1])
         print(separator.join(v or "" for v in assignment))
+
+    if visualize_file:
+        num_written = write_access_graph(assignments_for_graph, visualize_file)
+        graph_uri = pathlib.Path(visualize_file).resolve().as_uri()
+        click.secho(
+            "Wrote access graph with {} assignments to {}".format(num_written, visualize_file),
+            fg="green", err=True)
+        click.secho("Open it: {}".format(graph_uri), fg="green", err=True)
 
 if __name__ == "__main__":
     assignments(prog_name="python -m aws_sso_util.assignments")  #pylint: disable=unexpected-keyword-arg,no-value-for-parameter
